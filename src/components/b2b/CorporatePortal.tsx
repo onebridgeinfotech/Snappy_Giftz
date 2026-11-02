@@ -212,9 +212,9 @@ export const CorporatePortal: React.FC = () => {
           contactPhone: regForm.contactPhone,
           registeredAddress: {
             street: regForm.street,
-            city: regForm.city || 'Ajmer',
-            state: regForm.state || 'Rajasthan',
-            stateCode: regForm.stateCode || '08',
+            city: regForm.city || 'Hyderabad',
+            state: regForm.state || 'Telangana',
+            stateCode: regForm.stateCode || '36',
             pincode: regForm.pincode,
           },
           gstin: regForm.gstin || undefined,
@@ -443,9 +443,9 @@ Ananya Sen,9830022334,ananya@company.com,SKU-prod-1,15,Salt Lake Sector V,,Kolka
       email: newRec.email || '',
       phone: newRec.phone || '+91 98000 00000',
       address: newRec.address || '',
-      city: newRec.city || pinVerification.city || 'Ajmer',
-      state: newRec.state || pinVerification.state || 'Rajasthan',
-      pincode: newRec.pincode || '305001',
+      city: newRec.city || pinVerification.city || 'Hyderabad',
+      state: newRec.state || pinVerification.state || 'Telangana',
+      pincode: newRec.pincode || '500062',
       department: newRec.department || 'Corporate',
       customGiftNote: newRec.customGiftNote || 'Best wishes from the leadership team!'
     };

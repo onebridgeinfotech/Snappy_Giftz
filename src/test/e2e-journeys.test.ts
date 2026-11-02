@@ -104,7 +104,7 @@ export async function runE2EJourneysTestSuite(): Promise<{ passed: number; faile
     // 17-18. Issue tax invoice and verify PDF buffer
     const invoice = await issueTaxInvoice(order.orderNumber);
     assert.ok(invoice.invoiceNumber.includes('/'));
-    assert.equal(invoice.supplierGstin, '08AAAAA0000A1Z5');
+    assert.equal(invoice.supplierGstin, '36AAAAA0000A1Z5');
 
     const pdfBuffer = await getInvoicePdfBuffer(invoice);
     assert.ok(pdfBuffer.length > 500);

@@ -285,7 +285,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
   const steps = [
     { title: 'Order Placed', desc: 'Payment verified & order booked' },
     { title: 'Artwork Approval', desc: 'Laser typography preview verified' },
-    { title: 'In Customization', desc: 'Laser etching / UV printing in Ajmer Craft Lab' },
+    { title: 'In Customization', desc: 'Laser etching / UV printing in SNAPPY GIFTZ Craft Atelier' },
     { title: 'Quality Check', desc: 'Tamper-proof gift packaging & wax seal' },
     { title: 'Dispatched', desc: 'Handed to express logistics courier' },
     { title: 'In Transit', desc: 'On route to destination delivery hub' },
@@ -554,7 +554,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
             {/* Banner when tracking is not yet assigned */}
             {!awb && (
               <div className="pt-2 border-t border-[#D5A34A]/15 text-[11px] text-[#CBD5E1] bg-[#24252A] p-2.5 rounded-xl border border-[#D5A34A]/15 leading-relaxed">
-                ✨ <strong className="text-[#F5BD48]">Artisan Lab in Progress:</strong> Your gift is undergoing precision customization and quality inspection in our Ajmer workshop. Express courier tracking information will be dispatched once sealed.
+                ✨ <strong className="text-[#F5BD48]">Artisan Lab in Progress:</strong> Your gift is undergoing precision customization and quality inspection in our SNAPPY GIFTZ workshop. Express courier tracking information will be dispatched once sealed.
               </div>
             )}
           </div>

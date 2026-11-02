@@ -73,11 +73,12 @@ function renderHeader(seller: SellerConfigData, title: string): string {
  * Common HTML email footer wrapper.
  */
 function renderFooter(seller: SellerConfigData): string {
+  const phonePart = seller.contactPhone ? ` | ${escapeHtml(seller.contactPhone)}` : '';
   return `
     <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: #64748b; border-radius: 0 0 8px 8px;">
-      <p style="margin: 0 0 6px 0;">${escapeHtml(seller.legalName)} • GSTIN: ${escapeHtml(seller.gstin)}</p>
-      <p style="margin: 0 0 6px 0;">${escapeHtml(seller.registeredStreet)}, ${escapeHtml(seller.city)}, ${escapeHtml(seller.state)} - ${escapeHtml(seller.pincode)}</p>
-      <p style="margin: 0;">Support: <a href="mailto:${escapeHtml(seller.contactEmail)}" style="color: #2563eb; text-decoration: none;">${escapeHtml(seller.contactEmail)}</a> | ${escapeHtml(seller.contactPhone)}</p>
+      <p style="margin: 0 0 6px 0; font-weight: 600; color: #1e293b;">${escapeHtml(seller.legalName)}</p>
+      <p style="margin: 0 0 6px 0;">${escapeHtml(seller.registeredStreet)}, ${escapeHtml(seller.city)}, ${escapeHtml(seller.state)} - ${escapeHtml(seller.pincode)}, India</p>
+      <p style="margin: 0;">Support: <a href="mailto:${escapeHtml(seller.contactEmail)}" style="color: #2563eb; text-decoration: none;">${escapeHtml(seller.contactEmail)}</a>${phonePart}</p>
     </div>
   `;
 }

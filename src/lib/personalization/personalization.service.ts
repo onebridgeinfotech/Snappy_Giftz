@@ -448,9 +448,9 @@ export function generateCustomerProofPngBuffer(spec: ProofGenerationSpec): Buffe
   drawBoxBorder(rawData, width, height, 0, 0, width - 1, height - 1, [74, 14, 23, 255], 4);
   drawBoxBorder(rawData, width, height, 5, 5, width - 6, height - 6, [212, 175, 55, 255], 1);
 
-  // 3. Top Banner Header (Ajmer Atelier)
+  // 3. Top Banner Header (SNAPPY GIFTZ Atelier)
   fillBox(rawData, width, height, 6, 6, width - 7, 36, [42, 8, 12, 255]);
-  drawString(rawData, width, height, 'AJMER ATELIER BESPOKE PROOF', 18, 14, [245, 215, 120, 255], 2);
+  drawString(rawData, width, height, 'SNAPPY GIFTZ BESPOKE PROOF', 18, 14, [245, 215, 120, 255], 2);
   drawString(rawData, width, height, `v${spec.version || 1}`, width - 42, 16, [245, 215, 120, 255], 2);
 
   // 4. Product & Variant Subheader
@@ -989,7 +989,7 @@ export async function persistOrderPersonalization(
         staffReviewedBy: null,
         customizationFeePaise: feePaise,
         metadata: {
-          craftingLocation: 'Ajmer Central Atelier',
+          craftingLocation: 'SNAPPY GIFTZ Central Atelier',
           laserResolution: '0.05mm',
           productId: input.productId,
           variantName: input.variantId || 'Standard Edition',
@@ -1077,7 +1077,7 @@ export async function persistOrderPersonalization(
       customizationFeePaise: feePaise,
       staffNotes: null,
       metadata: {
-        craftingLocation: 'Ajmer Central Atelier',
+        craftingLocation: 'SNAPPY GIFTZ Central Atelier',
         laserResolution: '0.05mm',
         productId: input.productId,
         variantName: input.variantId || 'Standard Edition',

@@ -111,7 +111,7 @@ const MainContent: React.FC = () => {
   const faqs = [
     {
       q: 'How does the laser engraving and hot-foil personalization process work?',
-      a: 'Once you choose a personalized gift, you can type the recipient name or upload a company logo in our Live Personalization Studio. Our artisans in our Ajmer Craft Lab preview the digital proof and engrave it using fiber-laser precision with zero fading, followed by complimentary gold-foil gift wrapping.'
+      a: 'Once you choose a personalized gift, you can type the recipient name or upload a company logo in our Live Personalization Studio. Our artisans in our SNAPPY GIFTZ Craft Studio preview the digital proof and engrave it using fiber-laser precision with zero fading, followed by complimentary gold-foil gift wrapping.'
     },
     {
       q: 'Do you deliver across India with guaranteed damage-free packaging?',
@@ -123,7 +123,7 @@ const MainContent: React.FC = () => {
     },
     {
       q: 'Do you issue valid Indian GST Tax Invoices for corporate ITC tax credit?',
-      a: 'Yes. Every corporate and B2C order receives an official GST Tax Invoice stating HSN codes, SAC, and CGST/SGST (intra-state Rajasthan) or IGST (inter-state). You can claim full Input Tax Credit (ITC).'
+      a: 'Yes. Every corporate and B2C order receives an official GST Tax Invoice stating HSN codes, SAC, and CGST/SGST (intra-state Telangana) or IGST (inter-state). You can claim full Input Tax Credit (ITC).'
     }
   ];
 
@@ -155,7 +155,7 @@ const MainContent: React.FC = () => {
       ) : (
         /* B2C STOREFRONT */
         <main className="flex-1">
-          {/* Hero Banner matching Ajmer Gift Charm visual inspiration */}
+          {/* Hero Banner matching SNAPPY GIFTZ visual inspiration */}
           <HeroBanner />
 
           {/* Catalog & Search Section */}
@@ -390,7 +390,7 @@ const MainContent: React.FC = () => {
                 <div className="lg:col-span-7 space-y-6">
                   <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#17181C] border border-[#D5A34A]/30 text-[#D5A34A] text-xs font-mono uppercase tracking-wider shadow-xs">
                     <Crown className="w-3.5 h-3.5 text-[#F5BD48]" />
-                    <span>The Ajmer Artisan Charter</span>
+                    <span>The SNAPPY GIFTZ Artisan Charter</span>
                   </div>
                   
                   <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight">
@@ -401,7 +401,7 @@ const MainContent: React.FC = () => {
                   </h2>
                   
                   <p className="text-[#CBD5E1] text-sm sm:text-base leading-relaxed max-w-xl font-light">
-                    Located in the heart of historical Ajmer, Rajasthan, our craft atelier fuses centuries-old regional metalwork and ceramic traditions with modern fiber-laser engraving technology. Whether it's a single mug for your soulmate or 2,000 corporate welcome kits, our master craftsmen hand-inspect each box before sealing.
+                    At SNAPPY GIFTZ, our craft atelier fuses regional metalwork, glassware, and fine ceramic traditions with modern fiber-laser engraving technology. Whether it's a single mug for your soulmate or 2,000 corporate welcome kits, our master craftsmen hand-inspect each box before sealing.
                   </p>
                   
                   {/* Business Statistics Grid */}
@@ -429,7 +429,7 @@ const MainContent: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-[10px] uppercase font-bold text-[#D5A34A] tracking-wider font-mono">Pledge of Excellence</div>
-                      <h3 className="font-serif font-bold text-base sm:text-lg text-white">The Ajmer Charm Quality Guarantee</h3>
+                      <h3 className="font-serif font-bold text-base sm:text-lg text-white">The SNAPPY GIFTZ Quality Guarantee</h3>
                     </div>
                   </div>
 
@@ -519,7 +519,7 @@ const MainContent: React.FC = () => {
                       ))}
                     </div>
                     <p className="text-xs sm:text-sm text-[#CBD5E1] italic leading-relaxed font-light">
-                      "Ajmer Gift Charm handled our company's Diwali gifting for 320 employees across Delhi, Mumbai, and Bengaluru. The multi-address CSV dispatch and GST tax invoice made accounting seamless!"
+                      "SNAPPY GIFTZ handled our company's Diwali gifting for 320 employees across Delhi, Mumbai, and Bengaluru. The multi-address CSV dispatch and GST tax invoice made accounting seamless!"
                     </p>
                   </div>
                   <div className="mt-6 pt-4 border-t border-[#D5A34A]/15 flex items-center justify-between text-xs">
@@ -542,7 +542,7 @@ const MainContent: React.FC = () => {
                       ))}
                     </div>
                     <p className="text-xs sm:text-sm text-[#CBD5E1] italic leading-relaxed font-light">
-                      "The brass lantern and soy candle hamper had the most divine rose aroma! The handwritten wax seal card made my best friend cry tears of joy. Truly Rajasthan's best gifting brand."
+                      "The brass lantern and soy candle hamper had the most divine rose aroma! The handwritten wax seal card made my best friend cry tears of joy. Truly India's best bespoke gifting brand."
                     </p>
                   </div>
                   <div className="mt-6 pt-4 border-t border-[#D5A34A]/15 flex items-center justify-between text-xs">

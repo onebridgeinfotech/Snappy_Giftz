@@ -10,6 +10,8 @@ import {
   ShieldCheck
 } from 'lucide-react';
 
+import { BUSINESS_CONFIG } from '../config/business';
+
 interface TaxInvoiceModalProps {
   onClose: () => void;
 }
@@ -25,7 +27,7 @@ export const TaxInvoiceModal: React.FC<TaxInvoiceModalProps> = ({ onClose }) => 
     window.print();
   };
 
-  const isIntraState = order.shippingAddress.state.toLowerCase() === 'rajasthan';
+  const isIntraState = order.shippingAddress.state.toLowerCase() === 'telangana';
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -90,17 +92,14 @@ export const TaxInvoiceModal: React.FC<TaxInvoiceModalProps> = ({ onClose }) => 
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-serif text-2xl font-bold tracking-tight text-slate-900">
-                  SNAPPY GIFTZ
-                </span>
-                <span className="text-xs font-mono font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                  LLP
+                  {BUSINESS_CONFIG.brandName}
                 </span>
               </div>
               <p className="text-[11px] text-slate-500">Curated Bespoke Luxury • Gifts That Create Memories</p>
               <div className="text-[11px] text-slate-600 mt-2 space-y-0.5">
-                <div>14, Ana Sagar Circular Road, Civil Lines, Ajmer, Rajasthan - 305001</div>
-                <div><strong>GSTIN:</strong> 08AAACA9921M1Z3 | <strong>State Code:</strong> 08 (Rajasthan)</div>
-                <div><strong>Email:</strong> billing@snappygiftz.com | <strong>Contact:</strong> +91 98290 84721</div>
+                <div>{BUSINESS_CONFIG.address.formattedSingleLine}</div>
+                <div><strong>State:</strong> Telangana | <strong>State Code:</strong> 36</div>
+                <div><strong>Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.officialEmail}`} className="text-blue-700 underline">{BUSINESS_CONFIG.officialEmail}</a></div>
               </div>
             </div>
 
@@ -148,7 +147,7 @@ export const TaxInvoiceModal: React.FC<TaxInvoiceModalProps> = ({ onClose }) => 
                 Dispatch / Logistics:
               </h4>
               <div className="text-[11px] text-slate-600 space-y-1">
-                <div><strong>Fulfillment Hub:</strong> Ajmer Central Craft Lab</div>
+                <div><strong>Fulfillment Hub:</strong> {BUSINESS_CONFIG.brandName} Central Fulfillment</div>
                 <div><strong>Courier Partner:</strong> {isQuotation ? 'Delhivery Corporate Logistics' : order.courierPartner}</div>
                 <div><strong>Payment Terms:</strong> {isQuotation ? quotation.paymentTerms : `${order.paymentMethod} (${order.paymentStatus})`}</div>
                 <div><strong>Reverse Charge (RCM):</strong> No</div>
@@ -227,7 +226,7 @@ export const TaxInvoiceModal: React.FC<TaxInvoiceModalProps> = ({ onClose }) => 
                     <span className="font-mono">₹{(order.taxTotal / 2).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between text-slate-500 text-[11px]">
-                    <span>SGST (Rajasthan) @ 9%:</span>
+                    <span>SGST (Telangana) @ 9%:</span>
                     <span className="font-mono">₹{(order.taxTotal / 2).toLocaleString('en-IN')}</span>
                   </div>
                 </>
@@ -259,16 +258,16 @@ export const TaxInvoiceModal: React.FC<TaxInvoiceModalProps> = ({ onClose }) => 
             <div className="text-[10px] text-slate-500 space-y-1">
               <div className="font-bold text-slate-700 uppercase">Declaration:</div>
               <p>
-                We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct. Goods once sold are covered under Snappy Giftz 7-day transit replacement guarantee.
+                We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct. Goods once sold are covered under {BUSINESS_CONFIG.brandName} 7-day transit replacement guarantee.
               </p>
               <div className="text-slate-400">Computer generated invoice. No physical signature required.</div>
             </div>
 
             <div className="text-right">
               <div className="w-32 h-16 border border-dashed border-[#D5A34A] rounded-lg ml-auto flex items-center justify-center text-[10px] text-amber-900 font-serif italic bg-amber-50/50">
-                Snappy Giftz Authorized Seal
+                {BUSINESS_CONFIG.brandName} Authorized Seal
               </div>
-              <div className="text-xs font-bold text-slate-800 mt-1">For Snappy Giftz LLP</div>
+              <div className="text-xs font-bold text-slate-800 mt-1">For {BUSINESS_CONFIG.brandName}</div>
               <div className="text-[10px] text-slate-500">Authorized Signatory</div>
             </div>
           </div>

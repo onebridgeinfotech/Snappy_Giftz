@@ -3,10 +3,10 @@ import './globals.css';
 import { AppProvider } from '@/context/AppContext';
 
 export const metadata: Metadata = {
-  title: 'Snappy Gifts | Premier B2C & B2B Corporate Gifting Platform',
+  title: 'SNAPPY GIFTZ | Premier B2C & B2B Corporate Gifting Platform',
   description: 'Premier B2C and B2B gift e-commerce platform with personalized laser-engraved gifts, corporate bulk gifting, RFQ workflow, inventory, GST invoicing, and recipient distribution.',
   openGraph: {
-    title: 'Snappy Gifts | Premier B2C & B2B Corporate Gifting Platform',
+    title: 'SNAPPY GIFTZ | Premier B2C & B2B Corporate Gifting Platform',
     description: 'Premier B2C and B2B gift e-commerce platform with personalized gifts, corporate bulk gifting, RFQ workflow, inventory, GST invoicing, and recipient distribution.',
     type: 'website',
   },

@@ -68,10 +68,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [customerPhone, setCustomerPhone] = useState(
     mode === 'b2b' ? organization.phone : '+91 98290 12345'
   );
-  const [street, setStreet] = useState('14, Ana Sagar Circular Road, Civil Lines');
-  const [city, setCity] = useState('Ajmer');
-  const [state, setState] = useState('Rajasthan');
-  const [pincode, setPincode] = useState(currentPincode || '305001');
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [pincode, setPincode] = useState(currentPincode || '');
   const [gstin, setGstin] = useState(mode === 'b2b' ? organization.gstin : '');
   const [companyName, setCompanyName] = useState(mode === 'b2b' ? organization.companyName : '');
 

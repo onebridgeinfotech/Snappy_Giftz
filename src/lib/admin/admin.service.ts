@@ -12,6 +12,7 @@ import {
 import { DEV_EMAIL_OUTBOX_STORE } from '@/lib/email/email-outbox.service';
 import { invalidateAllUserSessions } from '@/lib/auth/session';
 import { isStorefrontFallbackAllowed } from '@/lib/catalog/public-catalog.service';
+import { BUSINESS_CONFIG } from '@/config/business';
 
 // =============================================================
 // Batch 10: Error Classes
@@ -66,11 +67,11 @@ export interface DevStoreConfig {
 
 export const DEV_STORE_CONFIG: DevStoreConfig = {
   id: 'default',
-  storeName: 'Snappy Gifts',
-  supportEmail: 'support@snappygifts.in',
-  supportPhone: '+91 145 200 1234',
-  operatingHours: 'Mon-Sat 9:30 AM - 6:30 PM IST',
-  headquartersAddress: 'Ajmer Central Gifting Hub, Rajasthan - 305001',
+  storeName: BUSINESS_CONFIG.brandName,
+  supportEmail: BUSINESS_CONFIG.officialEmail,
+  supportPhone: '',
+  operatingHours: BUSINESS_CONFIG.operatingHours,
+  headquartersAddress: BUSINESS_CONFIG.address.formattedSingleLine,
   standardShippingFeePaise: 9900n, // ₹99
   freeShippingThresholdPaise: 99900n, // ₹999
   expressShippingFeePaise: 19900n, // ₹199
@@ -91,11 +92,11 @@ export const DEV_ADMIN_USERS_STORE: Map<string, any> = new Map();
 
 export function resetAdminDevStores() {
   DEV_AUDIT_LOGS_STORE.length = 0;
-  DEV_STORE_CONFIG.storeName = 'Snappy Gifts';
-  DEV_STORE_CONFIG.supportEmail = 'support@snappygifts.in';
-  DEV_STORE_CONFIG.supportPhone = '+91 145 200 1234';
-  DEV_STORE_CONFIG.operatingHours = 'Mon-Sat 9:30 AM - 6:30 PM IST';
-  DEV_STORE_CONFIG.headquartersAddress = 'Ajmer Central Gifting Hub, Rajasthan - 305001';
+  DEV_STORE_CONFIG.storeName = BUSINESS_CONFIG.brandName;
+  DEV_STORE_CONFIG.supportEmail = BUSINESS_CONFIG.officialEmail;
+  DEV_STORE_CONFIG.supportPhone = '';
+  DEV_STORE_CONFIG.operatingHours = BUSINESS_CONFIG.operatingHours;
+  DEV_STORE_CONFIG.headquartersAddress = BUSINESS_CONFIG.address.formattedSingleLine;
   DEV_STORE_CONFIG.standardShippingFeePaise = 9900n;
   DEV_STORE_CONFIG.freeShippingThresholdPaise = 99900n;
   DEV_STORE_CONFIG.expressShippingFeePaise = 19900n;
@@ -1635,7 +1636,7 @@ export async function getSystemHealthOverview(): Promise<SystemHealthStatus> {
   const emailInfo = {
     status: emailStatus,
     host: process.env.SMTP_HOST || 'Mailpit (Local Docker :1025)',
-    sender: process.env.EMAIL_FROM || 'orders@snappygifts.in',
+    sender: process.env.EMAIL_FROM || BUSINESS_CONFIG.officialEmail,
   };
 
   const storageInfo = {

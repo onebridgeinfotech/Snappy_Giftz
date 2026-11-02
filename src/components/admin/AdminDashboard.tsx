@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Product, Order, SupportTicket } from '../../types';
+import { BUSINESS_CONFIG } from '../../config/business';
 import {
   BarChart3,
   Package,
@@ -101,12 +102,29 @@ export const AdminDashboard: React.FC = () => {
   const [storeConfig, setStoreConfig] = useState<any | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
-  const [storeConfigForm, setStoreConfigForm] = useState({
-    storeName: 'Snappy Gifts',
-    supportEmail: 'support@snappygifts.in',
-    supportPhone: '+91 145 200 1234',
-    operatingHours: 'Mon-Sat 9:30 AM - 6:30 PM IST',
-    headquartersAddress: 'Ajmer Central Gifting Hub, Rajasthan - 305001',
+  const [storeConfigForm, setStoreConfigForm] = useState<{
+    storeName: string;
+    supportEmail: string;
+    supportPhone: string;
+    operatingHours: string;
+    headquartersAddress: string;
+    standardShippingFeeRupees: number;
+    freeShippingThresholdRupees: number;
+    expressShippingFeeRupees: number;
+    shippingInstructions: string;
+    lowStockThreshold: number;
+    outOfStockThreshold: number;
+    autoNotifyLowStock: boolean;
+    allowCustomText: boolean;
+    allowArtworkUpload: boolean;
+    maxArtworkUploadBytes: number;
+    woodenCrateSurchargeRupees: number;
+  }>({
+    storeName: BUSINESS_CONFIG.brandName,
+    supportEmail: BUSINESS_CONFIG.officialEmail,
+    supportPhone: '',
+    operatingHours: BUSINESS_CONFIG.operatingHours,
+    headquartersAddress: BUSINESS_CONFIG.address.formattedSingleLine,
     standardShippingFeeRupees: 99,
     freeShippingThresholdRupees: 999,
     expressShippingFeeRupees: 199,
@@ -352,11 +370,11 @@ export const AdminDashboard: React.FC = () => {
       if (res.ok && data.data) {
         setStoreConfig(data.data);
         setStoreConfigForm({
-          storeName: data.data.storeName || 'Snappy Gifts',
-          supportEmail: data.data.supportEmail || 'support@snappygifts.in',
-          supportPhone: data.data.supportPhone || '+91 145 200 1234',
-          operatingHours: data.data.operatingHours || 'Mon-Sat 9:30 AM - 6:30 PM IST',
-          headquartersAddress: data.data.headquartersAddress || 'Ajmer Central Gifting Hub, Rajasthan - 305001',
+          storeName: data.data.storeName || BUSINESS_CONFIG.brandName,
+          supportEmail: data.data.supportEmail || BUSINESS_CONFIG.officialEmail,
+          supportPhone: data.data.supportPhone || '',
+          operatingHours: data.data.operatingHours || BUSINESS_CONFIG.operatingHours,
+          headquartersAddress: data.data.headquartersAddress || BUSINESS_CONFIG.address.formattedSingleLine,
           standardShippingFeeRupees: Number(data.data.standardShippingFeePaise || 9900) / 100,
           freeShippingThresholdRupees: Number(data.data.freeShippingThresholdPaise || 99900) / 100,
           expressShippingFeeRupees: Number(data.data.expressShippingFeePaise || 19900) / 100,
@@ -959,9 +977,9 @@ export const AdminDashboard: React.FC = () => {
   const [newProdBasePrice, setNewProdBasePrice] = useState(1499);
   const [newProdMrp, setNewProdMrp] = useState(2199);
   const [newProdStock, setNewProdStock] = useState(100);
-  const [newProdWarehouse, setNewProdWarehouse] = useState('Ajmer Central Warehouse');
-  const [newProdSku, setNewProdSku] = useState('AJM-NEW-101');
-  const [newProdTagline, setNewProdTagline] = useState('Artisanal personalized gift handcrafted in Ajmer');
+  const [newProdWarehouse, setNewProdWarehouse] = useState('Hyderabad Central Warehouse');
+  const [newProdSku, setNewProdSku] = useState('SG-NEW-101');
+  const [newProdTagline, setNewProdTagline] = useState(`Artisanal personalized gift handcrafted by ${BUSINESS_CONFIG.brandName}`);
   const [newProdImage, setNewProdImage] = useState(
     'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=800&q=80'
   );
@@ -1014,7 +1032,7 @@ export const AdminDashboard: React.FC = () => {
             <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-mono font-bold uppercase">
               Operations Control Center
             </span>
-            <span className="text-xs text-slate-400">Ajmer Central Gifting Hub</span>
+            <span className="text-xs text-slate-400">Central Operations Hub</span>
           </div>
           <h1 className="font-serif text-3xl font-bold text-slate-900 mt-1">
             Store & Warehouse Administration
@@ -1776,7 +1794,7 @@ export const AdminDashboard: React.FC = () => {
                 Warehouse Stock & SKU Management
               </h2>
               <p className="text-xs text-slate-500">
-                Monitor real-time inventory counts across Ajmer, Jaipur, and Delhi hubs.
+                Monitor real-time inventory counts across Hyderabad, Bengaluru, and national fulfillment hubs.
               </p>
             </div>
           </div>
@@ -2206,7 +2224,7 @@ export const AdminDashboard: React.FC = () => {
                   {t.messages.map((m, idx) => (
                     <div key={idx} className={`p-2.5 rounded-xl ${m.sender === 'agent' ? 'bg-rose-50 text-rose-950 ml-6' : 'bg-slate-50 text-slate-800 mr-6'}`}>
                       <div className="font-bold text-[10px] uppercase text-slate-400 mb-0.5">
-                        {m.sender === 'agent' ? 'Ajmer Support Desk' : t.customerName} • {m.time}
+                        {m.sender === 'agent' ? `${BUSINESS_CONFIG.brandName} Support Desk` : t.customerName} • {m.time}
                       </div>
                       <div>{m.text}</div>
                     </div>
@@ -3752,7 +3770,7 @@ export const AdminDashboard: React.FC = () => {
                   onChange={(e) => setNewProdWarehouse(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
                 >
-                  <option value="Ajmer Central Warehouse">Ajmer Central Warehouse (Rajasthan)</option>
+                  <option value="Hyderabad Central Warehouse">Hyderabad Central Warehouse (Telangana)</option>
                   <option value="Jaipur Logistics Hub">Jaipur Logistics Hub</option>
                   <option value="Delhi Hub & Fulfillment Center">Delhi Hub & Fulfillment Center</option>
                 </select>
@@ -4261,7 +4279,7 @@ export const AdminDashboard: React.FC = () => {
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Packed in secure corrugated box with bubble wrap from Ajmer Hub..."
+                  placeholder="Packed in secure corrugated box with bubble wrap from Central Hub..."
                   value={dispatchNotes}
                   onChange={(e) => setDispatchNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"

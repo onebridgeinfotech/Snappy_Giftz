@@ -13,7 +13,7 @@ test.describe('1. Customer Gifting & Order Lifecycle Journeys', () => {
   test('Customer Journey: Homepage, Catalog, Search, Cart & Guest Tracking', async ({ page }) => {
     // 1. Visit the homepage
     await page.goto('/');
-    await expect(page).toHaveTitle(/Snappy Gifts|Ajmer Gift Charm/i);
+    await expect(page).toHaveTitle(/SNAPPY GIFTZ|Snappy Gifts/i);
 
     // 2. Browse curated products section
     const catalogHeading = page.locator('text=CURATED RAJASTHAN CATALOG');

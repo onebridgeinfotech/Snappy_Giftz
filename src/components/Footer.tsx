@@ -13,6 +13,8 @@ import {
   Crown
 } from 'lucide-react';
 
+import { BUSINESS_CONFIG } from '@/config/business';
+
 export const Footer: React.FC = () => {
   const { setMode, showToast, navigateToCatalog } = useApp();
   const [email, setEmail] = useState('');
@@ -39,31 +41,33 @@ export const Footer: React.FC = () => {
             <div className="flex items-center gap-3">
               <img
                 src="/assets/snappy-gifts.png"
-                alt="SNAPPY GIFTZ"
+                alt={BUSINESS_CONFIG.brandName}
                 className="h-10 sm:h-12 w-auto object-contain drop-shadow-[0_2px_12px_rgba(213,163,74,0.18)]"
               />
             </div>
 
             <p className="text-xs text-[#CBD5E1]/80 leading-relaxed max-w-sm">
-              Ajmer&apos;s premier luxury online gift studio and corporate bulk gifting house. We craft 24K gold-rim ceramic drinkware, laser-etched keepsakes, soy candles, brass lattice lanterns, festive hampers, and day-one employee onboarding kits with pan-India insured express logistics.
+              India&apos;s premier luxury online gift studio and corporate bulk gifting house. We craft 24K gold-rim ceramic drinkware, laser-etched keepsakes, soy candles, brass lattice lanterns, festive hampers, and day-one employee onboarding kits with pan-India insured express logistics.
             </p>
 
             <div className="space-y-2.5 text-xs text-[#CBD5E1]/80 pt-1">
               <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-[#D5A34A] shrink-0 mt-0.5" />
-                <span>Atelier: 14, Ana Sagar Circular Road, Civil Lines, Ajmer, Rajasthan - 305001</span>
+                <span className="leading-relaxed text-xs text-[#CBD5E1]/90 max-w-sm sm:max-w-md">
+                  {BUSINESS_CONFIG.address.formattedSingleLine}
+                </span>
               </div>
               <div className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-[#D5A34A] shrink-0" />
-                <span>Corporate Desk: <strong className="text-[#F1F5F9] font-medium">+91 98290 84721</strong> | Toll-Free: <strong className="text-[#F1F5F9] font-medium">1800-202-GIFT</strong></span>
+                <Mail className="w-4 h-4 text-[#D5A34A] shrink-0" />
+                <a
+                  href={`mailto:${BUSINESS_CONFIG.officialEmail}`}
+                  className="hover:text-[#F5BD48] text-[#CBD5E1] transition-colors underline-offset-2 hover:underline font-medium"
+                >
+                  {BUSINESS_CONFIG.officialEmail}
+                </a>
               </div>
-              <div className="flex items-start sm:items-center gap-2.5">
-                <Mail className="w-4 h-4 text-[#D5A34A] shrink-0 mt-0.5 sm:mt-0" />
-                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                  <a href="mailto:concierge@ajmergiftcharm.com" className="hover:text-[#F5BD48] transition-colors underline-offset-2 hover:underline">concierge@ajmergiftcharm.com</a>
-                  <span className="hidden sm:inline text-[#D5A34A]/40">|</span>
-                  <a href="mailto:corporate@ajmergiftcharm.com" className="hover:text-[#F5BD48] transition-colors underline-offset-2 hover:underline">corporate@ajmergiftcharm.com</a>
-                </div>
+              <div className="text-[11px] text-[#94A3B8] pl-6.5">
+                Hours: {BUSINESS_CONFIG.operatingHours}
               </div>
             </div>
           </div>
@@ -127,11 +131,6 @@ export const Footer: React.FC = () => {
               </div>
             </form>
 
-            <div className="pt-2">
-              <span className="text-[10.5px] text-[#94A3B8] block font-mono">
-                GSTIN: 08AAACA9921M1Z3 • MSME Certified Udyam-RJ-01-XXXX
-              </span>
-            </div>
           </div>
 
         </div>
@@ -170,20 +169,26 @@ export const Footer: React.FC = () => {
             <span>UPI • Visa • MasterCard • RuPay</span>
           </div>
 
-          {/* Legal Links */}
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-[10.5px] sm:text-[11px] text-[#CBD5E1]/80">
-            <button onClick={() => setMode('b2c')} className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Privacy Policy</button>
+          {/* Legal & Business Links */}
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[10.5px] sm:text-[11px] text-[#CBD5E1]/80">
+            <a href="/privacy" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Privacy Policy</a>
             <span className="text-[#D5A34A]/40">•</span>
-            <button onClick={() => setMode('b2c')} className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Terms of Service</button>
+            <a href="/terms" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Terms of Service</a>
             <span className="text-[#D5A34A]/40">•</span>
-            <button onClick={() => setMode('b2c')} className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Shipping &amp; Returns</button>
+            <a href="/shipping-policy" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Shipping Policy</a>
             <span className="text-[#D5A34A]/40">•</span>
-            <button onClick={() => setMode('b2b')} className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">B2B Procurement</button>
+            <a href="/refund-policy" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Refund Policy</a>
+            <span className="text-[#D5A34A]/40">•</span>
+            <a href="/contact" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Contact Us</a>
+            <span className="text-[#D5A34A]/40">•</span>
+            <a href="/about" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">About Us</a>
+            <span className="text-[#D5A34A]/40">•</span>
+            <button onClick={() => setMode('b2b')} className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">B2B Procurement</button>
           </div>
         </div>
 
         <div className="text-[11px] text-[#94A3B8]/80 pt-2 border-t border-white/5">
-          © 2026 SNAPPY GIFTZ (Ajmer Gift Charm Atelier). All rights reserved. Handcrafted with royal pride in Ajmer, Rajasthan, India.
+          © 2026 {BUSINESS_CONFIG.brandName}. All rights reserved.
         </div>
       </div>
     </footer>

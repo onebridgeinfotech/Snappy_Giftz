@@ -100,11 +100,11 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY_PRODUCTS = 'ajmer_products_v1';
-const LOCAL_STORAGE_KEY_ORDERS = 'ajmer_orders_v1';
-const LOCAL_STORAGE_KEY_QUOTATIONS = 'ajmer_rfqs_v1';
-const LOCAL_STORAGE_KEY_CART = 'ajmer_cart_v1';
-const LOCAL_STORAGE_KEY_WISHLIST = 'ajmer_wishlist_v1';
+const LOCAL_STORAGE_KEY_PRODUCTS = 'snappy_giftz_products_v1';
+const LOCAL_STORAGE_KEY_ORDERS = 'snappy_giftz_orders_v1';
+const LOCAL_STORAGE_KEY_QUOTATIONS = 'snappy_giftz_rfqs_v1';
+const LOCAL_STORAGE_KEY_CART = 'snappy_giftz_cart_v1';
+const LOCAL_STORAGE_KEY_WISHLIST = 'snappy_giftz_wishlist_v1';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setMode] = useState<'b2c' | 'b2b' | 'admin'>('b2c');
