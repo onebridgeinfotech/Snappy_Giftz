@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Product, Order, SupportTicket } from '../../types';
+import { BUSINESS_CONFIG } from '../../config/business';
 import {
   BarChart3,
   Package,
@@ -55,8 +56,55 @@ export const AdminDashboard: React.FC = () => {
     addTicketReply,
     setSelectedOrder,
     setActiveModal,
-    showToast
+    showToast,
+    setMode
   } = useApp();
+
+  // Security Gate: Verify server-side administrator/staff authentication
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && data.user && (data.user.role === 'ADMIN' || data.user.role === 'STAFF')) {
+          setIsAdminAuthenticated(true);
+        } else {
+          setIsAdminAuthenticated(false);
+        }
+      })
+      .catch(() => setIsAdminAuthenticated(false));
+  }, []);
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    setAuthError(null);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: adminEmail, password: adminPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Invalid administrator credentials');
+      }
+      if (data.user?.role !== 'ADMIN' && data.user?.role !== 'STAFF') {
+        throw new Error('Access denied. Administrator or Staff role required.');
+      }
+      setIsAdminAuthenticated(true);
+      showToast('Authenticated as Administrator.');
+    } catch (err: any) {
+      setAuthError(err.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   const [activeAdminTab, setActiveAdminTab] = useState<
     | 'overview'
@@ -101,12 +149,29 @@ export const AdminDashboard: React.FC = () => {
   const [storeConfig, setStoreConfig] = useState<any | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
-  const [storeConfigForm, setStoreConfigForm] = useState({
-    storeName: 'Snappy Gifts',
-    supportEmail: 'support@snappygifts.in',
-    supportPhone: '+91 145 200 1234',
-    operatingHours: 'Mon-Sat 9:30 AM - 6:30 PM IST',
-    headquartersAddress: 'Ajmer Central Gifting Hub, Rajasthan - 305001',
+  const [storeConfigForm, setStoreConfigForm] = useState<{
+    storeName: string;
+    supportEmail: string;
+    supportPhone: string;
+    operatingHours: string;
+    headquartersAddress: string;
+    standardShippingFeeRupees: number;
+    freeShippingThresholdRupees: number;
+    expressShippingFeeRupees: number;
+    shippingInstructions: string;
+    lowStockThreshold: number;
+    outOfStockThreshold: number;
+    autoNotifyLowStock: boolean;
+    allowCustomText: boolean;
+    allowArtworkUpload: boolean;
+    maxArtworkUploadBytes: number;
+    woodenCrateSurchargeRupees: number;
+  }>({
+    storeName: BUSINESS_CONFIG.brandName,
+    supportEmail: BUSINESS_CONFIG.officialEmail,
+    supportPhone: '',
+    operatingHours: BUSINESS_CONFIG.operatingHours,
+    headquartersAddress: BUSINESS_CONFIG.address.formattedSingleLine,
     standardShippingFeeRupees: 99,
     freeShippingThresholdRupees: 999,
     expressShippingFeeRupees: 199,
@@ -352,11 +417,11 @@ export const AdminDashboard: React.FC = () => {
       if (res.ok && data.data) {
         setStoreConfig(data.data);
         setStoreConfigForm({
-          storeName: data.data.storeName || 'Snappy Gifts',
-          supportEmail: data.data.supportEmail || 'support@snappygifts.in',
-          supportPhone: data.data.supportPhone || '+91 145 200 1234',
-          operatingHours: data.data.operatingHours || 'Mon-Sat 9:30 AM - 6:30 PM IST',
-          headquartersAddress: data.data.headquartersAddress || 'Ajmer Central Gifting Hub, Rajasthan - 305001',
+          storeName: data.data.storeName || BUSINESS_CONFIG.brandName,
+          supportEmail: data.data.supportEmail || BUSINESS_CONFIG.officialEmail,
+          supportPhone: data.data.supportPhone || '',
+          operatingHours: data.data.operatingHours || BUSINESS_CONFIG.operatingHours,
+          headquartersAddress: data.data.headquartersAddress || BUSINESS_CONFIG.address.formattedSingleLine,
           standardShippingFeeRupees: Number(data.data.standardShippingFeePaise || 9900) / 100,
           freeShippingThresholdRupees: Number(data.data.freeShippingThresholdPaise || 99900) / 100,
           expressShippingFeeRupees: Number(data.data.expressShippingFeePaise || 19900) / 100,
@@ -740,44 +805,8 @@ export const AdminDashboard: React.FC = () => {
         setAdminPagination(data.pagination);
       }
     } catch (err: any) {
-      console.warn('[AdminDashboard] API fetch failed, falling back to local orders:', err.message);
-      // Dev/local fallback: map context orders into admin table structure
-      let list = orders.map((o) => ({
-        id: o.id,
-        orderNumber: o.orderNumber,
-        customerName: o.customerName,
-        customerEmail: o.customerEmail,
-        customerPhone: o.customerPhone,
-        destinationStateCode: o.shippingAddress?.state ? '08' : '08',
-        orderStatus: o.orderStatus,
-        paymentStatus: o.paymentStatus,
-        paymentMethod: o.paymentMethod,
-        itemsCount: o.items.reduce((acc, i) => acc + i.quantity, 0),
-        grandTotalPaise: Math.round(o.grandTotal * 100),
-        createdAt: o.date ? new Date(o.date).toISOString() : new Date().toISOString(),
-        shipment: o.awbNumber ? {
-          carrierPartner: o.courierPartner,
-          awbNumber: o.awbNumber,
-          trackingUrl: o.trackingUrl || null,
-          dispatchStatus: o.orderStatus === 'Delivered' ? 'DELIVERED' : 'DISPATCHED',
-          dispatchedAt: new Date().toISOString(),
-          deliveredAt: o.orderStatus === 'Delivered' ? new Date().toISOString() : null,
-        } : null,
-      }));
-
-      if (orderStatusFilter) {
-        list = list.filter((o) => o.orderStatus.toLowerCase() === orderStatusFilter.toLowerCase() || o.orderStatus.replace('_', ' ').toLowerCase() === orderStatusFilter.replace('_', ' ').toLowerCase());
-      }
-      if (paymentStatusFilter) {
-        list = list.filter((o) => o.paymentStatus.toLowerCase() === paymentStatusFilter.toLowerCase());
-      }
-      if (orderSearch.trim()) {
-        const s = orderSearch.trim().toLowerCase();
-        list = list.filter((o) => o.orderNumber.toLowerCase().includes(s) || o.customerName.toLowerCase().includes(s) || o.customerPhone.includes(s));
-      }
-
-      setAdminOrders(list);
-      setAdminPagination({ total: list.length, page: 1, limit: 10, totalPages: Math.max(1, Math.ceil(list.length / 10)) });
+      setAdminOrderError(err.message || 'Failed to fetch orders from server.');
+      setAdminOrders([]);
     } finally {
       setIsLoadingOrders(false);
     }
@@ -959,9 +988,9 @@ export const AdminDashboard: React.FC = () => {
   const [newProdBasePrice, setNewProdBasePrice] = useState(1499);
   const [newProdMrp, setNewProdMrp] = useState(2199);
   const [newProdStock, setNewProdStock] = useState(100);
-  const [newProdWarehouse, setNewProdWarehouse] = useState('Ajmer Central Warehouse');
-  const [newProdSku, setNewProdSku] = useState('AJM-NEW-101');
-  const [newProdTagline, setNewProdTagline] = useState('Artisanal personalized gift handcrafted in Ajmer');
+  const [newProdWarehouse, setNewProdWarehouse] = useState('Hyderabad Central Warehouse');
+  const [newProdSku, setNewProdSku] = useState('SG-NEW-101');
+  const [newProdTagline, setNewProdTagline] = useState(`Artisanal personalized gift handcrafted by ${BUSINESS_CONFIG.brandName}`);
   const [newProdImage, setNewProdImage] = useState(
     'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=800&q=80'
   );
@@ -1004,6 +1033,89 @@ export const AdminDashboard: React.FC = () => {
     setNewProdName('');
   };
 
+  if (isAdminAuthenticated === null) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center bg-[#08090B]">
+        <div className="w-10 h-10 border-2 border-[#D5A34A] border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm font-medium text-[#CBD5E1]">Verifying Administrator Privileges...</p>
+      </div>
+    );
+  }
+
+  if (!isAdminAuthenticated) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4 py-16 bg-[#08090B]">
+        <div className="max-w-md w-full bg-[#17181C] border border-[#D5A34A]/30 rounded-3xl p-8 shadow-2xl space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-[#D5A34A]/10 border border-[#D5A34A]/30 flex items-center justify-center">
+              <ShieldCheck className="w-8 h-8 text-[#D5A34A]" />
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-white tracking-wide">
+              SNAPPY GIFTZ Operations HQ
+            </h2>
+            <p className="text-xs text-[#94A3B8]">
+              Restricted Area: Server-side administrator or staff credentials required.
+            </p>
+          </div>
+
+          {authError && (
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs text-center font-medium">
+              {authError}
+            </div>
+          )}
+
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#CBD5E1] mb-1.5">
+                Admin Email
+              </label>
+              <input
+                type="email"
+                required
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="admin@snappygiftz.com"
+                className="w-full bg-[#08090B] border border-[#D5A34A]/25 rounded-xl px-4 py-2.5 text-xs text-white placeholder-[#64748B] focus:border-[#F5BD48] focus:outline-hidden"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#CBD5E1] mb-1.5">
+                Password
+              </label>
+              <input
+                type="password"
+                required
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full bg-[#08090B] border border-[#D5A34A]/25 rounded-xl px-4 py-2.5 text-xs text-white placeholder-[#64748B] focus:border-[#F5BD48] focus:outline-hidden"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold text-xs shadow-lg hover:brightness-110 transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isLoggingIn ? 'Authenticating...' : 'Sign In to Operations HQ'}
+            </button>
+          </form>
+
+          <div className="text-center pt-2 border-t border-[#D5A34A]/15">
+            <button
+              type="button"
+              onClick={() => setMode('b2c')}
+              className="text-xs text-[#94A3B8] hover:text-[#D5A34A] transition-colors cursor-pointer"
+            >
+              ← Return to Customer Storefront
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
@@ -1014,7 +1126,7 @@ export const AdminDashboard: React.FC = () => {
             <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-mono font-bold uppercase">
               Operations Control Center
             </span>
-            <span className="text-xs text-slate-400">Ajmer Central Gifting Hub</span>
+            <span className="text-xs text-slate-400">Central Operations Hub</span>
           </div>
           <h1 className="font-serif text-3xl font-bold text-slate-900 mt-1">
             Store & Warehouse Administration
@@ -1776,7 +1888,7 @@ export const AdminDashboard: React.FC = () => {
                 Warehouse Stock & SKU Management
               </h2>
               <p className="text-xs text-slate-500">
-                Monitor real-time inventory counts across Ajmer, Jaipur, and Delhi hubs.
+                Monitor real-time inventory counts across Hyderabad, Bengaluru, and national fulfillment hubs.
               </p>
             </div>
           </div>
@@ -2206,7 +2318,7 @@ export const AdminDashboard: React.FC = () => {
                   {t.messages.map((m, idx) => (
                     <div key={idx} className={`p-2.5 rounded-xl ${m.sender === 'agent' ? 'bg-rose-50 text-rose-950 ml-6' : 'bg-slate-50 text-slate-800 mr-6'}`}>
                       <div className="font-bold text-[10px] uppercase text-slate-400 mb-0.5">
-                        {m.sender === 'agent' ? 'Ajmer Support Desk' : t.customerName} • {m.time}
+                        {m.sender === 'agent' ? `${BUSINESS_CONFIG.brandName} Support Desk` : t.customerName} • {m.time}
                       </div>
                       <div>{m.text}</div>
                     </div>
@@ -3681,7 +3793,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Add Product Modal */}
       {showAddProductModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl space-y-4">
             <h3 className="font-serif font-bold text-xl text-slate-900">Add New Product to Catalog</h3>
             <form onSubmit={handleCreateProduct} className="space-y-3 text-xs">
@@ -3752,7 +3864,7 @@ export const AdminDashboard: React.FC = () => {
                   onChange={(e) => setNewProdWarehouse(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
                 >
-                  <option value="Ajmer Central Warehouse">Ajmer Central Warehouse (Rajasthan)</option>
+                  <option value="Hyderabad Central Warehouse">Hyderabad Central Warehouse (Telangana)</option>
                   <option value="Jaipur Logistics Hub">Jaipur Logistics Hub</option>
                   <option value="Delhi Hub & Fulfillment Center">Delhi Hub & Fulfillment Center</option>
                 </select>
@@ -3790,7 +3902,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Batch 6: Order Details & Audit History Modal */}
       {selectedOrderDetails && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-4xl bg-white rounded-3xl p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-200 pb-4">
@@ -4187,7 +4299,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Batch 6: Dispatch Courier Modal */}
       {dispatchModalOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
@@ -4261,7 +4373,7 @@ export const AdminDashboard: React.FC = () => {
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Packed in secure corrugated box with bubble wrap from Ajmer Hub..."
+                  placeholder="Packed in secure corrugated box with bubble wrap from Central Hub..."
                   value={dispatchNotes}
                   onChange={(e) => setDispatchNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
@@ -4319,7 +4431,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Batch 10: Edit User Role Modal */}
       {editingUserRole && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="font-serif font-bold text-lg text-slate-900 flex items-center gap-2">
@@ -4379,7 +4491,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Batch 10: View User Details Modal */}
       {selectedUserDetail && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="font-serif font-bold text-lg text-slate-900 flex items-center gap-2">
@@ -4462,7 +4574,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Batch 10: Audit Payload Inspector Modal */}
       {selectedAuditPayload && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-xl bg-white rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="font-serif font-bold text-lg text-slate-900 flex items-center gap-2">

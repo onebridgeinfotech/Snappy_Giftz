@@ -3,10 +3,10 @@ import './globals.css';
 import { AppProvider } from '@/context/AppContext';
 
 export const metadata: Metadata = {
-  title: 'Snappy Gifts | Premier B2C & B2B Corporate Gifting Platform',
+  title: 'SNAPPY GIFTZ | Premier B2C & B2B Corporate Gifting Platform',
   description: 'Premier B2C and B2B gift e-commerce platform with personalized laser-engraved gifts, corporate bulk gifting, RFQ workflow, inventory, GST invoicing, and recipient distribution.',
   openGraph: {
-    title: 'Snappy Gifts | Premier B2C & B2B Corporate Gifting Platform',
+    title: 'SNAPPY GIFTZ | Premier B2C & B2B Corporate Gifting Platform',
     description: 'Premier B2C and B2B gift e-commerce platform with personalized gifts, corporate bulk gifting, RFQ workflow, inventory, GST invoicing, and recipient distribution.',
     type: 'website',
   },
@@ -30,7 +30,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="bg-[#FFFDFB] text-slate-800 antialiased selection:bg-rose-200 selection:text-rose-900 font-sans">
+      <body className="bg-[#08090B] text-[#F1F5F9] antialiased selection:bg-[#D5A34A]/30 selection:text-[#F5BD48] font-sans">
         <AppProvider>
           {children}
         </AppProvider>

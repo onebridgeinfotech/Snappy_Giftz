@@ -36,7 +36,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     ],
     stock: 180,
     sku: 'AJM-MUG-001',
-    warehouseLocation: 'Ajmer Central Warehouse',
+    warehouseLocation: 'Hyderabad Central Warehouse',
     dimensions: '12 x 9 x 10 cm',
     weight: '650g',
     estimatedDispatchDays: 1,
@@ -117,7 +117,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     ],
     stock: 85,
     sku: 'AJM-DECOR-891',
-    warehouseLocation: 'Ajmer Central Warehouse',
+    warehouseLocation: 'Hyderabad Central Warehouse',
     dimensions: '25 x 25 x 15 cm',
     weight: '1.4kg',
     estimatedDispatchDays: 1,
@@ -153,7 +153,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     minOrderQty: 1,
     stock: 220,
     sku: 'AJM-PLAQUE-009',
-    warehouseLocation: 'Ajmer Central Warehouse',
+    warehouseLocation: 'Hyderabad Central Warehouse',
     dimensions: '18 x 22 x 4 cm',
     weight: '450g',
     estimatedDispatchDays: 1,
@@ -231,7 +231,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     ],
     stock: 75,
     sku: 'AJM-CLOCK-004',
-    warehouseLocation: 'Ajmer Central Warehouse',
+    warehouseLocation: 'Hyderabad Central Warehouse',
     dimensions: '14 x 14 x 5 cm',
     weight: '700g',
     estimatedDispatchDays: 1,
@@ -266,7 +266,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     minOrderQty: 1,
     stock: 140,
     sku: 'AJM-BEAR-012',
-    warehouseLocation: 'Ajmer Central Warehouse',
+    warehouseLocation: 'Hyderabad Central Warehouse',
     dimensions: '40 x 28 x 25 cm',
     weight: '550g',
     estimatedDispatchDays: 1,
@@ -482,7 +482,7 @@ export const INITIAL_TICKETS: SupportTicket[] = [
     createdAt: '2026-10-23',
     messages: [
       { sender: 'customer', text: 'Hi team, can I add "Forever & Always" below Sneha & Rohit?', time: '10:15 AM' },
-      { sender: 'agent', text: 'Sure Meera! We have relayed this to our Ajmer engraving unit before final laser etching.', time: '10:45 AM' }
+      { sender: 'agent', text: 'Sure Meera! We have relayed this to our SNAPPY GIFTZ engraving unit before final laser etching.', time: '10:45 AM' }
     ]
   }
 ];

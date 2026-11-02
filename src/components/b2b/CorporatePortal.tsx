@@ -212,9 +212,9 @@ export const CorporatePortal: React.FC = () => {
           contactPhone: regForm.contactPhone,
           registeredAddress: {
             street: regForm.street,
-            city: regForm.city || 'Ajmer',
-            state: regForm.state || 'Rajasthan',
-            stateCode: regForm.stateCode || '08',
+            city: regForm.city || 'Hyderabad',
+            state: regForm.state || 'Telangana',
+            stateCode: regForm.stateCode || '36',
             pincode: regForm.pincode,
           },
           gstin: regForm.gstin || undefined,
@@ -443,9 +443,9 @@ Ananya Sen,9830022334,ananya@company.com,SKU-prod-1,15,Salt Lake Sector V,,Kolka
       email: newRec.email || '',
       phone: newRec.phone || '+91 98000 00000',
       address: newRec.address || '',
-      city: newRec.city || pinVerification.city || 'Ajmer',
-      state: newRec.state || pinVerification.state || 'Rajasthan',
-      pincode: newRec.pincode || '305001',
+      city: newRec.city || pinVerification.city || 'Hyderabad',
+      state: newRec.state || pinVerification.state || 'Telangana',
+      pincode: newRec.pincode || '500062',
       department: newRec.department || 'Corporate',
       customGiftNote: newRec.customGiftNote || 'Best wishes from the leadership team!'
     };
@@ -1569,7 +1569,12 @@ Ananya Sen,9830022334,ananya@company.com,SKU-prod-1,15,Salt Lake Sector V,,Kolka
 
       {/* Quote Accept / Reject Confirmation Modal */}
       {selectedQuoteForAction && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedQuoteForAction(null);
+          }}
+          className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-rose-100">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-serif font-bold text-lg text-slate-900">

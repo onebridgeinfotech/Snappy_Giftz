@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { getPublicProductBySlug } from '@/lib/catalog/public-catalog.service';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { BUSINESS_CONFIG } from '@/config/business';
 import {
   Sparkles,
   ShieldCheck,
@@ -103,7 +104,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     sku: product.slug,
     brand: {
       '@type': 'Brand',
-      name: 'Snappy Gifts',
+      name: BUSINESS_CONFIG.brandName,
     },
     offers: {
       '@type': 'Offer',
@@ -113,7 +114,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       url: `https://snappygifts.in/products/${product.slug}`,
       seller: {
         '@type': 'Organization',
-        name: 'Snappy Gifts Ajmer',
+        name: BUSINESS_CONFIG.brandName,
       },
     },
   };

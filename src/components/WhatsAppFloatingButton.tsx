@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Sparkles } from 'lucide-react';
 
 interface WhatsAppFloatingButtonProps {
@@ -8,13 +8,33 @@ interface WhatsAppFloatingButtonProps {
 
 export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
   phoneNumber = '919829084721',
-  defaultMessage = 'Hello Ajmer Gift Charm! I would like to inquire about personalized gifts and corporate bulk orders.'
+  defaultMessage = 'Hello Snappy Giftz! I would like to inquire about personalized gifts and corporate bulk orders.'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [userMsg, setUserMsg] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const encodedDefaultMsg = encodeURIComponent(defaultMessage);
-  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedDefaultMsg}`;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   const handleSendCustomMsg = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,17 +45,17 @@ export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-auto">
+    <div ref={containerRef} className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-[60] flex flex-col items-end pointer-events-auto">
       
       {/* Interactive Quick Chat Drawer / Tooltip Popover */}
       {isOpen && (
-        <div className="mb-3 w-80 sm:w-84 rounded-3xl bg-white shadow-2xl border border-rose-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="mb-3 w-80 sm:w-84 rounded-3xl bg-[#17181C] shadow-2xl border border-[#D5A34A]/30 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 motion-reduce:animate-none">
           
           {/* Header */}
-          <div className="bg-gradient-to-r from-[#075E54] to-[#128C7E] p-4 text-white relative">
+          <div className="bg-gradient-to-r from-[#0C3026] via-[#124E3F] to-[#0C3026] p-4 text-white relative border-b border-[#D5A34A]/30">
             <button
               onClick={() => setIsOpen(false)}
-              className="absolute top-3.5 right-3.5 text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+              className="absolute top-3.5 right-3.5 text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-[#D5A34A]"
               aria-label="Close WhatsApp chat"
             >
               <X className="w-4 h-4" />
@@ -43,18 +63,18 @@ export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
             
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center border border-white/30 text-white font-serif font-black text-sm">
-                  AG
+                <div className="w-10 h-10 rounded-full bg-[#17181C] flex items-center justify-center border border-[#D5A34A]/50 text-[#F5BD48] font-serif font-bold text-xs shadow-inner">
+                  SG
                 </div>
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-[#075E54] rounded-full" />
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-[#0C3026] rounded-full" />
               </div>
 
               <div>
                 <div className="font-serif font-bold text-sm text-white flex items-center gap-1.5">
-                  <span>Ajmer Gift Concierge</span>
-                  <Sparkles className="w-3 h-3 text-amber-300" />
+                  <span>Snappy Giftz Concierge</span>
+                  <Sparkles className="w-3 h-3 text-[#F5BD48]" />
                 </div>
-                <div className="text-[11px] text-emerald-100">
+                <div className="text-[11px] text-emerald-200/90">
                   Online • Typically replies in 2 mins
                 </div>
               </div>
@@ -62,15 +82,16 @@ export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
           </div>
 
           {/* Chat Body */}
-          <div className="p-4 bg-[#ECE5DD] space-y-3">
-            <div className="bg-white rounded-2xl rounded-tl-xs p-3.5 shadow-xs max-w-[90%] text-xs text-slate-800 space-y-1">
-              <div className="font-semibold text-[#075E54] text-[11px]">
-                Namaste! 🙏
+          <div className="p-4 bg-[#0E0F12] space-y-3 border-b border-white/5">
+            <div className="bg-[#17181C] rounded-2xl rounded-tl-xs p-3.5 shadow-md border border-[#D5A34A]/20 max-w-[92%] text-xs text-[#CBD5E1] space-y-1">
+              <div className="font-semibold text-[#F5BD48] text-[11px] flex items-center gap-1">
+                <span>Namaste!</span>
+                <span>🙏</span>
               </div>
               <p className="leading-relaxed">
-                Welcome to Ajmer Gift Charm. Need help customizing a gift, tracking an order, or getting bulk corporate GST pricing?
+                Welcome to SNAPPY GIFTZ. Need help customizing a gift, tracking an order, or getting bulk corporate GST pricing?
               </p>
-              <div className="text-[9.5px] text-slate-400 text-right pt-0.5">
+              <div className="text-[9.5px] text-[#94A3B8] text-right pt-0.5">
                 Just now
               </div>
             </div>
@@ -81,10 +102,11 @@ export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
                 onClick={() => {
                   window.open(
                     `https://wa.me/${phoneNumber}?text=${encodeURIComponent('Hi! I need help personalizing a gift with custom photo/text.')}`,
-                    '_blank'
+                    '_blank',
+                    'noopener,noreferrer'
                   );
                 }}
-                className="w-full text-left text-[11px] font-semibold text-slate-700 bg-white/90 hover:bg-white p-2 rounded-xl border border-white/60 transition-all hover:border-emerald-500 hover:text-emerald-800 shadow-2xs"
+                className="w-full text-left text-[11px] font-medium text-[#CBD5E1] bg-[#1A1C22] hover:bg-[#242730] hover:text-[#F5BD48] p-2.5 rounded-xl border border-[#D5A34A]/20 hover:border-[#D5A34A]/50 transition-all shadow-2xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-[#D5A34A]"
               >
                 ✨ Help me customize a personalized gift
               </button>
@@ -92,10 +114,11 @@ export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
                 onClick={() => {
                   window.open(
                     `https://wa.me/${phoneNumber}?text=${encodeURIComponent('Hello! Looking for corporate bulk gifting catalog and GST invoice quotation.')}`,
-                    '_blank'
+                    '_blank',
+                    'noopener,noreferrer'
                   );
                 }}
-                className="w-full text-left text-[11px] font-semibold text-slate-700 bg-white/90 hover:bg-white p-2 rounded-xl border border-white/60 transition-all hover:border-emerald-500 hover:text-emerald-800 shadow-2xs"
+                className="w-full text-left text-[11px] font-medium text-[#CBD5E1] bg-[#1A1C22] hover:bg-[#242730] hover:text-[#F5BD48] p-2.5 rounded-xl border border-[#D5A34A]/20 hover:border-[#D5A34A]/50 transition-all shadow-2xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-[#D5A34A]"
               >
                 💼 Corporate bulk order with GST quotation
               </button>
@@ -103,18 +126,19 @@ export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
           </div>
 
           {/* Chat Input */}
-          <form onSubmit={handleSendCustomMsg} className="p-2.5 bg-white border-t border-slate-100 flex items-center gap-2">
+          <form onSubmit={handleSendCustomMsg} className="p-2.5 bg-[#17181C] border-t border-[#D5A34A]/20 flex items-center gap-2">
             <input
               type="text"
               placeholder="Type your message on WhatsApp..."
               value={userMsg}
               onChange={(e) => setUserMsg(e.target.value)}
-              className="flex-1 px-3.5 py-2 text-xs rounded-full border border-slate-200 focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="flex-1 px-3.5 py-2 text-xs rounded-full bg-[#08090B] text-[#F1F5F9] border border-[#D5A34A]/30 focus:outline-hidden focus:border-[#D5A34A] focus:ring-1 focus:ring-[#D5A34A] placeholder-[#94A3B8]/60 transition-all"
             />
             <button
               type="submit"
-              className="w-8 h-8 rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white flex items-center justify-center transition-colors shadow-xs shrink-0"
+              className="w-8 h-8 rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white flex items-center justify-center transition-colors shadow-xs shrink-0 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-[#D5A34A]"
               title="Open WhatsApp"
+              aria-label="Send message on WhatsApp"
             >
               <Send className="w-3.5 h-3.5" />
             </button>
@@ -123,29 +147,29 @@ export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
         </div>
       )}
 
-      {/* Floating Circle Button with Real Authentic WhatsApp App Icon */}
+      {/* Floating Circle Button with Authentic WhatsApp App Icon */}
       <div className="relative group">
         
         {/* Subtle Ping Animation Ring */}
-        <span className="absolute -inset-1 rounded-full bg-[#25D366]/40 blur-xs animate-ping pointer-events-none opacity-40 group-hover:opacity-75" />
+        <span className="absolute -inset-1 rounded-full bg-[#25D366]/30 blur-xs animate-ping motion-reduce:hidden pointer-events-none opacity-40 group-hover:opacity-75" />
 
         {/* Small Tooltip on Hover (When Closed) */}
         {!isOpen && (
-          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 rounded-full bg-[#2F0B10]/90 backdrop-blur-md text-white text-[11px] font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none flex items-center gap-1.5">
+          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 rounded-full bg-[#17181C]/95 backdrop-blur-md text-[#F1F5F9] text-[11px] font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 border border-[#D5A34A]/30 shadow-lg pointer-events-none flex items-center gap-1.5 motion-reduce:transition-none">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
             <span>Chat on WhatsApp</span>
           </div>
         )}
 
-        {/* Real Circular WhatsApp Button */}
+        {/* Real Circular WhatsApp Button with gold rim */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="relative w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white shadow-[0_6px_25px_rgba(37,211,102,0.45)] hover:shadow-[0_8px_30px_rgba(37,211,102,0.6)] flex items-center justify-center transition-all duration-300 transform hover:scale-108 active:scale-95 focus:outline-hidden border-2 border-white"
-          aria-label="Chat with Ajmer Gift Charm on WhatsApp"
+          className="relative w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white shadow-[0_6px_25px_rgba(0,0,0,0.5),0_0_15px_rgba(37,211,102,0.3)] hover:shadow-[0_8px_30px_rgba(37,211,102,0.45)] flex items-center justify-center transition-all duration-300 transform hover:scale-105 active:scale-95 motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#D5A34A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090B] border-2 border-[#D5A34A]/70"
+          aria-label="Chat with Snappy Giftz concierge on WhatsApp"
         >
           {/* Authentic Official WhatsApp Icon SVG */}
           <svg
-            className="w-7 h-7 sm:w-8 sm:h-8 fill-white"
+            className="w-6 h-6 sm:w-7 sm:h-7 fill-white"
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
           >

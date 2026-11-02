@@ -14,7 +14,8 @@ import {
   Search,
   ExternalLink,
   AlertCircle,
-  Loader2
+  Loader2,
+  Crown
 } from 'lucide-react';
 
 interface OrderTrackingModalProps {
@@ -99,101 +100,95 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
           return item;
         };
 
-        if (lookedUpOrder && Array.isArray(lookedUpOrder.items)) {
+        if (lookedUpOrder) {
           setLookedUpOrder((prev: any) => ({
             ...prev,
-            items: prev.items.map(updateItem),
+            items: prev.items ? prev.items.map(updateItem) : [],
           }));
-        }
-        if (selectedOrder && Array.isArray((selectedOrder as any).items)) {
+        } else if (selectedOrder) {
           setSelectedOrder({
             ...selectedOrder,
-            items: (selectedOrder as any).items.map(updateItem),
-          } as any);
+            items: selectedOrder.items ? selectedOrder.items.map(updateItem) : [],
+          });
         }
       }
-    } catch {
+    } catch (err: any) {
       setApprovalError(prev => ({
         ...prev,
-        [orderItemId]: 'Network error while submitting proof approval. Please try again.',
+        [orderItemId]: err.message || 'Network error approving proof.',
       }));
     } finally {
       setApprovingProof(prev => ({ ...prev, [orderItemId]: false }));
     }
   };
 
+  // Fetch real authenticated customer orders from server on mount
   useEffect(() => {
-    // Attempt fetching customer's real orders from /api/orders
+    let isCancelled = false;
     setFetchingCustomerOrders(true);
     fetch('/api/orders')
-      .then((res) => {
-        if (res.ok) return res.json();
-        return null;
-      })
-      .then((data) => {
-        if (data && data.success && Array.isArray(data.data)) {
-          setServerCustomerOrders(data.data);
+      .then(res => res.json())
+      .then(data => {
+        if (!isCancelled && data.orders && Array.isArray(data.orders)) {
+          setServerCustomerOrders(data.orders);
+          // If no order is currently selected, select the latest server order
+          if (!selectedOrder && data.orders.length > 0) {
+            setSelectedOrder(data.orders[0]);
+          }
         }
       })
       .catch(() => {})
-      .finally(() => setFetchingCustomerOrders(false));
+      .finally(() => {
+        if (!isCancelled) setFetchingCustomerOrders(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
+  // Determine which order to display
+  const displayOrder: any = lookedUpOrder || selectedOrder || serverCustomerOrders[0] || orders[0] || null;
+
+  // Handle guest lookup form submission
   const handleGuestLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLookupError(null);
-    setLookedUpOrder(null);
-
-    const cleanNum = lookupOrderNumber.trim();
-    const cleanContact = lookupContact.trim();
-
-    if (!cleanNum || !cleanContact) {
-      setLookupError('Please enter both Order Number and your matching Email or Phone.');
-      return;
-    }
-
     setLookupLoading(true);
+
     try {
       const res = await fetch('/api/orders/lookup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderNumber: cleanNum,
-          contact: cleanContact,
+          orderNumber: lookupOrderNumber.trim(),
+          contact: lookupContact.trim(),
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setLookupError(data.error || 'Failed to locate order.');
-      } else {
-        setLookedUpOrder(data.data);
+        throw new Error(data.error || 'No matching order found.');
       }
-    } catch {
-      setLookupError('Network error while querying order. Please try again.');
+
+      setLookedUpOrder(data.order);
+      setActiveTab('lookup');
+    } catch (err: any) {
+      setLookupError(err.message || 'Lookup failed.');
+      setLookedUpOrder(null);
     } finally {
       setLookupLoading(false);
     }
   };
 
-  // Determine current active order to display
-  const currentOrder: Order = selectedOrder || orders[0];
-  const displayOrder: any = lookedUpOrder || currentOrder;
-
-  // Fetch secure proof image previews via fetch with x-guest-token header and manage object URLs
+  // Fetch verified preview images securely through authenticated private storage endpoint
   useEffect(() => {
+    if (!displayOrder || !Array.isArray(displayOrder.items)) return;
+
     let isCancelled = false;
     const abortController = new AbortController();
 
-    if (!displayOrder || !Array.isArray(displayOrder.items)) {
-      return;
-    }
-
-    const itemsToFetch = displayOrder.items.filter(
-      (it: any) => it.personalization?.proofImageUrl || it.proofImageUrl
-    );
-
-    itemsToFetch.forEach(async (item: any) => {
+    displayOrder.items.forEach(async (item: any) => {
       const proofUrl = item.personalization?.proofImageUrl || item.proofImageUrl;
       if (!proofUrl) return;
 
@@ -270,10 +265,27 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
       : '',
   ]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  // Lock body scroll while modal is active
+  useEffect(() => {
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = origOverflow;
+    };
+  }, []);
+
   const steps = [
     { title: 'Order Placed', desc: 'Payment verified & order booked' },
     { title: 'Artwork Approval', desc: 'Laser typography preview verified' },
-    { title: 'In Customization', desc: 'Laser etching / UV printing in Ajmer Craft Lab' },
+    { title: 'In Customization', desc: 'Laser etching / UV printing in SNAPPY GIFTZ Craft Atelier' },
     { title: 'Quality Check', desc: 'Tamper-proof gift packaging & wax seal' },
     { title: 'Dispatched', desc: 'Handed to express logistics courier' },
     { title: 'In Transit', desc: 'On route to destination delivery hub' },
@@ -315,23 +327,29 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in-0 duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="tracking-modal-title"
     >
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-rose-100 overflow-hidden my-6">
+      <div className="relative w-full max-w-2xl bg-[#08090B] rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.85)] border border-[#D5A34A]/30 overflow-hidden my-6 text-[#F1F5F9]">
         
-        {/* Header */}
-        <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white px-6 py-4 flex items-center justify-between">
+        {/* Header - Refined Dark Luxury */}
+        <div className="bg-[#17181C] text-white px-6 py-4 flex items-center justify-between border-b border-[#D5A34A]/20">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-rose-700/60 flex items-center justify-center text-amber-300">
-              <Truck className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-[#24252A] border border-[#D5A34A]/30 flex items-center justify-center text-[#F5BD48]">
+              <Truck className="w-5 h-5 text-[#D5A34A]" />
             </div>
             <div>
-              <h3 id="tracking-modal-title" className="font-serif font-bold text-lg">Live Shipment Tracking</h3>
-              <p className="text-xs text-rose-200">
-                Courier Partner: <span className="text-white font-semibold">{carrier || (isDispatchedOrDelivered ? 'Express Logistics' : 'Assigned Upon Dispatch')}</span>
+              <div className="flex items-center gap-2">
+                <h3 id="tracking-modal-title" className="font-serif font-bold text-lg text-white">Live Shipment Tracking</h3>
+                <Crown className="w-3.5 h-3.5 text-[#F5BD48]" />
+              </div>
+              <p className="text-xs text-[#CBD5E1]">
+                Courier Partner: <span className="text-[#F5BD48] font-semibold">{carrier || (isDispatchedOrDelivered ? 'Express Logistics' : 'Assigned Upon Dispatch')}</span>
               </p>
             </div>
           </div>
@@ -339,40 +357,42 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
           <button
             onClick={onClose}
             aria-label="Close tracking modal"
-            className="p-1 rounded-full text-rose-300 hover:text-white hover:bg-rose-800 transition-colors"
+            className="p-1.5 rounded-full text-[#CBD5E1] hover:text-[#F5BD48] hover:bg-[#24252A] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Switcher: Active Order vs Search Lookup */}
-        <div className="bg-slate-50 border-b border-slate-200 px-6 py-2.5 flex items-center justify-between gap-2 text-xs font-semibold">
+        <div className="bg-[#121316] border-b border-[#D5A34A]/15 px-6 py-2.5 flex items-center justify-between gap-2 text-xs font-semibold">
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => { setActiveTab('current'); setLookedUpOrder(null); }}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                 activeTab === 'current'
-                  ? 'bg-rose-700 text-white shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 bg-white border border-slate-200'
+                  ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-xs'
+                  : 'text-[#CBD5E1] hover:text-[#F5BD48] bg-[#24252A] border border-[#D5A34A]/20'
               }`}
             >
               Recent Orders {orders.length > 0 ? `(${orders.length})` : ''}
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('lookup')}
-              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'lookup'
-                  ? 'bg-rose-700 text-white shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 bg-white border border-slate-200'
+                  ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-xs'
+                  : 'text-[#CBD5E1] hover:text-[#F5BD48] bg-[#24252A] border border-[#D5A34A]/20'
               }`}
             >
               <Search className="w-3.5 h-3.5" />
-              <span>Track with Order # & Phone/Email</span>
+              <span>Track with Order # &amp; Phone/Email</span>
             </button>
           </div>
           {fetchingCustomerOrders && (
-            <span className="text-[11px] text-slate-400 flex items-center gap-1">
-              <Loader2 className="w-3 h-3 animate-spin" /> Syncing...
+            <span className="text-[11px] text-[#94A3B8] flex items-center gap-1 font-mono">
+              <Loader2 className="w-3 h-3 animate-spin text-[#D5A34A]" /> Syncing...
             </span>
           )}
         </div>
@@ -382,24 +402,24 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
           
           {/* LOOKUP FORM TAB */}
           {activeTab === 'lookup' && !lookedUpOrder && (
-            <form onSubmit={handleGuestLookup} className="p-5 rounded-2xl bg-rose-50/50 border border-rose-100 space-y-4 text-xs">
+            <form onSubmit={handleGuestLookup} className="p-5 rounded-2xl bg-[#17181C] border border-[#D5A34A]/25 space-y-4 text-xs">
               <div>
-                <h4 className="font-serif font-bold text-slate-900 text-sm">Guest & Order Lookup</h4>
-                <p className="text-[11px] text-slate-500">
+                <h4 className="font-serif font-bold text-white text-sm">Guest &amp; Order Lookup</h4>
+                <p className="text-[11px] text-[#94A3B8] mt-0.5">
                   Enter your Snappy Gifts Order Number and matching Email or Mobile Phone to check real-time progress.
                 </p>
               </div>
 
               {lookupError && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+                <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
                   <span>{lookupError}</span>
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-semibold text-[#CBD5E1] mb-1">
                     Order Number
                   </label>
                   <input
@@ -408,12 +428,12 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                     placeholder="e.g. SG-2026-10492"
                     value={lookupOrderNumber}
                     onChange={(e) => setLookupOrderNumber(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D5A34A]/25 bg-[#24252A] font-mono text-xs text-[#F1F5F9] placeholder-[#94A3B8] focus:border-[#D5A34A] focus:ring-1 focus:ring-[#D5A34A] outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-semibold text-[#CBD5E1] mb-1">
                     Matching Email or Phone
                   </label>
                   <input
@@ -422,7 +442,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                     placeholder="e.g. rahul@example.com or 9876543210"
                     value={lookupContact}
                     onChange={(e) => setLookupContact(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
+                    className="w-full px-3 py-2 rounded-xl border border-[#D5A34A]/25 bg-[#24252A] text-xs text-[#F1F5F9] placeholder-[#94A3B8] focus:border-[#D5A34A] focus:ring-1 focus:ring-[#D5A34A] outline-hidden"
                   />
                 </div>
               </div>
@@ -431,16 +451,16 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                 <button
                   type="submit"
                   disabled={lookupLoading}
-                  className="px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#F5BD48] via-[#D5A34A] to-[#B88728] text-[#08090B] font-bold flex items-center gap-1.5 transition-all disabled:opacity-50 hover:brightness-105 shadow-[0_2px_12px_rgba(213,163,74,0.3)] cursor-pointer"
                 >
                   {lookupLoading ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#08090B]" />
                       <span>Verifying Order...</span>
                     </>
                   ) : (
                     <>
-                      <Search className="w-3.5 h-3.5" />
+                      <Search className="w-3.5 h-3.5 text-[#08090B]" />
                       <span>Track Shipment</span>
                     </>
                   )}
@@ -451,11 +471,12 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
 
           {/* If looking up succeeded, show 'Search Another' banner */}
           {activeTab === 'lookup' && lookedUpOrder && (
-            <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs">
               <span>Showing verified shipment status for <strong>{lookedUpOrder.orderNumber}</strong>.</span>
               <button
+                type="button"
                 onClick={() => { setLookedUpOrder(null); setLookupOrderNumber(''); }}
-                className="font-bold underline hover:text-emerald-950"
+                className="font-bold underline hover:text-emerald-200 cursor-pointer"
               >
                 Track Another
               </button>
@@ -465,15 +486,16 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
           {/* Order Selector (if multiple exist in context or from server) */}
           {activeTab === 'current' && (orders.length > 1 || serverCustomerOrders.length > 0) && (
             <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-              <span className="text-slate-500 font-semibold shrink-0">Select Order:</span>
+              <span className="text-[#94A3B8] font-semibold shrink-0">Select Order:</span>
               {(serverCustomerOrders.length > 0 ? serverCustomerOrders : orders).map((o: any) => (
                 <button
                   key={o.id}
+                  type="button"
                   onClick={() => setSelectedOrder(o)}
-                  className={`px-3 py-1 rounded-full font-mono font-semibold transition-all shrink-0 ${
+                  className={`px-3 py-1 rounded-full font-mono font-semibold transition-all shrink-0 cursor-pointer ${
                     displayOrder?.id === o.id
-                      ? 'bg-rose-700 text-white shadow-2xs'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-xs'
+                      : 'bg-[#24252A] text-[#CBD5E1] hover:text-[#F5BD48] border border-[#D5A34A]/20'
                   }`}
                 >
                   {o.orderNumber}
@@ -483,46 +505,47 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
           )}
 
           {/* Shipment Summary Box */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+          <div className="p-4 rounded-2xl bg-[#17181C] border border-[#D5A34A]/20 text-xs space-y-2.5">
             <div className="flex flex-wrap justify-between items-center gap-2">
               <div>
-                <span className="text-slate-500">AWB Tracking #</span>
-                <div className="font-mono font-bold text-sm text-slate-900">
+                <span className="text-[#94A3B8]">AWB Tracking #</span>
+                <div className="font-mono font-bold text-sm text-white mt-0.5">
                   {awb || (
-                    <span className="text-amber-700 font-sans text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    <span className="text-[#F5BD48] font-sans text-xs bg-[#D5A34A]/15 px-2.5 py-0.5 rounded border border-[#D5A34A]/30">
                       Pending Dispatch Assignment
                     </span>
                   )}
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-slate-500">Current Fulfillment Status</span>
-                <div className="font-bold text-emerald-700 text-sm">
-                  {statusString.replace('_', ' ')}
+                <span className="text-[#94A3B8]">Current Fulfillment Status</span>
+                <div className="font-bold text-[#F5BD48] text-sm mt-0.5 flex items-center justify-end gap-1 font-mono">
+                  <span className="w-2 h-2 rounded-full bg-[#F5BD48] animate-pulse" />
+                  {statusString.replace(/_/g, ' ')}
                 </div>
               </div>
             </div>
 
             {/* Destination info */}
-            <div className="pt-2 border-t border-slate-200 flex flex-wrap justify-between items-center gap-2 text-slate-600">
+            <div className="pt-2 border-t border-[#D5A34A]/15 flex flex-wrap justify-between items-center gap-2 text-[#CBD5E1]">
               <span>
                 Destination: {displayOrder?.shippingAddress?.city || 'City'}, {displayOrder?.shippingAddress?.state || 'State'} ({displayOrder?.shippingAddress?.pincode || 'PIN'})
               </span>
               <span>
-                Recipient: {displayOrder?.shippingAddress?.name || displayOrder?.customerName}
+                Recipient: <strong className="text-white">{displayOrder?.shippingAddress?.name || displayOrder?.customerName}</strong>
               </span>
             </div>
 
             {/* External Carrier Link if tracking URL exists */}
             {trackingUrl && (
-              <div className="pt-2 border-t border-slate-200 flex justify-end">
+              <div className="pt-2 border-t border-[#D5A34A]/15 flex justify-end">
                 <a
                   href={trackingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-rose-700 hover:text-rose-800 font-semibold underline text-[11px]"
+                  className="inline-flex items-center gap-1.5 text-[#D5A34A] hover:text-[#F5BD48] font-semibold underline text-[11px]"
                 >
-                  <span>Track on {carrier || 'Courier'} Portal</span>
+                  <span>Track on {carrier || 'Courier'} Express Portal</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
@@ -530,23 +553,23 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
 
             {/* Banner when tracking is not yet assigned */}
             {!awb && (
-              <div className="pt-2 border-t border-slate-200 text-[11px] text-amber-800 bg-amber-50/60 p-2 rounded-xl">
-                ℹ️ <strong>Crafting in Progress:</strong> Your gift is undergoing artisan customization or quality inspection. Courier tracking details and express delivery dispatch notice will be issued once packed.
+              <div className="pt-2 border-t border-[#D5A34A]/15 text-[11px] text-[#CBD5E1] bg-[#24252A] p-2.5 rounded-xl border border-[#D5A34A]/15 leading-relaxed">
+                ✨ <strong className="text-[#F5BD48]">Artisan Lab in Progress:</strong> Your gift is undergoing precision customization and quality inspection in our SNAPPY GIFTZ workshop. Express courier tracking information will be dispatched once sealed.
               </div>
             )}
           </div>
 
           {/* Personalized Items Proof Review & Approval */}
           {Array.isArray(displayOrder?.items) && displayOrder.items.some((it: any) => it.personalization || it.proofImageUrl) && (
-            <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200 text-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
+            <div className="p-4 rounded-2xl bg-[#17181C] border border-[#D5A34A]/25 text-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-[#D5A34A]/20 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-700" />
-                  <h4 className="font-serif font-bold text-slate-900 text-sm">
-                    Artisan Personalization & Customer Proof Review
+                  <Sparkles className="w-4 h-4 text-[#F5BD48]" />
+                  <h4 className="font-serif font-bold text-white text-sm">
+                    Artisan Personalization &amp; Customer Proof Review
                   </h4>
                 </div>
-                <span className="text-[10px] text-amber-800 bg-amber-100 font-medium px-2 py-0.5 rounded-full">
+                <span className="text-[10px] text-[#F5BD48] bg-[#D5A34A]/15 border border-[#D5A34A]/30 font-medium px-2 py-0.5 rounded-full font-mono">
                   Atelier Verification
                 </span>
               </div>
@@ -569,31 +592,31 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                     return (
                       <div
                         key={item.id}
-                        className="p-3.5 rounded-xl bg-white border border-amber-200 shadow-2xs space-y-3"
+                        className="p-3.5 rounded-xl bg-[#24252A] border border-[#D5A34A]/20 shadow-xs space-y-3"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <div className="font-bold text-slate-900">{item.productName}</div>
-                            {item.sku && <div className="text-[10px] text-slate-400 font-mono">SKU: {item.sku}</div>}
+                            <div className="font-bold text-white text-sm">{item.productName}</div>
+                            {item.sku && <div className="text-[10px] text-[#94A3B8] font-mono">SKU: {item.sku}</div>}
                           </div>
 
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                            <span className="text-[10px] font-mono bg-[#17181C] text-[#CBD5E1] px-2 py-0.5 rounded border border-[#D5A34A]/20">
                               Proof v{proofVer}
                             </span>
                             {isApproved ? (
-                              <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span className="text-[10px] font-semibold bg-emerald-950/50 text-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/40">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                                 <span>Customer Approved</span>
                               </span>
                             ) : (
-                              <span className="text-[10px] font-semibold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full flex items-center gap-1 border border-rose-200">
-                                <Clock className="w-3 h-3 text-rose-600" />
+                              <span className="text-[10px] font-semibold bg-amber-950/50 text-amber-300 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-amber-500/40">
+                                <Clock className="w-3 h-3 text-amber-400" />
                                 <span>Pending Customer Approval</span>
                               </span>
                             )}
                             {isRework && (
-                              <span className="text-[10px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
+                              <span className="text-[10px] font-semibold bg-rose-950/50 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/40">
                                 Staff Rework Requested
                               </span>
                             )}
@@ -602,8 +625,8 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
 
                         {/* Revised Proof Invalidation Notice */}
                         {isRevisedPending && (
-                          <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-[11px] flex items-start gap-2">
-                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                          <div className="p-2.5 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-200 text-[11px] flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                             <div>
                               <strong>Revised Proof Notice (v{proofVer}):</strong> An updated design proof has been created.
                               Any earlier customer approval has been invalidated. Please review the updated preview below and submit your approval to authorize engraving for production.
@@ -613,15 +636,15 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
 
                         {/* Inscription preview info */}
                         {pers?.engravedText && (
-                          <div className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-[11px] flex flex-wrap justify-between gap-1 text-slate-700">
+                          <div className="p-2.5 rounded-lg bg-[#17181C] border border-[#D5A34A]/20 text-[11px] flex flex-wrap justify-between gap-1 text-[#CBD5E1]">
                             <div>
-                              <span className="text-slate-400">Inscription: </span>
-                              <span className="font-semibold text-slate-900">&ldquo;{pers.engravedText}&rdquo;</span>
+                              <span className="text-[#94A3B8]">Inscription: </span>
+                              <span className="font-semibold text-[#F5BD48]">&ldquo;{pers.engravedText}&rdquo;</span>
                             </div>
                             {pers.fontFamily && (
                               <div>
-                                <span className="text-slate-400">Typography: </span>
-                                <span className="font-mono text-slate-800">{pers.fontFamily}</span>
+                                <span className="text-[#94A3B8]">Typography: </span>
+                                <span className="font-mono text-white">{pers.fontFamily}</span>
                               </div>
                             )}
                           </div>
@@ -629,10 +652,10 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
 
                         {/* Visual Proof Preview */}
                         {proofUrl && (
-                          <div className="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-900/5 aspect-video max-h-48 flex items-center justify-center">
+                          <div className="relative border border-[#D5A34A]/25 rounded-xl overflow-hidden bg-[#08090B] aspect-video max-h-48 flex items-center justify-center">
                             {isProofLoading ? (
-                              <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                              <div className="flex items-center gap-2 text-xs text-[#94A3B8]">
+                                <Loader2 className="w-4 h-4 animate-spin text-[#F5BD48]" />
                                 <span>Loading verified proof preview...</span>
                               </div>
                             ) : previewBlobUrl ? (
@@ -642,13 +665,13 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                                   alt={`${item.productName} Proof Preview v${proofVer}`}
                                   className="max-h-full max-w-full object-contain"
                                 />
-                                <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-slate-900/80 text-white font-mono text-[10px]">
+                                <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-[#08090B]/90 border border-[#D5A34A]/30 text-[#F5BD48] font-mono text-[10px]">
                                   Proof v{proofVer}
                                 </div>
                               </>
                             ) : isProofFailed ? (
-                              <div className="p-3 text-center text-xs text-slate-500 flex flex-col items-center gap-1">
-                                <AlertCircle className="w-4 h-4 text-amber-600" />
+                              <div className="p-3 text-center text-xs text-[#94A3B8] flex flex-col items-center gap-1">
+                                <AlertCircle className="w-4 h-4 text-amber-400" />
                                 <span>Proof preview unavailable. Please check authorization or network.</span>
                               </div>
                             ) : null}
@@ -657,21 +680,21 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
 
                         {/* Approval Controls */}
                         {!isApproved ? (
-                          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+                          <div className="p-3 rounded-xl bg-[#17181C] border border-[#D5A34A]/20 space-y-2.5">
                             {approvalError[item.id] && (
-                              <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[11px] flex items-center gap-1.5">
-                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              <div className="p-2 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-[11px] flex items-center gap-1.5">
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-400" />
                                 <span>{approvalError[item.id]}</span>
                               </div>
                             )}
                             {approvalSuccess[item.id] && (
-                              <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] flex items-center gap-1.5">
-                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                              <div className="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-[11px] flex items-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
                                 <span>{approvalSuccess[item.id]}</span>
                               </div>
                             )}
 
-                            <label className="flex items-start gap-2 cursor-pointer text-[11px] text-slate-700 select-none">
+                            <label className="flex items-start gap-2 cursor-pointer text-[11px] text-[#CBD5E1] select-none">
                               <input
                                 type="checkbox"
                                 checked={!!consentChecked[item.id]}
@@ -681,7 +704,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                                     [item.id]: e.target.checked,
                                   }))
                                 }
-                                className="mt-0.5 rounded text-rose-700 focus:ring-rose-500"
+                                className="mt-0.5 rounded text-[#D5A34A] focus:ring-[#D5A34A] accent-[#D5A34A]"
                               />
                               <span>
                                 I have inspected this exact proof design (v{proofVer}) and grant my consent to proceed with artisan laser crafting.
@@ -693,16 +716,16 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                                 type="button"
                                 disabled={!consentChecked[item.id] || approvingProof[item.id]}
                                 onClick={() => handleApproveProof(item.id, proofVer)}
-                                className="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 text-xs shadow-2xs"
+                                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#F5BD48] via-[#D5A34A] to-[#B88728] text-[#08090B] font-bold flex items-center gap-1.5 transition-all disabled:opacity-50 text-xs shadow-xs hover:brightness-105 cursor-pointer"
                               >
                                 {approvingProof[item.id] ? (
                                   <>
-                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <Loader2 className="w-3 h-3 animate-spin text-[#08090B]" />
                                     <span>Recording Approval...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-[#08090B]" />
                                     <span>Approve Proof v{proofVer} for Production</span>
                                   </>
                                 )}
@@ -710,13 +733,13 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                             </div>
                           </div>
                         ) : (
-                          <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-[11px] text-emerald-800 flex items-center justify-between">
+                          <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center justify-between">
                             <span className="flex items-center gap-1.5">
-                              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                              <ShieldCheck className="w-4 h-4 text-emerald-400" />
                               <span>Proof design verified and authorized by customer for production etching.</span>
                             </span>
                             {pers?.customerApprovedAt && (
-                              <span className="text-[10px] text-emerald-600">
+                              <span className="text-[10px] text-emerald-400 font-mono">
                                 {new Date(pers.customerApprovedAt).toLocaleDateString()}
                               </span>
                             )}
@@ -729,8 +752,8 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
             </div>
           )}
 
-          {/* Stepper Timeline */}
-          <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+          {/* Stepper Timeline - Dark Luxury with Champagne Gold Accents */}
+          <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#D5A34A]/25">
             {steps.map((st, idx) => {
               const isDone = idx <= activeIdx;
               const isCurrent = idx === activeIdx;
@@ -740,24 +763,24 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                   {/* Step circle */}
                   <div className={`absolute -left-6 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                     isCurrent
-                      ? 'bg-rose-600 text-white ring-4 ring-rose-100 animate-pulse'
+                      ? 'bg-[#F5BD48] text-[#08090B] ring-4 ring-[#D5A34A]/30 font-extrabold animate-pulse'
                       : isDone
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-200 text-slate-500'
+                      ? 'bg-[#D5A34A] text-[#08090B] font-bold'
+                      : 'bg-[#24252A] text-[#94A3B8] border border-[#D5A34A]/20'
                   }`}>
                     {isDone ? '✓' : idx + 1}
                   </div>
 
                   <div>
-                    <h4 className={`text-xs font-bold ${isCurrent ? 'text-rose-950 font-serif text-sm' : isDone ? 'text-slate-900' : 'text-slate-400'}`}>
+                    <h4 className={`text-xs font-bold ${isCurrent ? 'text-[#F5BD48] font-serif text-sm' : isDone ? 'text-white' : 'text-[#64748B]'}`}>
                       {st.title}
                       {isCurrent && (
-                        <span className="ml-2 text-[10px] bg-rose-100 text-rose-800 font-normal px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        <span className="ml-2 text-[10px] bg-[#D5A34A]/20 text-[#F5BD48] border border-[#D5A34A]/30 font-medium px-2 py-0.5 rounded-full uppercase tracking-wider font-mono">
                           Current Stage
                         </span>
                       )}
                     </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{st.desc}</p>
+                    <p className="text-[11px] text-[#94A3B8] mt-0.5 leading-relaxed">{st.desc}</p>
                   </div>
                 </div>
               );
@@ -765,22 +788,24 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
           </div>
 
           {/* Action Row */}
-          <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-xs">
+          <div className="pt-4 border-t border-[#D5A34A]/20 flex justify-between items-center text-xs">
             <button
+              type="button"
               onClick={() => {
                 setSelectedOrder(displayOrder);
                 onClose();
                 setActiveModal('invoice_view');
               }}
-              className="text-rose-700 font-semibold hover:underline flex items-center gap-1.5"
+              className="text-[#D5A34A] font-semibold hover:text-[#F5BD48] hover:underline flex items-center gap-1.5 cursor-pointer"
             >
-              <FileText className="w-4 h-4" />
+              <FileText className="w-4 h-4 text-[#D5A34A]" />
               <span>Download Tax Invoice</span>
             </button>
 
             <button
+              type="button"
               onClick={onClose}
-              className="px-5 py-2 rounded-full bg-slate-900 text-white font-semibold hover:bg-slate-800"
+              className="px-5 py-2 rounded-full bg-[#24252A] hover:bg-[#2E3036] border border-[#D5A34A]/30 text-[#CBD5E1] hover:text-[#F5BD48] font-semibold transition-all cursor-pointer"
             >
               Close
             </button>

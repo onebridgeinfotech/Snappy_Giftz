@@ -68,27 +68,29 @@ export const PINCODE_REGEX = /^[1-9][0-9]{5}$/;
 // Development / Offline Fallback Store
 export const DEV_SELLER_CONFIG_STORE: Map<string, SellerConfigData> = new Map();
 
+import { BUSINESS_CONFIG } from '@/config/business';
+
 /**
  * Default sample configuration for development and test environments.
  * Strictly flagged as unverified (`isVerified: false`) and e-invoice status as PENDING.
  */
 export const DEFAULT_SAMPLE_SELLER_CONFIG: SellerConfigData = {
   id: 'default',
-  legalName: 'Snappy Gifts Enterprises Private Limited (SAMPLE)',
-  tradeName: 'Snappy Gifts',
-  gstin: '08AAAAA0000A1Z5',
+  legalName: BUSINESS_CONFIG.legalName,
+  tradeName: BUSINESS_CONFIG.tradeName,
+  gstin: `${BUSINESS_CONFIG.address.stateCode}AAAAA0000A1Z5`,
   pan: 'AAAAA0000A',
-  registeredStreet: 'Plot 42, Artisan Craft Complex, Panchsheel Nagar',
-  city: 'Ajmer',
-  state: 'Rajasthan',
-  stateCode: '08',
-  pincode: '305001',
-  contactEmail: 'care@snappygifts.in',
+  registeredStreet: `${BUSINESS_CONFIG.address.line1}, ${BUSINESS_CONFIG.address.line2}`,
+  city: BUSINESS_CONFIG.address.city,
+  state: BUSINESS_CONFIG.address.state,
+  stateCode: BUSINESS_CONFIG.address.stateCode,
+  pincode: BUSINESS_CONFIG.address.pincode,
+  contactEmail: BUSINESS_CONFIG.officialEmail,
   contactPhone: '+91 145 299 1000',
   invoicePrefix: 'SG',
-  authorizedSignatoryName: 'Head of Atelier Operations',
+  authorizedSignatoryName: 'Authorized Signatory',
   authorizedSignatoryDesignation: 'Authorized Signatory',
-  invoiceFooterTerms: 'This is a sample tax invoice for review. Goods once customized as per customer specification are non-refundable. All disputes subject to Ajmer jurisdiction.',
+  invoiceFooterTerms: 'This is a sample tax invoice for review. Goods once customized as per customer specification are non-refundable. All disputes subject to Hyderabad jurisdiction.',
   isVerified: false, // Must be explicitly verified before production legal issuance
 
   // E-Invoicing Applicability: Unverified by default; requires accountant audit of PAN turnover

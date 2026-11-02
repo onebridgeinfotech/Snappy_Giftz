@@ -232,33 +232,33 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
       const ctx = canvas.getContext('2d');
       if (!ctx) return null;
 
-      // 1. Warm Ivory Base & Outer Atelier Border
-      ctx.fillStyle = '#4A0E17';
+      // 1. Dark Luxury Base & Outer Atelier Border
+      ctx.fillStyle = '#08090B';
       ctx.fillRect(0, 0, 500, 380);
-      ctx.fillStyle = '#D4AF37';
+      ctx.fillStyle = '#D5A34A';
       ctx.fillRect(4, 4, 492, 372);
-      ctx.fillStyle = '#FAF5F2';
+      ctx.fillStyle = '#17181C';
       ctx.fillRect(5, 5, 490, 370);
 
       // 2. Atelier Banner Header
-      ctx.fillStyle = '#2A080C';
+      ctx.fillStyle = '#121316';
       ctx.fillRect(5, 5, 490, 32);
-      ctx.fillStyle = '#F5D778';
+      ctx.fillStyle = '#F5BD48';
       ctx.font = 'bold 13px serif';
-      ctx.fillText('AJMER ATELIER BESPOKE PROOF', 18, 26);
+      ctx.fillText('SNAPPY ATELIER BESPOKE PROOF', 18, 26);
       ctx.fillText('v1', 460, 26);
 
       // 3. Product Subheader
-      ctx.fillStyle = '#F2E8E2';
+      ctx.fillStyle = '#24252A';
       ctx.fillRect(5, 37, 490, 26);
-      ctx.fillStyle = '#4A0E17';
+      ctx.fillStyle = '#F1F5F9';
       ctx.font = '11px sans-serif';
       ctx.fillText(`ITEM: ${product.name.slice(0, 48)}`, 18, 54);
 
       // 4. Laser Bed Plate
-      ctx.fillStyle = '#C5A059';
+      ctx.fillStyle = '#D5A34A';
       ctx.fillRect(25, 68, 450, 180);
-      ctx.fillStyle = '#18181B';
+      ctx.fillStyle = '#08090B';
       ctx.fillRect(28, 71, 444, 174);
 
       // 5. Draw Artwork if present (Browser natively decodes JPEG, PNG, and WebP!)
@@ -318,33 +318,33 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
       }
 
       // 7. Greeting Card Band
-      ctx.fillStyle = '#FFFDF8';
+      ctx.fillStyle = '#17181C';
       ctx.fillRect(25, 254, 450, 48);
-      ctx.strokeStyle = '#E1CDA0';
+      ctx.strokeStyle = '#D5A34A';
       ctx.strokeRect(25, 254, 450, 48);
-      ctx.fillStyle = '#A21D32';
+      ctx.fillStyle = '#D5A34A';
       ctx.fillRect(25, 254, 3, 48);
-      ctx.fillStyle = '#4A0E17';
+      ctx.fillStyle = '#F5BD48';
       ctx.font = 'bold 9px sans-serif';
       ctx.fillText('300 GSM TEXTURED COTTON GIFT CARD', 36, 268);
-      ctx.fillStyle = '#3C3C3C';
+      ctx.fillStyle = '#CBD5E1';
       ctx.font = 'italic 11px serif';
       const note = giftNote && giftNote.trim() ? `"${giftNote.trim().slice(0, 52)}"` : '"No personal message requested"';
       ctx.fillText(note, 36, 288);
 
       // 8. Packaging & Ribbon Band
-      ctx.fillStyle = '#F7EEEB';
+      ctx.fillStyle = '#24252A';
       ctx.fillRect(25, 308, 450, 36);
-      ctx.strokeStyle = '#E6D7D2';
+      ctx.strokeStyle = '#D5A34A';
       ctx.strokeRect(25, 308, 450, 36);
       ctx.font = '10px sans-serif';
-      ctx.fillStyle = '#323232';
+      ctx.fillStyle = '#CBD5E1';
       ctx.fillText(`Ribbon: ${ribbonColor} Silk`, 40, 330);
       ctx.fillText(`Box: ${boxWrapStyle.slice(0, 32)}`, 250, 330);
 
       // 9. Watermark Footer
       ctx.font = '9px sans-serif';
-      ctx.fillStyle = '#8C4650';
+      ctx.fillStyle = '#94A3B8';
       ctx.textAlign = 'center';
       ctx.fillText('PREVIEW PROOF (v1) - APPROVAL REFERENCE ONLY - NOT A MANUFACTURING VECTOR FILE', 250, 365);
       ctx.textAlign = 'start';
@@ -395,32 +395,57 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
     });
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  // Lock body scroll while studio is open
+  useEffect(() => {
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = origOverflow;
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-      <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-amber-300/40 overflow-hidden my-6">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Snappy Bespoke Atelier"
+    >
+      <div className="relative w-full max-w-4xl bg-[#08090B] rounded-3xl shadow-2xl border border-[#D5A34A]/30 overflow-hidden my-6 text-[#F1F5F9]">
         
         {/* Atelier Top Header */}
-        <div className="bg-gradient-to-r from-[#2A080C] via-[#481219] to-[#2A080C] text-white px-6 py-4 flex items-center justify-between border-b border-amber-500/30">
+        <div className="bg-gradient-to-r from-[#17181C] via-[#24252A] to-[#17181C] text-[#F1F5F9] px-6 py-4 flex items-center justify-between border-b border-[#D5A34A]/20">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 shadow-xs">
-              <Crown className="w-5 h-5 text-amber-300" />
+            <div className="w-10 h-10 rounded-2xl bg-[#D5A34A]/10 border border-[#D5A34A]/30 flex items-center justify-center text-[#F5BD48] shadow-xs">
+              <Crown className="w-5 h-5 text-[#F5BD48]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-serif text-lg font-bold tracking-tight">Ajmer Bespoke Atelier</h3>
-                <span className="text-[9.5px] bg-amber-400/20 text-amber-200 border border-amber-400/40 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider">
+                <h3 className="font-serif text-lg font-bold tracking-tight text-[#F1F5F9]">Snappy Bespoke Atelier</h3>
+                <span className="text-[9.5px] bg-[#D5A34A]/10 text-[#F5BD48] border border-[#D5A34A]/30 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider">
                   Fiber Laser 0.05mm
                 </span>
               </div>
-              <p className="text-xs text-rose-200">
-                Personalizing: <span className="font-semibold text-white">{product.name}</span>
+              <p className="text-xs text-[#94A3B8]">
+                Personalizing: <span className="font-semibold text-[#F1F5F9]">{product.name}</span>
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-rose-200 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-full text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#24252A] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -430,20 +455,20 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-12 min-h-[520px]">
           
           {/* Left Column: Live Realistic Hot-Foil & Engraving Simulation */}
-          <div className="md:col-span-6 bg-gradient-to-b from-[#FAF5F2] to-[#F5ECE6] p-6 flex flex-col justify-between border-b md:border-b-0 md:border-r border-[#E8D8D0]">
+          <div className="md:col-span-6 bg-gradient-to-b from-[#121316] to-[#0D0E11] p-6 flex flex-col justify-between border-b md:border-b-0 md:border-r border-[#24252A]">
             <div>
-              <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
-                <span className="flex items-center gap-1.5 font-bold text-[#4A0E17]">
-                  <Eye className="w-3.5 h-3.5 text-[#A21D32]" />
+              <div className="flex items-center justify-between text-xs text-[#94A3B8] mb-3">
+                <span className="flex items-center gap-1.5 font-bold text-[#F5BD48]">
+                  <Eye className="w-3.5 h-3.5 text-[#D5A34A]" />
                   <span>Real-time Laser & Foil Simulation</span>
                 </span>
-                <span className="text-[10px] bg-white px-2.5 py-0.5 rounded-full border border-amber-300/80 text-amber-900 font-medium">
+                <span className="text-[10px] bg-[#17181C] px-2.5 py-0.5 rounded-full border border-[#D5A34A]/40 text-[#F5BD48] font-medium">
                   24K Gold Deboss
                 </span>
               </div>
 
               {/* Mockup Canvas */}
-              <div className="relative aspect-4/3 rounded-2xl overflow-hidden shadow-xl border-2 border-white bg-slate-100">
+              <div className="relative aspect-4/3 rounded-2xl overflow-hidden shadow-xl border-2 border-[#24252A] bg-[#17181C]">
                 <img
                   src={product.images[0]}
                   alt={product.name}
@@ -462,13 +487,13 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                       <img
                         src={artworkPreviewUrl}
                         alt="Customer Artwork Preview"
-                        className="max-h-24 max-w-[120px] object-contain drop-shadow-md rounded border border-amber-300/40"
+                        className="max-h-24 max-w-[120px] object-contain drop-shadow-md rounded border border-[#D5A34A]/40"
                       />
                     </div>
                   )}
 
                   {engravedText && (
-                    <div className="backdrop-blur-[2px] bg-black/40 px-5 py-2.5 rounded-2xl text-center shadow-2xl border border-amber-300/40 transform -rotate-1 max-w-[85%] transition-all">
+                    <div className="backdrop-blur-[2px] bg-black/60 px-5 py-2.5 rounded-2xl text-center shadow-2xl border border-[#D5A34A]/40 transform -rotate-1 max-w-[85%] transition-all">
                       <div
                         className="text-amber-100 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] tracking-wide font-normal foil-deboss"
                         style={{
@@ -477,67 +502,67 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                       >
                         <span className="text-xl sm:text-2xl font-bold text-gold-gradient">{engravedText}</span>
                       </div>
-                      <div className="text-[8.5px] text-amber-200/90 tracking-[0.25em] uppercase mt-1">
-                        ✦ Hand-finished in Rajasthan ✦
+                      <div className="text-[8.5px] text-[#F5BD48]/90 tracking-[0.25em] uppercase mt-1">
+                        ✦ Handcrafted at Snappy Atelier ✦
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Ribbon Tag Pill */}
-                <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-[10px] text-slate-800 font-semibold shadow-xs border border-rose-100 flex items-center gap-1.5">
-                  <Gift className="w-3.5 h-3.5 text-[#A21D32]" />
+                <div className="absolute bottom-3 left-3 bg-[#17181C]/95 backdrop-blur-md px-3 py-1 rounded-full text-[10px] text-[#F1F5F9] font-semibold shadow-xs border border-[#D5A34A]/30 flex items-center gap-1.5">
+                  <Gift className="w-3.5 h-3.5 text-[#D5A34A]" />
                   <span>{ribbonColor} Silk</span>
                 </div>
               </div>
 
               {/* Artisan Approval Representation Notice */}
-              <div className="mt-3 text-[10.5px] text-amber-900 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200 flex items-start gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div className="mt-3 text-[10.5px] text-[#CBD5E1] bg-[#17181C] p-2.5 rounded-xl border border-[#D5A34A]/30 flex items-start gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[#D5A34A] shrink-0 mt-0.5" />
                 <span>
-                  <strong>Approval Representation:</strong> This digital preview simulates styling and placement. Final precision fiber laser engraving (0.05mm tolerance) is handcrafted at the Ajmer Atelier.
+                  <strong className="text-[#F1F5F9]">Approval Representation:</strong> This digital preview simulates styling and placement. Final precision fiber laser engraving (0.05mm tolerance) is handcrafted at the Snappy Atelier.
                 </span>
               </div>
             </div>
 
             {/* Deckle Edge Handmade Cotton Greeting Card Preview */}
-            <div className="mt-4 p-4 rounded-2xl bg-[#FFFDF8] border border-amber-200/80 shadow-sm relative overflow-hidden">
-              <div className="flex items-center justify-between text-xs font-bold text-[#4A0E17] mb-1.5">
+            <div className="mt-4 p-4 rounded-2xl bg-[#17181C] border border-[#24252A] shadow-sm relative overflow-hidden">
+              <div className="flex items-center justify-between text-xs font-bold text-[#F5BD48] mb-1.5">
                 <span className="flex items-center gap-1.5">
-                  <MessageSquareHeart className="w-3.5 h-3.5 text-[#A21D32]" />
+                  <MessageSquareHeart className="w-3.5 h-3.5 text-[#D5A34A]" />
                   <span>300 GSM Textured Cotton Card</span>
                 </span>
                 
                 {/* Simulated Wax Seal Motif */}
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-slate-500 font-normal">Sealed with:</span>
+                  <span className="text-[10px] text-[#94A3B8] font-normal">Sealed with:</span>
                   <div className={`w-4 h-4 rounded-full ${
-                    waxSealColor === 'gold' ? 'bg-[#C5A059]' :
-                    waxSealColor === 'crimson' ? 'bg-[#881337]' :
+                    waxSealColor === 'gold' ? 'bg-[#D5A34A]' :
+                    waxSealColor === 'crimson' ? 'bg-[#EC3E98]' :
                     waxSealColor === 'navy' ? 'bg-[#1E293B]' : 'bg-[#064E3B]'
-                  } shadow-xs border border-white flex items-center justify-center text-[8px] text-white font-bold`}>
+                  } shadow-xs border border-white/20 flex items-center justify-center text-[8px] text-white font-bold`}>
                     ✦
                   </div>
                 </div>
               </div>
               
-              <p className="text-xs text-slate-700 font-script text-base italic leading-relaxed pl-2 border-l-2 border-[#A21D32]">
+              <p className="text-xs text-[#CBD5E1] font-script text-base italic leading-relaxed pl-2 border-l-2 border-[#D5A34A]">
                 "{giftNote || 'No message provided'}"
               </p>
             </div>
           </div>
 
           {/* Right Column: Customization Controls */}
-          <div className="md:col-span-6 p-6 flex flex-col justify-between">
+          <div className="md:col-span-6 p-6 flex flex-col justify-between bg-[#08090B]">
             <div>
               {/* Step Tabs with Gold Underline */}
-              <div className="flex border-b border-[#E8D8D0] gap-2 sm:gap-4 mb-5 text-xs font-bold overflow-x-auto pb-1">
+              <div className="flex border-b border-[#24252A] gap-2 sm:gap-4 mb-5 text-xs font-bold overflow-x-auto pb-1">
                 <button
                   onClick={() => setActiveTab('engrave')}
                   className={`pb-2.5 transition-all flex items-center gap-1.5 border-b-2 shrink-0 ${
                     activeTab === 'engrave'
-                      ? 'border-[#A21D32] text-[#A21D32]'
-                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                      ? 'border-[#D5A34A] text-[#F5BD48]'
+                      : 'border-transparent text-[#94A3B8] hover:text-[#F1F5F9]'
                   }`}
                 >
                   <Type className="w-3.5 h-3.5" />
@@ -547,8 +572,8 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                   onClick={() => setActiveTab('artwork')}
                   className={`pb-2.5 transition-all flex items-center gap-1.5 border-b-2 shrink-0 ${
                     activeTab === 'artwork'
-                      ? 'border-[#A21D32] text-[#A21D32]'
-                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                      ? 'border-[#D5A34A] text-[#F5BD48]'
+                      : 'border-transparent text-[#94A3B8] hover:text-[#F1F5F9]'
                   }`}
                 >
                   <ImageIcon className="w-3.5 h-3.5" />
@@ -558,8 +583,8 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                   onClick={() => setActiveTab('giftnote')}
                   className={`pb-2.5 transition-all flex items-center gap-1.5 border-b-2 shrink-0 ${
                     activeTab === 'giftnote'
-                      ? 'border-[#A21D32] text-[#A21D32]'
-                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                      ? 'border-[#D5A34A] text-[#F5BD48]'
+                      : 'border-transparent text-[#94A3B8] hover:text-[#F1F5F9]'
                   }`}
                 >
                   <MessageSquareHeart className="w-3.5 h-3.5" />
@@ -569,8 +594,8 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                   onClick={() => setActiveTab('packaging')}
                   className={`pb-2.5 transition-all flex items-center gap-1.5 border-b-2 shrink-0 ${
                     activeTab === 'packaging'
-                      ? 'border-[#A21D32] text-[#A21D32]'
-                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                      ? 'border-[#D5A34A] text-[#F5BD48]'
+                      : 'border-transparent text-[#94A3B8] hover:text-[#F1F5F9]'
                   }`}
                 >
                   <Gift className="w-3.5 h-3.5" />
@@ -582,7 +607,7 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
               {activeTab === 'engrave' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-bold text-[#CBD5E1] uppercase tracking-wider mb-1.5">
                       Enter Name or Custom Inscription
                     </label>
                     <input
@@ -591,16 +616,16 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                       value={engravedText}
                       onChange={(e) => setEngravedText(e.target.value)}
                       placeholder="e.g. Sneha & Rohan or Good Vibes Only"
-                      className="w-full px-4 py-2.5 rounded-xl border border-[#DCC7BE] focus:outline-hidden focus:ring-2 focus:ring-[#A21D32]/30 text-sm font-semibold text-slate-900"
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#24252A] bg-[#17181C] text-[#F1F5F9] placeholder:text-[#64748B] focus:outline-hidden focus:border-[#D5A34A] focus:ring-1 focus:ring-[#D5A34A]/40 text-sm font-semibold"
                     />
-                    <div className="flex justify-between text-[11px] text-slate-400 mt-1">
+                    <div className="flex justify-between text-[11px] text-[#94A3B8] mt-1">
                       <span>Laser engraved permanently with zero fading</span>
                       <span>{engravedText.length}/32 chars</span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-[#CBD5E1] uppercase tracking-wider mb-2">
                       Select Typography & Script
                     </label>
                     <div className="grid grid-cols-2 gap-2.5">
@@ -611,11 +636,11 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                           onClick={() => setFontFamily(font.name)}
                           className={`p-3 rounded-2xl border text-left transition-all ${
                             fontFamily === font.name
-                              ? 'border-[#A21D32] bg-rose-50/60 shadow-xs ring-1 ring-[#A21D32]'
-                              : 'border-slate-200 hover:border-amber-300'
+                              ? 'border-[#D5A34A] bg-[#24252A] shadow-xs ring-1 ring-[#D5A34A] text-[#F1F5F9]'
+                              : 'border-[#24252A] bg-[#17181C] text-[#CBD5E1] hover:border-[#D5A34A]/40'
                           }`}
                         >
-                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          <div className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">
                             {font.label}
                           </div>
                           <div className={font.className}>
@@ -632,22 +657,22 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
               {activeTab === 'artwork' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-bold text-[#CBD5E1] uppercase tracking-wider mb-1.5">
                       Upload Logo or Vector Artwork
                     </label>
-                    <p className="text-[11px] text-slate-500 mb-2">
+                    <p className="text-[11px] text-[#94A3B8] mb-2">
                       Upload company logo, couple crest, or custom motif. Accepted: PNG, JPEG, WebP (Max 5 MB).
                     </p>
 
                     {uploadError && (
-                      <div className="mb-2 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                      <div className="mb-2 p-2.5 rounded-xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 shrink-0" />
                         <span>{uploadError}</span>
                       </div>
                     )}
 
                     {!artworkUploadId ? (
-                      <label className="border-2 border-dashed border-[#DCC7BE] hover:border-[#A21D32] rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-rose-50/30 transition-all text-center">
+                      <label className="border-2 border-dashed border-[#24252A] hover:border-[#D5A34A]/60 rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer bg-[#17181C]/50 hover:bg-[#24252A]/50 transition-all text-center">
                         <input
                           type="file"
                           accept="image/png,image/jpeg,image/webp"
@@ -656,27 +681,27 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                           className="hidden"
                         />
                         {isUploading ? (
-                          <div className="flex flex-col items-center gap-2 text-slate-600">
-                            <Loader2 className="w-6 h-6 animate-spin text-[#A21D32]" />
+                          <div className="flex flex-col items-center gap-2 text-[#94A3B8]">
+                            <Loader2 className="w-6 h-6 animate-spin text-[#F5BD48]" />
                             <span className="text-xs font-semibold">Validating signature & uploading...</span>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center gap-1.5 text-slate-600">
-                            <Upload className="w-6 h-6 text-[#A21D32]" />
-                            <span className="text-xs font-bold text-slate-800">Click to Upload Artwork</span>
-                            <span className="text-[10px] text-slate-400">PNG with transparency recommended</span>
+                          <div className="flex flex-col items-center gap-1.5 text-[#94A3B8]">
+                            <Upload className="w-6 h-6 text-[#D5A34A]" />
+                            <span className="text-xs font-bold text-[#F1F5F9]">Click to Upload Artwork</span>
+                            <span className="text-[10px] text-[#64748B]">PNG with transparency recommended</span>
                           </div>
                         )}
                       </label>
                     ) : (
-                      <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                      <div className="p-3 rounded-2xl bg-[#17181C] border border-[#24252A] flex items-center justify-between">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <ImageIcon className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <ImageIcon className="w-4 h-4 text-[#F5BD48] shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-emerald-900 truncate">
+                            <div className="text-xs font-bold text-[#F1F5F9] truncate">
                               {artworkFilename || 'Custom Artwork Attached'}
                             </div>
-                            <div className="text-[10px] text-emerald-700 font-mono">
+                            <div className="text-[10px] text-[#94A3B8] font-mono">
                               ID: {artworkUploadId}
                             </div>
                           </div>
@@ -688,7 +713,7 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                             setArtworkPreviewUrl(null);
                             setArtworkFilename(null);
                           }}
-                          className="p-1.5 text-rose-700 hover:bg-rose-100 rounded-lg"
+                          className="p-1.5 text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
                           title="Remove artwork"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -698,22 +723,22 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                   </div>
 
                   {artworkUploadId && (
-                    <div className="space-y-3 pt-2 border-t border-slate-100">
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <div className="space-y-3 pt-2 border-t border-[#24252A]">
+                      <div className="flex items-center justify-between text-xs font-bold text-[#CBD5E1]">
                         <span className="flex items-center gap-1.5">
-                          <Sliders className="w-3.5 h-3.5 text-[#A21D32]" />
+                          <Sliders className="w-3.5 h-3.5 text-[#D5A34A]" />
                           <span>Placement & Scale Adjustments</span>
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
+                        <span className="text-[10px] text-[#94A3B8] font-mono">
                           Zoom: {artworkScale.toFixed(1)}x
                         </span>
                       </div>
 
                       {/* Scale Slider */}
                       <div>
-                        <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                        <div className="flex justify-between text-[11px] text-[#94A3B8] mb-1">
                           <span>Scale / Zoom</span>
-                          <span>{artworkScale}x</span>
+                          <span className="text-[#F5BD48]">{artworkScale}x</span>
                         </div>
                         <input
                           type="range"
@@ -722,15 +747,15 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                           step="0.1"
                           value={artworkScale}
                           onChange={(e) => setArtworkScale(parseFloat(e.target.value))}
-                          className="w-full accent-[#A21D32]"
+                          className="w-full accent-[#D5A34A]"
                         />
                       </div>
 
                       {/* Horizontal Offset */}
                       <div>
-                        <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                        <div className="flex justify-between text-[11px] text-[#94A3B8] mb-1">
                           <span>Horizontal Position (X)</span>
-                          <span>{artworkOffsetX}px</span>
+                          <span className="text-[#F5BD48]">{artworkOffsetX}px</span>
                         </div>
                         <input
                           type="range"
@@ -739,15 +764,15 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                           step="5"
                           value={artworkOffsetX}
                           onChange={(e) => setArtworkOffsetX(parseInt(e.target.value))}
-                          className="w-full accent-[#A21D32]"
+                          className="w-full accent-[#D5A34A]"
                         />
                       </div>
 
                       {/* Vertical Offset */}
                       <div>
-                        <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                        <div className="flex justify-between text-[11px] text-[#94A3B8] mb-1">
                           <span>Vertical Position (Y)</span>
-                          <span>{artworkOffsetY}px</span>
+                          <span className="text-[#F5BD48]">{artworkOffsetY}px</span>
                         </div>
                         <input
                           type="range"
@@ -756,13 +781,13 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                           step="5"
                           value={artworkOffsetY}
                           onChange={(e) => setArtworkOffsetY(parseInt(e.target.value))}
-                          className="w-full accent-[#A21D32]"
+                          className="w-full accent-[#D5A34A]"
                         />
                       </div>
 
                       {/* Preset Placement Buttons */}
                       <div>
-                        <span className="block text-[11px] text-slate-500 mb-1">Position Preset</span>
+                        <span className="block text-[11px] text-[#94A3B8] mb-1">Position Preset</span>
                         <div className="grid grid-cols-4 gap-1.5 text-[10.5px]">
                           {(['CENTER', 'TOP_CENTER', 'LID', 'PLAQUE'] as const).map((pos) => (
                             <button
@@ -777,8 +802,8 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                               }}
                               className={`p-1.5 rounded-lg border text-center font-semibold transition-all ${
                                 artworkPosition === pos
-                                  ? 'bg-rose-50 border-[#A21D32] text-[#A21D32]'
-                                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                                  ? 'bg-[#D5A34A]/10 border-[#D5A34A] text-[#F5BD48]'
+                                  : 'border-[#24252A] bg-[#17181C] text-[#CBD5E1] hover:bg-[#24252A]'
                               }`}
                             >
                               {pos.replace('_', ' ')}
@@ -795,7 +820,7 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
               {activeTab === 'giftnote' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-bold text-[#CBD5E1] uppercase tracking-wider mb-1.5">
                       Personal Message for Gift Card
                     </label>
                     <textarea
@@ -804,16 +829,16 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                       value={giftNote}
                       onChange={(e) => setGiftNote(e.target.value)}
                       placeholder="Write your heartfelt note here..."
-                      className="w-full px-4 py-2.5 rounded-xl border border-[#DCC7BE] focus:outline-hidden focus:ring-2 focus:ring-[#A21D32]/30 text-sm font-medium text-slate-900"
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#24252A] bg-[#17181C] text-[#F1F5F9] placeholder:text-[#64748B] focus:outline-hidden focus:border-[#D5A34A] focus:ring-1 focus:ring-[#D5A34A]/40 text-sm font-medium"
                     />
-                    <div className="flex justify-between text-[11px] text-slate-400 mt-1">
+                    <div className="flex justify-between text-[11px] text-[#94A3B8] mt-1">
                       <span>Printed on textured 300 GSM ivory cardstock</span>
                       <span>{giftNote.length}/200 chars</span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-[#CBD5E1] uppercase tracking-wider mb-2">
                       Select Hand-Poured Wax Seal Color
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -824,11 +849,11 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                           onClick={() => setWaxSealColor(ws.id as any)}
                           className={`flex items-center gap-2.5 p-2 rounded-xl border text-xs font-semibold transition-all ${
                             waxSealColor === ws.id
-                              ? 'border-[#A21D32] bg-rose-50/60 ring-1 ring-[#A21D32] text-slate-900'
-                              : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                              ? 'border-[#D5A34A] bg-[#24252A] ring-1 ring-[#D5A34A] text-[#F1F5F9]'
+                              : 'border-[#24252A] bg-[#17181C] text-[#CBD5E1] hover:bg-[#24252A]'
                           }`}
                         >
-                          <span className={`w-4 h-4 rounded-full ${ws.bg} shadow-xs border border-white`} />
+                          <span className={`w-4 h-4 rounded-full ${ws.bg} shadow-xs border border-white/20`} />
                           <span className="text-[11px]">{ws.name}</span>
                         </button>
                       ))}
@@ -841,7 +866,7 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
               {activeTab === 'packaging' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-[#CBD5E1] uppercase tracking-wider mb-2">
                       Pure Mulberry Silk Ribbon
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -852,8 +877,8 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                           onClick={() => setRibbonColor(r.name)}
                           className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
                             ribbonColor === r.name
-                              ? 'border-[#A21D32] bg-rose-50 text-[#881337] ring-1 ring-[#A21D32] font-bold'
-                              : 'border-slate-200 text-slate-700 hover:border-amber-300'
+                              ? 'border-[#D5A34A] bg-[#24252A] text-[#F5BD48] ring-1 ring-[#D5A34A] font-bold'
+                              : 'border-[#24252A] bg-[#17181C] text-[#CBD5E1] hover:border-[#D5A34A]/40'
                           }`}
                         >
                           <span className={`w-3.5 h-3.5 rounded-full ${r.bg} ${r.border} border`} />
@@ -864,7 +889,7 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-[#CBD5E1] uppercase tracking-wider mb-2">
                       Gift Keepsake Box Style
                     </label>
                     <div className="space-y-2">
@@ -876,10 +901,10 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                           }}
                           className={`flex items-start gap-3 p-3 rounded-2xl border transition-all ${
                             !box.available
-                              ? 'opacity-50 cursor-not-allowed bg-slate-50 border-slate-200'
+                              ? 'opacity-50 cursor-not-allowed bg-[#17181C]/40 border-[#24252A]'
                               : boxWrapStyle === box.id
-                              ? 'border-[#A21D32] bg-rose-50/50 ring-1 ring-[#A21D32] cursor-pointer'
-                              : 'border-slate-200 hover:border-amber-300 cursor-pointer'
+                              ? 'border-[#D5A34A] bg-[#24252A] ring-1 ring-[#D5A34A] cursor-pointer'
+                              : 'border-[#24252A] bg-[#17181C] hover:border-[#D5A34A]/40 cursor-pointer'
                           }`}
                         >
                           <input
@@ -890,18 +915,18 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                             onChange={() => {
                               if (box.available) setBoxWrapStyle(box.id);
                             }}
-                            className="mt-1 text-[#A21D32] focus:ring-[#A21D32] disabled:cursor-not-allowed"
+                            className="mt-1 text-[#D5A34A] focus:ring-[#D5A34A] accent-[#D5A34A] disabled:cursor-not-allowed"
                           />
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-900">{box.label}</span>
+                              <span className="text-xs font-bold text-[#F1F5F9]">{box.label}</span>
                               {!box.available && (
-                                <span className="text-[9.5px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full font-semibold border border-amber-300/60">
+                                <span className="text-[9.5px] bg-[#D5A34A]/10 text-[#F5BD48] px-2 py-0.5 rounded-full font-semibold border border-[#D5A34A]/30">
                                   Unavailable (Pending Approval)
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-slate-500">{box.desc}</div>
+                            <div className="text-[11px] text-[#94A3B8]">{box.desc}</div>
                           </div>
                         </label>
                       ))}
@@ -912,15 +937,15 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
             </div>
 
             {/* Proof Approval Checkbox & Bottom Actions */}
-            <div className="mt-6 pt-4 border-t border-slate-200 space-y-3">
-              <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-700 select-none">
+            <div className="mt-6 pt-4 border-t border-[#24252A] space-y-3">
+              <label className="flex items-start gap-2.5 cursor-pointer text-xs text-[#CBD5E1] select-none">
                 <input
                   type="checkbox"
                   checked={proofApproved}
                   onChange={(e) => setProofApproved(e.target.checked)}
-                  className="mt-0.5 rounded text-[#A21D32] focus:ring-[#A21D32]"
+                  className="mt-0.5 rounded text-[#D5A34A] focus:ring-[#D5A34A] accent-[#D5A34A]"
                 />
-                <span className="text-[11px] leading-snug">
+                <span className="text-[11px] leading-snug text-[#94A3B8]">
                   I have verified and approve this preview proof for production. I understand this digital proof represents styling and placement for artisan crafting.
                 </span>
               </label>
@@ -929,7 +954,7 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#17181C] transition-colors"
                 >
                   Cancel
                 </button>
@@ -938,9 +963,9 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                   type="button"
                   disabled={!proofApproved}
                   onClick={handleApply}
-                  className="px-7 py-3 rounded-full bg-gradient-to-r from-[#4A0E17] via-[#881337] to-[#A21D32] hover:from-[#3A0A11] hover:to-[#881337] text-white text-xs sm:text-sm font-semibold shadow-lg shadow-rose-950/20 flex items-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-7 py-3 rounded-full bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] hover:from-[#E5AD38] hover:to-[#C5933A] text-[#08090B] text-xs sm:text-sm font-bold shadow-lg shadow-amber-950/20 flex items-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Check className="w-4 h-4 text-amber-300" />
+                  <Check className="w-4 h-4 text-[#08090B]" />
                   <span>Save Bespoke Customization</span>
                 </button>
               </div>

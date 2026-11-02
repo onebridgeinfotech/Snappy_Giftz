@@ -27,16 +27,21 @@ yarn-error.log*
 *.pem
 *.key
 *.cert
+*.pfx
+*.p12
 
 # Local Database & Containers
 postgres_data/
+*.dump
 
 # Customer Private Uploads (Stored outside public web root)
-uploads/
-private_uploads/
-storage/
+/uploads/
+/private_uploads/
+/storage/
 
-# OS Metadata
+# IDE & OS Metadata
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
 
@@ -45,3 +50,7 @@ Thumbs.db
 
 # Build caches & info
 *.tsbuildinfo
+
+# Visual test screenshots
+/*-header.png
+/stage*.png

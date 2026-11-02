@@ -532,7 +532,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
                     staffReviewStatus: 'PENDING_REVIEW',
                     customizationFeePaise: line.customizationFeePaise,
                     metadata: {
-                      craftingLocation: 'Ajmer Central Atelier',
+                      craftingLocation: 'SNAPPY GIFTZ Central Atelier',
                       laserResolution: '0.05mm',
                       productName: line.productName,
                       variantName: line.variantName || 'Standard Edition',
@@ -659,7 +659,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
               customizationFeePaise: l.customizationFeePaise,
               staffNotes: null,
               metadata: {
-                craftingLocation: 'Ajmer Central Atelier',
+                craftingLocation: 'SNAPPY GIFTZ Central Atelier',
                 laserResolution: '0.05mm',
                 productName: l.productName,
                 variantName: l.variantName || 'Standard Edition',

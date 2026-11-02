@@ -15,10 +15,10 @@ docs/
 !README.md
 
 # Local storage & databases
-storage/
-uploads/
-private_uploads/
-postgres_data/
+/storage/
+/uploads/
+/private_uploads/
+/postgres_data/
 
 # Docker & local orchestration
 docker-compose.yml
