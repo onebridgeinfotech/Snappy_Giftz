@@ -56,8 +56,55 @@ export const AdminDashboard: React.FC = () => {
     addTicketReply,
     setSelectedOrder,
     setActiveModal,
-    showToast
+    showToast,
+    setMode
   } = useApp();
+
+  // Security Gate: Verify server-side administrator/staff authentication
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && data.user && (data.user.role === 'ADMIN' || data.user.role === 'STAFF')) {
+          setIsAdminAuthenticated(true);
+        } else {
+          setIsAdminAuthenticated(false);
+        }
+      })
+      .catch(() => setIsAdminAuthenticated(false));
+  }, []);
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    setAuthError(null);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: adminEmail, password: adminPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Invalid administrator credentials');
+      }
+      if (data.user?.role !== 'ADMIN' && data.user?.role !== 'STAFF') {
+        throw new Error('Access denied. Administrator or Staff role required.');
+      }
+      setIsAdminAuthenticated(true);
+      showToast('Authenticated as Administrator.');
+    } catch (err: any) {
+      setAuthError(err.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   const [activeAdminTab, setActiveAdminTab] = useState<
     | 'overview'
@@ -758,44 +805,8 @@ export const AdminDashboard: React.FC = () => {
         setAdminPagination(data.pagination);
       }
     } catch (err: any) {
-      console.warn('[AdminDashboard] API fetch failed, falling back to local orders:', err.message);
-      // Dev/local fallback: map context orders into admin table structure
-      let list = orders.map((o) => ({
-        id: o.id,
-        orderNumber: o.orderNumber,
-        customerName: o.customerName,
-        customerEmail: o.customerEmail,
-        customerPhone: o.customerPhone,
-        destinationStateCode: o.shippingAddress?.state ? '08' : '08',
-        orderStatus: o.orderStatus,
-        paymentStatus: o.paymentStatus,
-        paymentMethod: o.paymentMethod,
-        itemsCount: o.items.reduce((acc, i) => acc + i.quantity, 0),
-        grandTotalPaise: Math.round(o.grandTotal * 100),
-        createdAt: o.date ? new Date(o.date).toISOString() : new Date().toISOString(),
-        shipment: o.awbNumber ? {
-          carrierPartner: o.courierPartner,
-          awbNumber: o.awbNumber,
-          trackingUrl: o.trackingUrl || null,
-          dispatchStatus: o.orderStatus === 'Delivered' ? 'DELIVERED' : 'DISPATCHED',
-          dispatchedAt: new Date().toISOString(),
-          deliveredAt: o.orderStatus === 'Delivered' ? new Date().toISOString() : null,
-        } : null,
-      }));
-
-      if (orderStatusFilter) {
-        list = list.filter((o) => o.orderStatus.toLowerCase() === orderStatusFilter.toLowerCase() || o.orderStatus.replace('_', ' ').toLowerCase() === orderStatusFilter.replace('_', ' ').toLowerCase());
-      }
-      if (paymentStatusFilter) {
-        list = list.filter((o) => o.paymentStatus.toLowerCase() === paymentStatusFilter.toLowerCase());
-      }
-      if (orderSearch.trim()) {
-        const s = orderSearch.trim().toLowerCase();
-        list = list.filter((o) => o.orderNumber.toLowerCase().includes(s) || o.customerName.toLowerCase().includes(s) || o.customerPhone.includes(s));
-      }
-
-      setAdminOrders(list);
-      setAdminPagination({ total: list.length, page: 1, limit: 10, totalPages: Math.max(1, Math.ceil(list.length / 10)) });
+      setAdminOrderError(err.message || 'Failed to fetch orders from server.');
+      setAdminOrders([]);
     } finally {
       setIsLoadingOrders(false);
     }
@@ -1021,6 +1032,89 @@ export const AdminDashboard: React.FC = () => {
     setShowAddProductModal(false);
     setNewProdName('');
   };
+
+  if (isAdminAuthenticated === null) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center bg-[#08090B]">
+        <div className="w-10 h-10 border-2 border-[#D5A34A] border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm font-medium text-[#CBD5E1]">Verifying Administrator Privileges...</p>
+      </div>
+    );
+  }
+
+  if (!isAdminAuthenticated) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4 py-16 bg-[#08090B]">
+        <div className="max-w-md w-full bg-[#17181C] border border-[#D5A34A]/30 rounded-3xl p-8 shadow-2xl space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-[#D5A34A]/10 border border-[#D5A34A]/30 flex items-center justify-center">
+              <ShieldCheck className="w-8 h-8 text-[#D5A34A]" />
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-white tracking-wide">
+              SNAPPY GIFTZ Operations HQ
+            </h2>
+            <p className="text-xs text-[#94A3B8]">
+              Restricted Area: Server-side administrator or staff credentials required.
+            </p>
+          </div>
+
+          {authError && (
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs text-center font-medium">
+              {authError}
+            </div>
+          )}
+
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#CBD5E1] mb-1.5">
+                Admin Email
+              </label>
+              <input
+                type="email"
+                required
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="admin@snappygiftz.com"
+                className="w-full bg-[#08090B] border border-[#D5A34A]/25 rounded-xl px-4 py-2.5 text-xs text-white placeholder-[#64748B] focus:border-[#F5BD48] focus:outline-hidden"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#CBD5E1] mb-1.5">
+                Password
+              </label>
+              <input
+                type="password"
+                required
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full bg-[#08090B] border border-[#D5A34A]/25 rounded-xl px-4 py-2.5 text-xs text-white placeholder-[#64748B] focus:border-[#F5BD48] focus:outline-hidden"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold text-xs shadow-lg hover:brightness-110 transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isLoggingIn ? 'Authenticating...' : 'Sign In to Operations HQ'}
+            </button>
+          </form>
+
+          <div className="text-center pt-2 border-t border-[#D5A34A]/15">
+            <button
+              type="button"
+              onClick={() => setMode('b2c')}
+              className="text-xs text-[#94A3B8] hover:text-[#D5A34A] transition-colors cursor-pointer"
+            >
+              ← Return to Customer Storefront
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

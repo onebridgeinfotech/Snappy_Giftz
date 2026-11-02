@@ -26,6 +26,7 @@ export const Header: React.FC = () => {
   const {
     mode,
     setMode,
+    showToast,
     currentRole,
     setCurrentRole,
     cart,
@@ -87,14 +88,25 @@ export const Header: React.FC = () => {
 
   const totalCartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
+  const isStaffOrAdmin = Boolean(authenticatedUser && (authenticatedUser.role === 'ADMIN' || authenticatedUser.role === 'STAFF'));
+
   const handleRoleSelect = (role: UserRole) => {
-    setCurrentRole(role);
-    setRoleMenuOpen(false);
     if (role === 'admin' || role === 'warehouse_staff') {
+      if (!isStaffOrAdmin) {
+        showToast('Administrator authentication required to access Operations.', 'error');
+        setRoleMenuOpen(false);
+        return;
+      }
+      setCurrentRole(role);
+      setRoleMenuOpen(false);
       setMode('admin');
     } else if (role === 'b2b_client' || role === 'corporate_procurement') {
+      setCurrentRole(role);
+      setRoleMenuOpen(false);
       setMode('b2b');
     } else {
+      setCurrentRole(role);
+      setRoleMenuOpen(false);
       setMode('b2c');
     }
   };
@@ -174,18 +186,20 @@ export const Header: React.FC = () => {
                 <Building2 className="w-3 h-3" />
                 <span>B2B Portal</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setMode('admin')}
-                className={`px-2.5 py-0.5 rounded-full font-semibold transition-all duration-200 cursor-pointer ${
-                  mode === 'admin'
-                    ? 'bg-[#EC3E98] text-white shadow-xs'
-                    : 'text-[#CBD5E1] hover:text-white'
-                }`}
-                title="Warehouse & Ops Management"
-              >
-                Ops
-              </button>
+              {isStaffOrAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setMode('admin')}
+                  className={`px-2.5 py-0.5 rounded-full font-semibold transition-all duration-200 cursor-pointer ${
+                    mode === 'admin'
+                      ? 'bg-[#EC3E98] text-white shadow-xs'
+                      : 'text-[#CBD5E1] hover:text-white'
+                  }`}
+                  title="Warehouse & Ops Management"
+                >
+                  Ops
+                </button>
+              )}
             </div>
 
             {/* Persona Simulator Dropdown (Accessible, Z-Layer Managed & Unclipped) */}
@@ -592,15 +606,17 @@ export const Header: React.FC = () => {
               <Building2 className="w-3 h-3" />
               <span>B2B Corporate</span>
             </button>
-            <button
-              type="button"
-              onClick={() => { setMode('admin'); setMobileMenuOpen(false); }}
-              className={`flex-1 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                mode === 'admin' ? 'bg-[#EC3E98] text-white' : 'text-[#CBD5E1]'
-              }`}
-            >
-              Ops HQ
-            </button>
+            {isStaffOrAdmin && (
+              <button
+                type="button"
+                onClick={() => { setMode('admin'); setMobileMenuOpen(false); }}
+                className={`flex-1 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                  mode === 'admin' ? 'bg-[#EC3E98] text-white' : 'text-[#CBD5E1]'
+                }`}
+              >
+                Ops HQ
+              </button>
+            )}
           </div>
 
           {/* Mobile Persona Simulator Selection */}
