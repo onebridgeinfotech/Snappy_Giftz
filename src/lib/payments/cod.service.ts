@@ -129,35 +129,7 @@ export async function rejectCodOrder(
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      // 1. Release reserved inventory
-      for (const item of order.items) {
-        if (item.variantId) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: { stockQuantity: { increment: item.quantity } },
-          });
-
-          const currentVariant = await tx.productVariant.findUnique({
-            where: { id: item.variantId },
-          });
-          const newStock = currentVariant?.stockQuantity || 0;
-
-          await tx.inventoryAdjustment.create({
-            data: {
-              variantId: item.variantId,
-              sku: item.sku,
-              productName: item.productName,
-              previousStock: newStock - item.quantity,
-              adjustedQty: item.quantity,
-              newStock,
-              reason: 'MANUAL_CORRECTION',
-              referenceId: order.orderNumber,
-              userId: null,
-              notes: `Stock reservation released upon COD rejection: ${order.orderNumber}. Reason: ${reason}`,
-            },
-          });
-        }
-      }
+      // 1. Zero inventory restoration because no stock was reserved at placement (Business Rules 3 & 4)
 
       // 2. Update order status to REJECTED
       const ord = await tx.order.update({

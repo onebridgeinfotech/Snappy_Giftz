@@ -57,7 +57,7 @@ export const INITIAL_HYDERABAD_PINCODES: Record<string, { area: string; days: nu
 };
 
 // In-Memory Dev Store for Delivery Rules when DB is offline
-const DEV_PINCODES = new Map<string, ServiceablePincodeDTO>();
+export const DEV_PINCODES = new Map<string, ServiceablePincodeDTO>();
 const DEV_FEE_RULES: DeliveryFeeRuleDTO[] = [
   {
     id: 'rule-free-999',

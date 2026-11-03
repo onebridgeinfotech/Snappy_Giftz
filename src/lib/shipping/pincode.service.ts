@@ -1,4 +1,4 @@
-import { INITIAL_HYDERABAD_PINCODES } from '@/lib/delivery/delivery.service';
+import { INITIAL_HYDERABAD_PINCODES, DEV_PINCODES } from '@/lib/delivery/delivery.service';
 
 export const INDIAN_STATE_GST_CODES: Record<string, string> = {
   'JAMMU AND KASHMIR': '01',
@@ -86,7 +86,30 @@ export function checkPincodeServiceability(pincode: string): PincodeServiceabili
     };
   }
 
-  // 1. Check Hyderabad Direct Personal Delivery Coverage (Sole location supported)
+  // 1. Check owner-configured / dynamic registry
+  const devRecord = DEV_PINCODES.get(clean);
+  if (devRecord) {
+    if (!devRecord.isActive) {
+      return {
+        valid: true,
+        serviceable: false,
+        stateCode: devRecord.stateCode || '36',
+        message: `Delivery to PIN code ${clean} is currently inactive.`,
+      };
+    }
+    return {
+      valid: true,
+      serviceable: true,
+      city: devRecord.city || 'Hyderabad',
+      state: devRecord.state || 'Telangana',
+      stateCode: devRecord.stateCode || '36',
+      estimatedDays: devRecord.deliveryDays,
+      expressAvailable: true,
+      message: `Direct personal delivery available in ${devRecord.areaName || 'Hyderabad'} within ${devRecord.deliveryDays} business day(s)`,
+    };
+  }
+
+  // 2. Check initial verified Hyderabad seed registry
   const hyd = INITIAL_HYDERABAD_PINCODES[clean];
   if (hyd) {
     return {

@@ -1,10 +1,15 @@
+if (!process.env.CI && process.env.NODE_ENV !== 'production') {
+  process.env.DATABASE_URL = 'mysql://127.0.0.1:3306/dev_fallback';
+}
+
 import assert from 'node:assert/strict';
 import { INITIAL_PRODUCTS } from '../data/initialData';
 import { createOrder, DEV_ORDERS_STORE } from '../lib/orders/order.service';
 import { lookupGuestOrder } from '../lib/orders/order-lookup.service';
 import { issueTaxInvoice, getInvoiceForOrder, getInvoicePdfBuffer } from '../lib/invoices/invoice.service';
-import { approveCodOrder, recordCodCollection } from '../lib/payments/cod.service';
-import { checkHyderabadServiceability, calculateAuthoritativeDeliveryFee } from '../lib/delivery/delivery.service';
+import { approveCodOrder, rejectCodOrder, recordCodCollection } from '../lib/payments/cod.service';
+import { checkHyderabadServiceability, calculateAuthoritativeDeliveryFee, upsertServiceablePincode } from '../lib/delivery/delivery.service';
+import { checkPincodeServiceability } from '../lib/shipping/pincode.service';
 import {
   getAdminOverviewMetrics,
   listAdminUsers,
@@ -150,11 +155,28 @@ export async function runE2EJourneysTestSuite(): Promise<{ passed: number; faile
     assert.strictEqual(pinCheck.serviceable, true);
     assert.strictEqual(pinCheck.city, 'Hyderabad');
 
+    // 1b. Verify unsupported PIN codes are rejected
+    const unsuppDelhi = checkPincodeServiceability('110001');
+    assert.strictEqual(unsuppDelhi.serviceable, false);
+    const unsuppHydUnreg = await checkHyderabadServiceability('500050');
+    assert.strictEqual(unsuppHydUnreg.serviceable, false);
+
+    // 1c. Support owner-configured serviceable PIN code without inventing PIN codes
+    await upsertServiceablePincode({
+      pincode: '500050',
+      areaName: 'Chanda Nagar, Hyderabad',
+      isActive: true,
+      deliveryDays: 2,
+    });
+    const configuredCheck = await checkHyderabadServiceability('500050');
+    assert.strictEqual(configuredCheck.serviceable, true);
+    assert.strictEqual(configuredCheck.areaName, 'Chanda Nagar, Hyderabad');
+
     // 2. Delivery fee calculation
     const feeInfo = await calculateAuthoritativeDeliveryFee(150000);
     assert.ok(feeInfo.feePaise >= 0);
 
-    // 3. Create consumer COD order
+    // 3. Create consumer COD order (3 units, testing multiple units deduction)
     const codOrder = await createOrder({
       customerName: 'Sanjay Reddy',
       customerEmail: 'sanjay.reddy@example.com',
@@ -169,7 +191,7 @@ export async function runE2EJourneysTestSuite(): Promise<{ passed: number; faile
       items: [
         {
           productId: INITIAL_PRODUCTS[0].id,
-          quantity: 2,
+          quantity: 3,
         },
       ],
       paymentMethod: 'COD',
@@ -181,11 +203,36 @@ export async function runE2EJourneysTestSuite(): Promise<{ passed: number; faile
     assert.strictEqual(codOrder.paymentMethod, 'COD');
     assert.strictEqual(codOrder.paymentStatus, 'PENDING');
 
-    // 4. Staff approves COD order
+    // 4. Owner approves COD order (no stock deduction during approval)
     const approved = await approveCodOrder(codOrder.id, 'admin_staff_1');
     assert.strictEqual(approved.orderStatus, 'CONFIRMED');
 
-    // 5. Delivery agent collects physical cash and issues receipt
+    // 5. Test owner rejection on separate COD order (no stock restoration)
+    const codOrder2 = await createOrder({
+      customerName: 'Rahul Varma',
+      customerEmail: 'rahul.varma@example.com',
+      customerPhone: '9849098765',
+      shippingAddress: {
+        name: 'Rahul Varma',
+        street: 'Hitech City Road',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        pincode: '500081',
+      },
+      items: [
+        {
+          productId: INITIAL_PRODUCTS[0].id,
+          quantity: 1,
+        },
+      ],
+      paymentMethod: 'COD',
+      idempotencyKey: 'idem-cod-e2e-reject-002',
+    });
+    assert.strictEqual(codOrder2.orderStatus, 'PENDING_COD_CONFIRMATION');
+    const rejected = await rejectCodOrder(codOrder2.id, 'admin_staff_1', 'Customer unverified');
+    assert.strictEqual(rejected.orderStatus, 'REJECTED');
+
+    // 6. Delivery agent collects physical cash and issues receipt
     const collected = await recordCodCollection({
       orderId: codOrder.id,
       amountCollectedPaise: codOrder.grandTotalPaise,
@@ -197,6 +244,17 @@ export async function runE2EJourneysTestSuite(): Promise<{ passed: number; faile
     assert.strictEqual(collected.orderStatus, 'DELIVERED');
     assert.strictEqual(collected.paymentStatus, 'PAID');
     assert.ok(collected.collectionReceipt);
+
+    // 7. Verify repeated delivery collection does NOT cause duplicate deduction
+    const repeated = await recordCodCollection({
+      orderId: codOrder.id,
+      amountCollectedPaise: codOrder.grandTotalPaise,
+      collector: 'EXECUTIVE-HYD-04',
+      collectionMethod: 'CASH',
+      receiptNumber: 'REC-CASH-99881',
+    });
+    assert.strictEqual(repeated.orderStatus, 'DELIVERED');
+    assert.strictEqual(repeated.paymentStatus, 'PAID');
   });
 
   console.log('----------------------------------------------------');
