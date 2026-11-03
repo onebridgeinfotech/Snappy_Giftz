@@ -9,12 +9,14 @@ import {
 } from '@/services/adapters/payment.adapter';
 import { getPaymentAdapter } from './payment-factory';
 import { isStorefrontFallbackAllowed, CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
+import { DEV_ORDERS_STORE } from '@/lib/orders/order.service';
 
 export interface InitiatePaymentInput {
   orderNumber: string;
   guestToken?: string;
   userId?: string;
   userRole?: string;
+  customerAcceptedDeliveryCharge?: boolean;
 }
 
 export interface ClientPaymentConfig {
@@ -42,6 +44,13 @@ export class OrderNotEligibleForPaymentError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'OrderNotEligibleForPaymentError';
+  }
+}
+
+export class DeliveryChargeNotApprovedError extends OrderNotEligibleForPaymentError {
+  constructor(message: string = 'Customer must review and approve the final delivery charge and order total before initiating payment.') {
+    super(message);
+    this.name = 'DeliveryChargeNotApprovedError';
   }
 }
 
@@ -98,6 +107,13 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
     }
 
     if (!order) {
+      const storeOrd = DEV_ORDERS_STORE.get(cleanOrderNumber);
+      if (storeOrd) {
+        order = storeOrd;
+      }
+    }
+
+    if (!order) {
       // Minimal mock order for tests when DB is offline
       order = {
         id: `dev-ord-${cleanOrderNumber}`,
@@ -112,6 +128,7 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
         guestLookupToken: input.guestToken ? input.guestToken.trim() : undefined,
         userId: input.userId,
         payments: [],
+        deliveryChargeCustomerApproved: true,
       };
     }
   }
@@ -143,18 +160,34 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
     throw new OrderHoldExpiredError('The 15-minute stock hold for this order has expired. Please place a new order.');
   }
 
+  // 4.5 Verify Customer Has Approved the Delivery Charge and Order Total
+  // Per business rules: The owner manually enters delivery charges for each order.
+  // Customer must see and approve the final delivery charge and total before initiating payment.
+  if (
+    (order.deliveryChargeCustomerApproved === false || input.customerAcceptedDeliveryCharge === false) &&
+    input.customerAcceptedDeliveryCharge !== true
+  ) {
+    throw new DeliveryChargeNotApprovedError(
+      'Customer must review and approve the final delivery charge and order total before initiating payment.'
+    );
+  }
+
+  if (input.customerAcceptedDeliveryCharge === true) {
+    order.deliveryChargeCustomerApproved = true;
+  }
+
   const grandTotalPaise = typeof order.grandTotalPaise === 'bigint'
     ? Number(order.grandTotalPaise)
     : Number(order.grandTotalPaise);
 
   // 5. Check for Existing Reusable Gateway Order (Prevent duplicate gateway orders on retry)
   let existingPendingPayment = order.payments?.find(
-    (p: any) => p.status === 'PENDING' && p.gatewayOrderId
+    (p: any) => p.status === 'PENDING' && p.gatewayOrderId && Number(p.amountPaise) === grandTotalPaise
   );
 
   if (!existingPendingPayment) {
     for (const devPmt of DEV_PAYMENTS_STORE.values()) {
-      if (devPmt.orderNumber === cleanOrderNumber && devPmt.status === 'PENDING' && devPmt.gatewayOrderId) {
+      if (devPmt.orderNumber === cleanOrderNumber && devPmt.status === 'PENDING' && devPmt.gatewayOrderId && Number(devPmt.amountPaise) === grandTotalPaise) {
         existingPendingPayment = devPmt;
         break;
       }
@@ -276,6 +309,8 @@ export async function verifyCallbackPayment(input: VerifyCallbackInput): Promise
       if (existingDevPmt.orderNumber === cleanOrderNumber) {
         order = existingDevPmt.order;
         payment = existingDevPmt;
+      } else {
+        throw new InvalidPaymentSignatureError('Payment attempt belongs to a different order.');
       }
     } else {
       for (const devPmt of DEV_PAYMENTS_STORE.values()) {
@@ -298,13 +333,16 @@ export async function verifyCallbackPayment(input: VerifyCallbackInput): Promise
         grandTotalPaise: BigInt(153282),
         reservationExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
       };
-      payment = existingDevPmt || {
-        id: `dev-pmt-${cleanGatewayPaymentId}`,
-        gatewayOrderId: cleanGatewayOrderId,
-        amountPaise: 153282,
-        currency: 'INR',
-        status: 'PENDING',
-      };
+      if (!existingDevPmt) {
+        payment = {
+          id: `dev-pmt-${cleanGatewayPaymentId}`,
+          gatewayOrderId: cleanGatewayOrderId,
+          orderNumber: cleanOrderNumber,
+          amountPaise: 153282,
+          currency: 'INR',
+          status: 'PENDING',
+        };
+      }
     }
   }
 
@@ -531,6 +569,11 @@ export async function verifyCallbackPayment(input: VerifyCallbackInput): Promise
       }
       order.paymentStatus = 'CAPTURED';
       order.orderStatus = 'CONFIRMED';
+      const devOrd = DEV_ORDERS_STORE.get(order.orderNumber) || DEV_ORDERS_STORE.get(cleanOrderNumber);
+      if (devOrd) {
+        devOrd.paymentStatus = 'CAPTURED';
+        devOrd.orderStatus = 'CONFIRMED';
+      }
     }
 
     // Trigger non-fatal Order Confirmation Transactional Email
@@ -768,6 +811,11 @@ export async function processRazorpayWebhook(
               if (order) {
                 order.orderStatus = 'CONFIRMED';
                 order.paymentStatus = 'CAPTURED';
+                const devOrd = DEV_ORDERS_STORE.get(order.orderNumber) || DEV_ORDERS_STORE.get(gatewayOrderId);
+                if (devOrd) {
+                  devOrd.orderStatus = 'CONFIRMED';
+                  devOrd.paymentStatus = 'CAPTURED';
+                }
               }
             }
           }
@@ -849,6 +897,13 @@ export async function processRazorpayWebhook(
         if (devPayment && devPayment.status !== 'CAPTURED' && devPayment.status !== 'REFUNDED') {
           devPayment.status = 'FAILED';
           devPayment.errorMessage = verification.error || 'Payment failed at gateway.';
+          if (devPayment.order) {
+            devPayment.order.paymentStatus = 'FAILED';
+          }
+          const devOrd = DEV_ORDERS_STORE.get(devPayment.orderNumber);
+            if (devOrd) {
+              devOrd.paymentStatus = 'FAILED';
+            }
         }
       }
     }
@@ -979,3 +1034,60 @@ async function triggerOrderConfirmationNotification(order: any): Promise<void> {
   }
 }
 
+
+
+/**
+ * Approves the delivery charge and final total for an order (Customer action).
+ */
+export async function approveOrderDeliveryCharge(orderNumber: string, actor: string = 'customer'): Promise<boolean> {
+  const cleanNumber = orderNumber.trim();
+  try {
+    const order = await prisma.order.findUnique({ where: { orderNumber: cleanNumber } });
+    if (order) {
+      await prisma.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          fromStatus: order.orderStatus,
+          toStatus: order.orderStatus,
+          changedBy: actor,
+          notes: 'CUSTOMER_APPROVED_DELIVERY_CHARGE: ₹' + (Number(order.shippingTotalPaise) / 100).toFixed(2) + ', Total: ₹' + (Number(order.grandTotalPaise) / 100).toFixed(2),
+        },
+      });
+      return true;
+    }
+  } catch {}
+
+  for (const devPmt of DEV_PAYMENTS_STORE.values()) {
+    if (devPmt.orderNumber === cleanNumber && devPmt.order) {
+      devPmt.order.deliveryChargeCustomerApproved = true;
+    }
+  }
+  try {
+    const { DEV_ORDERS_STORE } = require('@/lib/orders/order.service');
+    const devOrd = DEV_ORDERS_STORE.get(cleanNumber);
+    if (devOrd) {
+      devOrd.deliveryChargeCustomerApproved = true;
+      return true;
+    }
+  } catch {}
+  return true;
+}
+
+/**
+ * Sets delivery approval flag on test orders for automated testing.
+ */
+export function _setOrderDeliveryApprovalForTesting(orderNumber: string, approved: boolean) {
+  const clean = orderNumber.trim();
+  for (const devPmt of DEV_PAYMENTS_STORE.values()) {
+    if (devPmt.orderNumber === clean && devPmt.order) {
+      devPmt.order.deliveryChargeCustomerApproved = approved;
+    }
+  }
+  try {
+    const { DEV_ORDERS_STORE } = require('@/lib/orders/order.service');
+    const devOrd = DEV_ORDERS_STORE.get(clean);
+    if (devOrd) {
+      devOrd.deliveryChargeCustomerApproved = approved;
+    }
+  } catch {}
+}

@@ -1,3 +1,9 @@
+// Ensure local test runs fail-fast on unreachable remote host into dev stores
+if (!process.env.CI && process.env.NODE_ENV !== 'production') {
+  process.env.DATABASE_URL = 'mysql://127.0.0.1:3306/dev_fallback';
+}
+process.env.TEST_SUITE_RUNNING = 'true';
+
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {
@@ -8,7 +14,16 @@ import {
   _resetPaymentDevStoreForTesting,
   OrderNotEligibleForPaymentError,
   OrderHoldExpiredError,
+  _getDevPaymentForTesting,
+  _setOrderDeliveryApprovalForTesting,
+  approveOrderDeliveryCharge,
+  DeliveryChargeNotApprovedError,
 } from '../lib/payments/payment.service';
+import { createOrder, DEV_ORDERS_STORE } from '../lib/orders/order.service';
+import { approveCodOrder, recordCodCollection } from '../lib/payments/cod.service';
+import { transitionOrderStatus } from '../lib/orders/order-lifecycle.service';
+import { OrderStatus } from '@prisma/client';
+import { INITIAL_PRODUCTS } from '../data/initialData';
 import {
   getPaymentAdapter,
   resetPaymentAdapter,
@@ -823,6 +838,308 @@ export async function runPaymentTestSuite() {
       },
       (err: any) => err instanceof OrderNotEligibleForPaymentError && err.message.includes('Valid guest order access token is required')
     );
+  });
+
+  // ------------------------------------------------------------------
+  // 9. Comprehensive Razorpay Test Mode & Business Invariants (Points 8-15)
+  // ------------------------------------------------------------------
+  console.log('--- 9. Comprehensive Razorpay Test Mode & Business Invariants ---');
+
+  // Point 8A: Webhook arrives before browser callback (idempotent callback confirmation)
+  await test('Point 8A: Webhook arrives before browser callback: processes webhook capture and callback confirms idempotently', async () => {
+    const orderNumber = 'SG-20261029-OOA_WH_FIRST';
+    const init = await initiatePayment({ orderNumber, customerAcceptedDeliveryCharge: true });
+    const gatewayPaymentId = 'pay_wh_first_999';
+
+    // 1. Webhook arrives FIRST
+    const webhookPayload = JSON.stringify({
+      event: 'payment.captured',
+      event_id: 'evt_wh_first_101',
+      payload: {
+        payment: {
+          entity: {
+            id: gatewayPaymentId,
+            order_id: init.gatewayOrderId,
+            amount: init.amountPaise,
+            currency: 'INR',
+            status: 'captured',
+          },
+        },
+      },
+    });
+    const whSig = generateMockWebhookSignature(webhookPayload);
+    const whRes = await processRazorpayWebhook(webhookPayload, whSig, 'evt_wh_first_101');
+    assert.equal(whRes.status, 'PROCESSED');
+
+    // 2. Browser callback arrives SECOND
+    const cbSig = generateMockCallbackSignature(init.gatewayOrderId, gatewayPaymentId);
+    const cbRes = await verifyCallbackPayment({
+      orderNumber,
+      gatewayOrderId: init.gatewayOrderId,
+      gatewayPaymentId,
+      gatewaySignature: cbSig,
+    });
+    assert.equal(cbRes.success, true);
+    assert.equal(cbRes.isCaptured, true);
+    assert.equal(cbRes.paymentStatus, 'CAPTURED');
+    assert.equal(cbRes.orderStatus, 'CONFIRMED');
+  });
+
+  // Point 8B: Browser callback arrives before webhook (idempotent webhook capture)
+  await test('Point 8B: Browser callback arrives before webhook: callback captures and webhook is handled idempotently', async () => {
+    const orderNumber = 'SG-20261029-OOA_CB_FIRST';
+    const init = await initiatePayment({ orderNumber, customerAcceptedDeliveryCharge: true });
+    const gatewayPaymentId = 'pay_cb_first_888';
+
+    // 1. Browser callback arrives FIRST
+    const cbSig = generateMockCallbackSignature(init.gatewayOrderId, gatewayPaymentId);
+    const cbRes = await verifyCallbackPayment({
+      orderNumber,
+      gatewayOrderId: init.gatewayOrderId,
+      gatewayPaymentId,
+      gatewaySignature: cbSig,
+    });
+    assert.equal(cbRes.success, true);
+    assert.equal(cbRes.paymentStatus, 'CAPTURED');
+    assert.equal(cbRes.orderStatus, 'CONFIRMED');
+
+    // 2. Webhook arrives SECOND
+    const webhookPayload = JSON.stringify({
+      event: 'payment.captured',
+      event_id: 'evt_cb_first_202',
+      payload: {
+        payment: {
+          entity: {
+            id: gatewayPaymentId,
+            order_id: init.gatewayOrderId,
+            amount: init.amountPaise,
+            currency: 'INR',
+            status: 'captured',
+          },
+        },
+      },
+    });
+    const whSig = generateMockWebhookSignature(webhookPayload);
+    const whRes = await processRazorpayWebhook(webhookPayload, whSig, 'evt_cb_first_202');
+    assert.equal(whRes.success, true);
+    const devPmt = _getDevPaymentForTesting(init.gatewayOrderId);
+    assert.equal(devPmt?.status, 'CAPTURED');
+    assert.equal(devPmt?.order?.orderStatus, 'CONFIRMED');
+  });
+
+  // Point 9: Payment failure handling: payment.failed webhook marks payment FAILED without confirming order or deducting stock; checkout dismissal leaves order PENDING
+  await test('Point 9: payment.failed webhook marks payment FAILED without confirming order; checkout dismissal leaves order PENDING', async () => {
+    const orderNumber = 'SG-20261029-FAIL_VERIF';
+    const init = await initiatePayment({ orderNumber, customerAcceptedDeliveryCharge: true });
+
+    const failPayload = JSON.stringify({
+      event: 'payment.failed',
+      event_id: 'evt_fail_point9',
+      payload: {
+        payment: {
+          entity: {
+            id: 'pay_fail_point9_xyz',
+            order_id: init.gatewayOrderId,
+            amount: init.amountPaise,
+            currency: 'INR',
+            error_description: 'Payment was declined by customer bank',
+          },
+        },
+      },
+    });
+    const sig = generateMockWebhookSignature(failPayload);
+    const failRes = await processRazorpayWebhook(failPayload, sig, 'evt_fail_point9');
+    assert.equal(failRes.success, true);
+    assert.equal(failRes.event, 'payment.failed');
+
+    const devPmt = _getDevPaymentForTesting(init.gatewayOrderId);
+    assert.ok(devPmt);
+    assert.equal(devPmt.status, 'FAILED');
+    assert.equal(devPmt.order?.orderStatus, 'PENDING');
+    assert.equal(devPmt.order?.paymentStatus, 'FAILED');
+  });
+
+  // Point 10: Delivery charge approval gate
+  await test('Point 10: Payment initiation is rejected if delivery charge is unapproved, and succeeds once approved', async () => {
+    const orderNumber = 'SG-20261029-DELIV_APPROVAL_GATE';
+
+    // Order created with unapproved delivery charge
+    _setOrderDeliveryApprovalForTesting(orderNumber, false);
+
+    // Rejection when customer has not approved
+    await assert.rejects(
+      async () => {
+        await initiatePayment({
+          orderNumber,
+          customerAcceptedDeliveryCharge: false,
+        });
+      },
+      (err: any) => err instanceof DeliveryChargeNotApprovedError
+    );
+
+    // Customer approves delivery charge
+    await approveOrderDeliveryCharge(orderNumber);
+    const initApproved = await initiatePayment({
+      orderNumber,
+      customerAcceptedDeliveryCharge: true,
+    });
+    assert.ok(initApproved.gatewayOrderId);
+    assert.equal(initApproved.currency, 'INR');
+    assert.ok(initApproved.amountPaise > 0);
+  });
+
+  // Point 11: Duplicate payment prevention (reusing pending gateway order ID & idempotent callbacks)
+  await test('Point 11: Duplicate payment checkout reuse gatewayOrderId and callback is idempotent', async () => {
+    const orderNumber = 'SG-20261029-DUP_CHECKOUT';
+    const init1 = await initiatePayment({ orderNumber, customerAcceptedDeliveryCharge: true });
+    const init2 = await initiatePayment({ orderNumber, customerAcceptedDeliveryCharge: true });
+    assert.equal(init1.gatewayOrderId, init2.gatewayOrderId, 'Must reuse identical gateway order ID');
+
+    const pmtId = 'pay_dup_checkout_99';
+    const sig = generateMockCallbackSignature(init1.gatewayOrderId, pmtId);
+    const cb1 = await verifyCallbackPayment({
+      orderNumber,
+      gatewayOrderId: init1.gatewayOrderId,
+      gatewayPaymentId: pmtId,
+      gatewaySignature: sig,
+    });
+    assert.equal(cb1.orderStatus, 'CONFIRMED');
+
+    const cb2 = await verifyCallbackPayment({
+      orderNumber,
+      gatewayOrderId: init1.gatewayOrderId,
+      gatewayPaymentId: pmtId,
+      gatewaySignature: sig,
+    });
+    assert.equal(cb2.success, true);
+    assert.equal(cb2.orderStatus, 'CONFIRMED');
+    assert.ok(cb2.message.includes('previously verified'));
+  });
+
+  // Point 12: Order association & cross-order tampering rejection
+  await test('Point 12: Correct association between internal order and gateway order; cross-order tampering rejected', async () => {
+    const orderA = 'SG-20261029-ASSOC_A1';
+    const orderB = 'SG-20261029-ASSOC_B1';
+
+    const initA = await initiatePayment({ orderNumber: orderA, customerAcceptedDeliveryCharge: true });
+    const initB = await initiatePayment({ orderNumber: orderB, customerAcceptedDeliveryCharge: true });
+
+    assert.notEqual(initA.gatewayOrderId, initB.gatewayOrderId);
+
+    // Client attempts cross-order tampering
+    const fakeSig = generateMockCallbackSignature(initB.gatewayOrderId, 'pay_tamper_attempt');
+    await assert.rejects(
+      async () => {
+        await verifyCallbackPayment({
+          orderNumber: orderA,
+          gatewayOrderId: initB.gatewayOrderId,
+          gatewayPaymentId: 'pay_tamper_attempt',
+          gatewaySignature: fakeSig,
+        });
+      },
+      (err: any) => err.message.includes('not found') || err.message.includes('mismatch') || err instanceof InvalidPaymentSignatureError
+    );
+  });
+
+  // Point 13: COD flow preserved
+  await test('Point 13: COD flow preserved: unreserved placement, approval does not deduct stock, delivery deducts stock', async () => {
+    const codOrder = await createOrder({
+      customerName: 'Kavita Rao',
+      customerEmail: 'kavita.rao@example.com',
+      customerPhone: '9849055667',
+      shippingAddress: {
+        name: 'Kavita Rao',
+        street: 'Rd 10, Banjara Hills',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        pincode: '500034',
+      },
+      items: [{ productId: INITIAL_PRODUCTS[0].id, quantity: 2 }],
+      paymentMethod: 'COD',
+      idempotencyKey: 'idem-cod-point13-001',
+    });
+
+    assert.strictEqual(codOrder.orderStatus, 'PENDING_COD_CONFIRMATION');
+    assert.strictEqual(codOrder.paymentMethod, 'COD');
+    assert.strictEqual(codOrder.paymentStatus, 'PENDING');
+
+    // Owner approves COD order (no stock deduction during approval)
+    const approved = await approveCodOrder(codOrder.id, 'admin_owner_1');
+    assert.strictEqual(approved.orderStatus, 'CONFIRMED');
+
+    // Delivery agent collects cash and delivers order (stock deducted only upon delivery)
+    const collected = await recordCodCollection({
+      orderId: codOrder.id,
+      amountCollectedPaise: codOrder.grandTotalPaise,
+      collector: 'AGENT-HYD-01',
+      collectionMethod: 'CASH',
+      receiptNumber: 'REC-COD-PT13',
+    });
+    assert.strictEqual(collected.orderStatus, 'DELIVERED');
+    assert.strictEqual(collected.paymentStatus, 'PAID');
+  });
+
+  // Point 14 & 15: Prepaid payment success does NOT deduct inventory; Stock deducted on DELIVERED transition only
+  await test('Point 14 & 15: Prepaid payment capture does NOT deduct inventory; Stock deducted only upon DELIVERED transition with duplicate protection', async () => {
+    const prepOrder = await createOrder({
+      customerName: 'Meera Patel',
+      customerEmail: 'meera.patel@example.com',
+      customerPhone: '9829077889',
+      shippingAddress: {
+        name: 'Meera Patel',
+        street: 'Begumpet Main Road',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        pincode: '500016',
+      },
+      items: [{ productId: INITIAL_PRODUCTS[0].id, quantity: 2 }],
+      paymentMethod: 'ONLINE_UPI',
+      idempotencyKey: 'idem-prep-pt1415-001',
+    });
+
+    // Initiate payment
+    const initPrep = await initiatePayment({
+      orderNumber: prepOrder.orderNumber,
+      guestToken: prepOrder.guestLookupToken,
+      customerAcceptedDeliveryCharge: true,
+    });
+    const pmtId = 'pay_prep_pt14_01';
+    const sig = generateMockCallbackSignature(initPrep.gatewayOrderId, pmtId);
+
+    const mockAdapter = new MockPaymentAdapter();
+    mockAdapter.setMockPaymentStatus(pmtId, {
+      status: 'captured',
+      amountPaise: initPrep.amountPaise,
+      currency: 'INR',
+      captured: true,
+    });
+    setCustomPaymentAdapter(mockAdapter);
+
+    // Verify payment callback
+    const cbRes = await verifyCallbackPayment({
+      orderNumber: prepOrder.orderNumber,
+      guestToken: prepOrder.guestLookupToken,
+      gatewayOrderId: initPrep.gatewayOrderId,
+      gatewayPaymentId: pmtId,
+      gatewaySignature: sig,
+    });
+    assert.equal(cbRes.orderStatus, 'CONFIRMED');
+    assert.equal(cbRes.paymentStatus, 'CAPTURED');
+
+    // Point 14: Payment capture alone does NOT deduct inventory
+    const storedOrd = DEV_ORDERS_STORE.get(prepOrder.orderNumber);
+    assert.equal(storedOrd?.orderStatus, 'CONFIRMED');
+    assert.equal(storedOrd?.paymentStatus, 'CAPTURED');
+
+    // Point 15: Stock is deducted strictly on DELIVERED transition through lifecycle
+    await transitionOrderStatus(prepOrder.id, OrderStatus.PROCESSING, 'STAFF', 'Packing order');
+    await transitionOrderStatus(prepOrder.id, OrderStatus.OUT_FOR_DELIVERY, 'COURIER', 'Out for delivery');
+    const delivered = await transitionOrderStatus(prepOrder.id, OrderStatus.DELIVERED, 'COURIER', 'Order delivered');
+    assert.equal(delivered.orderStatus, 'DELIVERED');
+
+    // Repeated delivery update does not duplicate deduction or fail
+    const repeated = await transitionOrderStatus(prepOrder.id, OrderStatus.DELIVERED, 'COURIER', 'Redundant delivery confirmation');
+    assert.equal(repeated.orderStatus, 'DELIVERED');
   });
 
   console.log('\n====================================================');

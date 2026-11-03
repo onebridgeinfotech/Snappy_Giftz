@@ -42,10 +42,18 @@ export function getPaymentAdapter(driverOverride?: 'razorpay' | 'mock'): Payment
   // In production, driver must be razorpay
   let driver = effectiveOverride || process.env.PAYMENT_DRIVER;
   if (!driver) {
+    const hasConfiguredRazorpayCredentials =
+      Boolean(process.env.RAZORPAY_KEY_ID) &&
+      !process.env.RAZORPAY_KEY_ID.startsWith('rzp_mock') &&
+      Boolean(process.env.RAZORPAY_KEY_SECRET);
+
     if (process.env.NODE_ENV === 'production') {
       driver = 'razorpay';
+    } else if (isTest) {
+      driver = 'mock';
+    } else if (hasConfiguredRazorpayCredentials) {
+      driver = 'razorpay';
     } else {
-      // In dev/test: use razorpay only if explicitly requested, otherwise mock
       driver = 'mock';
     }
   }

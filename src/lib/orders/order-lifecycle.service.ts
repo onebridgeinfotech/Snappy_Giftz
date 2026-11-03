@@ -367,12 +367,24 @@ export async function transitionOrderStatus(
       throw new CatalogDatabaseError('Database unreachable during order transition.');
     }
     order = DEV_ORDERS_STORE.get(cleanKey) || null;
+    if (!order) {
+      for (const devOrd of DEV_ORDERS_STORE.values()) {
+        if (devOrd.id === cleanKey || devOrd.orderNumber === cleanKey) {
+          order = devOrd;
+          break;
+        }
+      }
+    }
   }
 
   if (!order) {
-    if (isStorefrontFallbackAllowed() && DEV_ORDERS_STORE.has(cleanKey)) {
-      order = DEV_ORDERS_STORE.get(cleanKey)!;
-    } else {
+    for (const devOrd of DEV_ORDERS_STORE.values()) {
+      if (devOrd.id === cleanKey || devOrd.orderNumber === cleanKey) {
+        order = devOrd;
+        break;
+      }
+    }
+    if (!order) {
       throw new OrderNotFoundError(`Order not found: ${cleanKey}`);
     }
   }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   initiatePayment,
   OrderNotEligibleForPaymentError,
+  DeliveryChargeNotApprovedError,
   OrderHoldExpiredError,
 } from '@/lib/payments/payment.service';
 import { getOptionalUser } from '@/lib/auth/rbac';
@@ -12,7 +13,7 @@ import { enforceRateLimit } from '@/lib/security/rate-limit';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { orderNumber, guestToken } = body;
+    const { orderNumber, guestToken, customerAcceptedDeliveryCharge } = body;
 
     if (!orderNumber || typeof orderNumber !== 'string') {
       return NextResponse.json(
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
       guestToken,
       userId: user?.id,
       userRole: user?.role,
+      customerAcceptedDeliveryCharge: typeof customerAcceptedDeliveryCharge === 'boolean' ? customerAcceptedDeliveryCharge : undefined,
     });
 
     return NextResponse.json({
@@ -53,6 +55,13 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: error.message, code: 'HOLD_EXPIRED' },
         { status: 410 } // Gone / expired hold
+      );
+    }
+
+    if (error instanceof DeliveryChargeNotApprovedError) {
+      return NextResponse.json(
+        { error: error.message, code: 'DELIVERY_CHARGE_NOT_APPROVED' },
+        { status: 400 }
       );
     }
 

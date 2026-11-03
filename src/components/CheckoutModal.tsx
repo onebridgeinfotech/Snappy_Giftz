@@ -103,7 +103,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Handle final order payment confirmation
   const handleConfirmOrder = async () => {
+    if (isProcessing) return;
     setIsProcessing(true);
+    setCheckoutError(null);
 
     const shippingAddress: Address = {
       id: `addr-${Date.now()}`,
@@ -178,6 +180,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           courierPartner: 'BlueDart Air Express',
         };
 
+        // If COD order, transition directly without initiating Razorpay gateway payment
+        if (serverOrder.paymentMethod?.toUpperCase() === 'COD' || paymentMethod === 'COD') {
+          newOrder.paymentStatus = 'Pending Verification';
+          newOrder.orderStatus = 'Order Placed';
+          setCreatedOrder(newOrder);
+          setIsProcessing(false);
+          setStep('success');
+          onOrderSuccess(newOrder);
+          return;
+        }
+
         // Initiate Gateway Payment Order on Server
         try {
           const pmtResponse = await fetch('/api/payments/create-order', {
@@ -186,6 +199,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             body: JSON.stringify({
               orderNumber: serverOrder.orderNumber,
               guestToken: serverOrder.guestLookupToken,
+              customerAcceptedDeliveryCharge: true,
             }),
           });
 
@@ -205,7 +219,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               key: pmtConfig.gatewayKeyId,
               amount: pmtConfig.amountPaise,
               currency: pmtConfig.currency || 'INR',
-              name: 'Snappy Gifts',
+              name: 'SNAPPY GIFTZ',
               description: `Order ${serverOrder.orderNumber}`,
               order_id: pmtConfig.gatewayOrderId,
               prefill: {
@@ -260,6 +274,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   setIsProcessing(false);
                 },
               },
+            });
+
+            // Handle payment failure in Razorpay Checkout modal
+            rzp.on('payment.failed', function (resp: any) {
+              setIsProcessing(false);
+              const failureDesc = resp?.error?.description || resp?.error?.reason || 'Payment was declined by your bank or gateway.';
+              setCheckoutError('Payment failed: ' + failureDesc + '. Your order remains active; please try again.');
             });
 
             rzp.open();

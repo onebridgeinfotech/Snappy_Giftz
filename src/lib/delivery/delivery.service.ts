@@ -525,6 +525,7 @@ export async function updateOrderDeliveryCharge(
         const oldShipping = devOrd.shippingTotalPaise || 0;
         devOrd.shippingTotalPaise = cleanCharge;
         devOrd.grandTotalPaise = (devOrd.grandTotalPaise || 0) - oldShipping + cleanCharge;
+        (devOrd as any).deliveryChargeCustomerApproved = false;
         return devOrd;
       }
     }
