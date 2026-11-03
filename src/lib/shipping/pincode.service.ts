@@ -1,4 +1,4 @@
-import { SERVICEABLE_PINCODES } from '@/data/initialData';
+import { INITIAL_HYDERABAD_PINCODES } from '@/lib/delivery/delivery.service';
 
 export const INDIAN_STATE_GST_CODES: Record<string, string> = {
   'JAMMU AND KASHMIR': '01',
@@ -71,7 +71,8 @@ export function resolveStateCode(stateName?: string): string {
 }
 
 /**
- * Check delivery serviceability for a PIN code against approved hub registry.
+ * Check delivery serviceability.
+ * Business Rule: Hyderabad is the ONLY delivery location currently supported.
  */
 export function checkPincodeServiceability(pincode: string): PincodeServiceabilityResult {
   const clean = pincode ? pincode.trim() : '';
@@ -81,32 +82,30 @@ export function checkPincodeServiceability(pincode: string): PincodeServiceabili
       valid: false,
       serviceable: false,
       stateCode: '99',
-      message: 'Please enter a valid 6-digit Indian PIN code (e.g. 305001 or 110001)',
+      message: 'Please enter a valid 6-digit Indian PIN code (e.g. 500001, 500034, 500081)',
     };
   }
 
-  // Lookup in approved dataset
-  const hub = SERVICEABLE_PINCODES[clean];
-  if (hub) {
-    const stateCode = resolveStateCode(hub.state);
+  // 1. Check Hyderabad Direct Personal Delivery Coverage (Sole location supported)
+  const hyd = INITIAL_HYDERABAD_PINCODES[clean];
+  if (hyd) {
     return {
       valid: true,
       serviceable: true,
-      city: hub.city,
-      state: hub.state,
-      stateCode,
-      estimatedDays: hub.days,
-      expressAvailable: hub.expressAvailable,
-      message: `Delivery available in ${hub.city}, ${hub.state} within ${hub.days} business day${hub.days > 1 ? 's' : ''}`,
+      city: 'Hyderabad',
+      state: 'Telangana',
+      stateCode: '36',
+      estimatedDays: hyd.days,
+      expressAvailable: true,
+      message: `Direct personal delivery available in ${hyd.area}, Hyderabad within ${hyd.days} business day(s)`,
     };
   }
 
-  // Pincode has valid 6-digit format, but is NOT present in the approved serviceable registry
-  // Explicitly return unserviceable rather than fabricating a delivery promise
+  // Unapproved / Non-Hyderabad PIN codes
   return {
     valid: true,
     serviceable: false,
     stateCode: '99',
-    message: `Delivery is currently not available for PIN code ${clean}. Snappy Gifts currently services verified express hubs.`,
+    message: `Delivery to PIN code ${clean} is currently not available. SNAPPY GIFTZ is currently exclusively serving Hyderabad verified express hubs.`,
   };
 }

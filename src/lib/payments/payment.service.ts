@@ -124,7 +124,8 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
       throw new OrderNotEligibleForPaymentError('Access denied: You are not authorized to pay for this order.');
     }
   } else if (order.guestLookupToken) {
-    if (!input.guestToken || order.guestLookupToken !== input.guestToken.trim()) {
+    const matchGuest = input.guestToken && order.guestLookupToken && crypto.timingSafeEqual(crypto.createHash('sha256').update(input.guestToken.trim()).digest(), crypto.createHash('sha256').update(order.guestLookupToken).digest());
+    if (!matchGuest) {
       throw new OrderNotEligibleForPaymentError('Access denied: Valid guest order access token is required.');
     }
   }
@@ -315,7 +316,8 @@ export async function verifyCallbackPayment(input: VerifyCallbackInput): Promise
       throw new OrderNotEligibleForPaymentError('Access denied: You are not authorized to verify payment for this order.');
     }
   } else if (order.guestLookupToken) {
-    if (!input.guestToken || order.guestLookupToken !== input.guestToken.trim()) {
+    const matchGuest = input.guestToken && order.guestLookupToken && crypto.timingSafeEqual(crypto.createHash('sha256').update(input.guestToken.trim()).digest(), crypto.createHash('sha256').update(order.guestLookupToken).digest());
+    if (!matchGuest) {
       throw new OrderNotEligibleForPaymentError('Access denied: Valid guest order access token is required.');
     }
   }

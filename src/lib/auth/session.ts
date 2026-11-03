@@ -86,7 +86,6 @@ export async function createSession(
           role: meta?.role || 'CUSTOMER',
           isEmailVerified: true,
           isActive: true,
-          organizationId: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         },

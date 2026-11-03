@@ -1189,7 +1189,7 @@ export const AdminDashboard: React.FC = () => {
           }`}
         >
           <Building2 className="w-4 h-4 text-indigo-400" />
-          <span>Corporate B2B & RFQs</span>
+          <span>COD & Hyderabad Delivery</span>
         </button>
 
         <button
@@ -1328,14 +1328,11 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="p-5 rounded-2xl bg-white border border-rose-100 shadow-xs">
               <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
-                <span>Corporate B2B Pipeline</span>
+                <span>Cash on Delivery (COD)</span>
                 <Building2 className="w-4 h-4 text-indigo-600" />
               </div>
               <div className="text-2xl font-serif font-bold text-slate-900 mt-2">
-                {overviewMetrics?.kpis?.pendingCorporateRfqs ?? quotations.filter(q => q.status === 'Sent for Review').length} Pending RFQs
-              </div>
-              <div className="text-[11px] text-indigo-700 mt-1">
-                Outstanding Quotes: {overviewMetrics?.kpis?.outstandingQuotations ?? 0}
+                {overviewMetrics?.kpis?.pendingCodApprovals ?? 0} Pending Approvals • {overviewMetrics?.kpis?.pendingCodCollections ?? 0} Pending Collections
               </div>
             </div>
 
@@ -1952,10 +1949,10 @@ export const AdminDashboard: React.FC = () => {
             <div>
               <h2 className="font-serif text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <Building2 className="w-6 h-6 text-rose-800" />
-                <span>Corporate Accounts, RFQs & Quotations Desk</span>
+                <span>Cash on Delivery & Hyderabad Direct Delivery Desk</span>
               </h2>
               <p className="text-xs text-slate-500">
-                Review corporate onboarding applications, manage RFQ lifecycle, issue & revise quotations, and oversee multi-address orders.
+                Verify and approve COD orders, record cash collections with receipt numbers, manage Hyderabad serviceable pincodes and delivery fee rules.
               </p>
             </div>
             <button

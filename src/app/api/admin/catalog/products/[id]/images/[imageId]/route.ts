@@ -63,9 +63,10 @@ export async function PATCH(
         // Ensure this image URL becomes first in product.images
         const product = await tx.product.findUnique({ where: { id } });
         if (product) {
+          const existingImages = Array.isArray(product.images) ? (product.images as string[]) : [];
           const reorderedUrls = [
             existing.url,
-            ...product.images.filter((u) => u !== existing.url),
+            ...existingImages.filter((u) => u !== existing.url),
           ];
           await tx.product.update({
             where: { id },
@@ -131,7 +132,8 @@ export async function DELETE(
 
       const product = await tx.product.findUnique({ where: { id } });
       if (product) {
-        const remainingUrls = product.images.filter((u) => u !== existing.url);
+        const existingImages = Array.isArray(product.images) ? (product.images as string[]) : [];
+        const remainingUrls = existingImages.filter((u) => u !== existing.url);
         await tx.product.update({
           where: { id },
           data: { images: remainingUrls },

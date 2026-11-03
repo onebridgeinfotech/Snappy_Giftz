@@ -139,14 +139,15 @@ export const MAX_QUANTITY_PER_LINE = 500;
  */
 export async function calculateCartPricing(
   items: CartItemInput[],
-  destinationStateCode = '08'
+  destinationStateCode = '36',
+  manualShippingTotalPaise?: number
 ): Promise<CartPricingQuote> {
   if (!items || !Array.isArray(items) || items.length === 0) {
     throw new PricingValidationError('Cart cannot be empty for pricing calculation.');
   }
 
   const cleanStateCode = (destinationStateCode || '08').trim();
-  const isIntraState = cleanStateCode === RAJASTHAN_STATE_CODE;
+  const isIntraState = cleanStateCode === RAJASTHAN_STATE_CODE || cleanStateCode === '36' || cleanStateCode === SUPPLIER_REGISTERED_STATE_CODE;
 
   const lineQuotes: LineItemQuote[] = [];
 
@@ -346,10 +347,18 @@ export async function calculateCartPricing(
 
     const lineSubtotalPaise = unitPricePaise * qty;
     const lineCustomizationPaise = customizationFeePaise * qty;
-    const lineTaxablePaise = lineSubtotalPaise + lineCustomizationPaise;
-
+    const lineGrossPaise = lineSubtotalPaise + lineCustomizationPaise;
     const taxRate = authoritativeProduct.taxRatePercent;
-    const lineTaxTotalPaise = Math.round((lineTaxablePaise * taxRate) / 100);
+    const isTaxInclusive = !!(authoritativeProduct as any).isTaxInclusive;
+    let lineTaxablePaise = lineGrossPaise;
+    let lineTaxTotalPaise = 0;
+    if (isTaxInclusive) {
+      lineTaxablePaise = Math.round((lineGrossPaise * 100) / (100 + taxRate));
+      lineTaxTotalPaise = lineGrossPaise - lineTaxablePaise;
+    } else {
+      lineTaxablePaise = lineGrossPaise;
+      lineTaxTotalPaise = Math.round((lineTaxablePaise * taxRate) / 100);
+    }
     let cgstPaise = 0;
     let sgstPaise = 0;
     let igstPaise = 0;
@@ -398,9 +407,11 @@ export async function calculateCartPricing(
   const igstPaise = lineQuotes.reduce((acc, l) => acc + l.igstPaise, 0);
   const taxTotalPaise = cgstPaise + sgstPaise + igstPaise;
 
-  // Free shipping policy (>= ₹999 items subtotal)
+    // Manual Delivery Charge (Entered by Owner per order; automatic slabs removed)
   const shippingTotalPaise =
-    itemsSubtotalPaise >= FREE_SHIPPING_THRESHOLD_PAISE ? 0 : STANDARD_SHIPPING_FEE_PAISE;
+    typeof manualShippingTotalPaise === 'number' && manualShippingTotalPaise >= 0
+      ? manualShippingTotalPaise
+      : 0;
 
   const grandTotalPaise = taxableAmountPaise + taxTotalPaise + shippingTotalPaise;
 

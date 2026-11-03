@@ -85,6 +85,8 @@ export interface StoredArtworkRecord {
   sizeBytes: number;
   fileHash: string;
   storageFolder: string;
+  cartItemId?: string | null;
+  orderItemId?: string | null;
   uploadedByUserId: string | null;
   guestSessionToken: string | null;
   status: 'ACTIVE' | 'ATTACHED' | 'ABANDONED';
@@ -729,7 +731,14 @@ export async function validatePersonalizationInput(
 
     if (sessionContext) {
       const isOwnerUser = sessionContext.userId && artwork.uploadedByUserId === sessionContext.userId;
-      const isOwnerGuest = sessionContext.guestToken && artwork.guestSessionToken === sessionContext.guestToken;
+      let isOwnerGuest = false;
+      if (sessionContext.guestToken && artwork.guestSessionToken) {
+        try {
+          const hA = crypto.createHash('sha256').update(sessionContext.guestToken).digest();
+          const hB = crypto.createHash('sha256').update(artwork.guestSessionToken).digest();
+          isOwnerGuest = crypto.timingSafeEqual(hA, hB);
+        } catch { isOwnerGuest = false; }
+      }
       if (!isOwnerUser && !isOwnerGuest && artwork.uploadedByUserId && artwork.guestSessionToken) {
         throw new PersonalizationAuthError('Access denied: You do not own the referenced artwork upload.');
       }
@@ -748,7 +757,7 @@ export async function validatePersonalizationInput(
  */
 export async function createArtworkUploadRecord(
   upload: PrivateUploadResult,
-  uploader: { userId?: string | null; guestToken?: string | null }
+  uploader: { userId?: string | null; guestToken?: string | null; cartItemId?: string | null; orderItemId?: string | null }
 ): Promise<StoredArtworkRecord> {
   const id = `art-${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
   const now = new Date();
@@ -765,6 +774,8 @@ export async function createArtworkUploadRecord(
         fileHash: upload.fileHash,
         storageFolder: upload.fileKey.startsWith('proofs/') ? 'proofs' : 'customer-artwork',
         uploadedByUserId: uploader.userId || null,
+        cartItemId: uploader.cartItemId || null,
+        orderItemId: uploader.orderItemId || null,
         guestSessionToken: uploader.guestToken || null,
         status: 'ACTIVE',
         expiresAt,

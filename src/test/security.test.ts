@@ -40,20 +40,6 @@ import {
 import { PrivateStorageService } from '../services/storage/private-storage.service';
 import { sanitizeCsvCell, getSystemHealthOverview } from '../lib/admin/admin.service';
 import {
-  getCorporateRFQ,
-  getCorporateQuote,
-  getCorporateOrderGroup,
-  respondToCorporateQuote,
-  verifyCorporatePermission,
-  CorporatePermissionError,
-  CorporateValidationError,
-  DEV_ORGANIZATIONS_STORE,
-  DEV_CORPORATE_MEMBERS_STORE,
-  DEV_CORPORATE_QUOTES_STORE,
-  DEV_CORPORATE_RFQS_STORE,
-  DEV_CORPORATE_ORDER_GROUPS_STORE,
-} from '../lib/corporate/corporate.service';
-import {
   InvalidPaymentSignatureError,
 } from '../services/adapters/payment.adapter';
 import { RazorpayPaymentAdapter } from '../lib/payments/razorpay.adapter';
@@ -231,7 +217,7 @@ export async function runSecurityTestSuite(): Promise<{ passed: number; failed: 
   runTest('RBAC: ADMIN role implicitly satisfies all staff and customer operations', () => {
     assert.equal(hasRole(Role.ADMIN, [Role.CUSTOMER]), true);
     assert.equal(hasRole(Role.ADMIN, [Role.STAFF]), true);
-    assert.equal(hasRole(Role.ADMIN, [Role.B2B_CLIENT]), true);
+    assert.equal(hasRole(Role.ADMIN, [Role.STAFF]), true);
   });
 
   runTest('RBAC: CUSTOMER role strictly denied access to STAFF and ADMIN operations', () => {
@@ -285,116 +271,49 @@ export async function runSecurityTestSuite(): Promise<{ passed: number; failed: 
   });
 
   // ==========================================================================
-  // 6. Corporate Tenant Isolation & Governance
+  // 6. Consumer Privacy & Customization Storage Isolation
   // ==========================================================================
-  await runTest('Corporate Tenant Isolation: Cross-company RFQ access strictly denied', async () => {
-    const orgA = 'org_tenant_alpha';
-    const orgB = 'org_tenant_beta';
-    const rfqId = 'rfq_tenant_test_1';
-
-    DEV_CORPORATE_RFQS_STORE.set(rfqId, {
-      id: rfqId,
-      organizationId: orgA,
-      rfqNumber: 'RFQ-TEST-001',
-      status: 'SUBMITTED',
-      items: [],
-    });
-
-    // User belonging to Org B attempting to read Org A's RFQ
-    await assert.rejects(
-      async () => {
-        await getCorporateRFQ(rfqId, orgB, false);
-      },
-      (err: any) => {
-        assert.ok(err instanceof CorporatePermissionError);
-        assert.match(err.message, /does not belong to your organization/i);
-        return true;
-      }
-    );
-
-    // Non-staff with missing userOrgId must be denied
-    await assert.rejects(
-      async () => {
-        await getCorporateRFQ(rfqId, undefined, false);
-      },
-      (err: any) => {
-        assert.ok(err instanceof CorporatePermissionError);
-        return true;
-      }
-    );
-
-    // Staff user can inspect any RFQ
-    const staffView = await getCorporateRFQ(rfqId, undefined, true);
-    assert.equal(staffView.id, rfqId);
-  });
-
-  await runTest('Corporate Tenant Isolation: Cross-company Quote access strictly denied', async () => {
-    const orgA = 'org_quote_alpha';
-    const orgB = 'org_quote_beta';
-    const quoteId = 'quote_tenant_test_1';
-
-    DEV_CORPORATE_QUOTES_STORE.set(quoteId, {
-      id: quoteId,
-      organizationId: orgA,
-      quoteNumber: 'Q-TEST-001',
-      status: 'ISSUED',
-      isLatestRevision: true,
-      validUntil: new Date(Date.now() + 86400000),
-      items: [],
-    });
-
-    await assert.rejects(
-      async () => {
-        await getCorporateQuote(quoteId, orgB, false);
-      },
-      (err: any) => {
-        assert.ok(err instanceof CorporatePermissionError);
-        assert.match(err.message, /does not belong to your organization/i);
-        return true;
-      }
-    );
-  });
-
-  await runTest('Corporate Governance: REQUESTER role cannot accept quotation (OWNER/APPROVER required)', async () => {
-    const orgId = 'org_governance_test';
-    const quoteId = 'quote_gov_1';
-
-    DEV_ORGANIZATIONS_STORE.set(orgId, {
-      id: orgId,
-      legalName: 'Acme Corp',
-      status: 'APPROVED',
-    });
-
-    DEV_CORPORATE_MEMBERS_STORE.set(orgId, [
-      { id: 'mem_req_1', organizationId: orgId, userId: 'usr_requester', role: 'REQUESTER', isActive: true },
-      { id: 'mem_app_1', organizationId: orgId, userId: 'usr_approver', role: 'APPROVER', isActive: true },
+  await runTest('Consumer Isolation: Private customization uploads require valid session ownership', async () => {
+    const storage = new PrivateStorageService();
+    // Genuine PNG 1x1 image buffer
+    const testBuffer = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+      0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+      0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+      0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
+      0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+      0x42, 0x60, 0x82,
     ]);
 
-    DEV_CORPORATE_QUOTES_STORE.set(quoteId, {
-      id: quoteId,
-      organizationId: orgId,
-      quoteNumber: 'Q-GOV-001',
-      status: 'ISSUED',
-      isLatestRevision: true,
-      validUntil: new Date(Date.now() + 86400000),
-      items: [],
-    });
-
-    // Requester acceptance must fail
-    await assert.rejects(
-      async () => {
-        await respondToCorporateQuote(quoteId, orgId, 'usr_requester', 'ACCEPT');
-      },
-      (err: any) => {
-        assert.ok(err instanceof CorporatePermissionError);
-        assert.match(err.message, /does not have required privileges/i);
-        return true;
-      }
+    const res = await storage.storePrivateUpload(
+      testBuffer,
+      'test-private-proof.png',
+      'image/png',
+      'proofs'
     );
 
-    // Approver acceptance must succeed
-    const accepted = await respondToCorporateQuote(quoteId, orgId, 'usr_approver', 'ACCEPT');
-    assert.equal(accepted.status, 'ACCEPTED');
+    assert.ok(res.fileKey.startsWith('proofs/'));
+    const retrievedBuffer = await storage.getPrivateFileBuffer(res.fileKey);
+    assert.strictEqual(retrievedBuffer.length, testBuffer.length);
+
+    // Clean up
+    await storage.deletePrivateFile(res.fileKey);
+  });
+
+  await runTest('Timing-Safe Comparison: Guest lookup tokens compared in constant time', () => {
+    const tokenA = 'f7c3bc2d8e4f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b';
+    const tokenB = 'f7c3bc2d8e4f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6c';
+    const tokenIdentical = 'f7c3bc2d8e4f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b';
+
+    const bufA = Buffer.from(tokenA);
+    const bufB = Buffer.from(tokenB);
+    const bufIdentical = Buffer.from(tokenIdentical);
+
+    assert.strictEqual(crypto.timingSafeEqual(bufA, bufIdentical), true);
+    assert.strictEqual(crypto.timingSafeEqual(bufA, bufB), false);
   });
 
   // ==========================================================================

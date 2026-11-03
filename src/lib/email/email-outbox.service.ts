@@ -7,7 +7,7 @@ import crypto from 'crypto';
 export interface EmailOutboxData {
   id: string;
   idempotencyKey: string;
-  eventType: 'ORDER_CONFIRMATION' | 'INVOICE_AVAILABLE' | 'SHIPMENT_DISPATCHED';
+  eventType: string;
   orderId?: string | null;
   orderNumber?: string | null;
   recipientEmail: string;
@@ -32,7 +32,7 @@ export interface EmailOutboxData {
 
 export interface EnqueueEmailParams {
   idempotencyKey: string;
-  eventType: 'ORDER_CONFIRMATION' | 'INVOICE_AVAILABLE' | 'SHIPMENT_DISPATCHED';
+  eventType: string;
   orderId?: string | null;
   orderNumber?: string | null;
   recipientEmail: string;

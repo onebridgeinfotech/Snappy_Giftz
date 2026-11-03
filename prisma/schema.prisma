@@ -1,31 +1,41 @@
-// Snappy Gifts — Prisma Schema Draft (Batch 0 Foundation)
-// Target Database: PostgreSQL 16+
-// Standard: All monetary amounts stored as integer paise (BigInt / Int). Zero floating-point.
+// SNAPPY GIFTZ — Authoritative Prisma Schema
+// Target Database: MySQL 8+
+// Monetary Invariant: All financial amounts stored strictly as integer paise (BigInt / Int). Zero floating-point arithmetic.
+// Architecture: Consumer E-Commerce (Corporate/B2B models completely removed).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
+// =============================================================
+// ENUMS
+// =============================================================
+
 enum Role {
   CUSTOMER
-  B2B_CLIENT
   STAFF
   ADMIN
 }
 
 enum OrderStatus {
   PENDING
+  PENDING_PAYMENT
+  PENDING_COD_CONFIRMATION
   CONFIRMED
+  PROCESSING
   IN_CUSTOMIZATION
   QUALITY_CHECK
+  OUT_FOR_DELIVERY
   DISPATCHED
   DELIVERED
   CANCELLED
+  REJECTED
+  EXPIRED
 }
 
 enum PaymentStatus {
@@ -34,61 +44,43 @@ enum PaymentStatus {
   CAPTURED
   FAILED
   REFUNDED
+  PARTIALLY_REFUNDED
 }
 
-enum OrderType {
-  B2C
-  B2B
+enum InventoryAdjustmentReason {
+  RESTOCK
+  MANUAL_CORRECTION
+  DAMAGE_WRITE_OFF
+  RETURN_RESTOCK
+  ORDER_RESERVATION
+  RESERVATION_EXPIRED
+  ORDER_FULFILLMENT
+  AUDIT_RECONCILIATION
 }
 
-enum QuotationStatus {
-  DRAFT
-  SENT_FOR_REVIEW
-  APPROVED
-  CONVERTED_TO_ORDER
-  REJECTED
-}
-
-enum CorporateRole {
-  OWNER
-  REQUESTER
-  APPROVER
-  FINANCE
-}
-
-enum CorporateAccountStatus {
-  PENDING_APPROVAL
-  APPROVED
-  REJECTED
-  SUSPENDED
-}
+// =============================================================
+// AUTHENTICATION & USERS
+// =============================================================
 
 model User {
-  id              String         @id @default(uuid())
-  email           String         @unique
-  phone           String?
-  name            String
-  passwordHash    String?
-  role            Role           @default(CUSTOMER)
-  isEmailVerified Boolean        @default(false)
-  isActive        Boolean        @default(true)
-  organizationId  String?
-  organization    Organization?  @relation(fields: [organizationId], references: [id])
-  addresses       Address[]
-  orders          Order[]
-  quotations      Quotation[]
-  sessions        Session[]
-  otpChallenges   OtpChallenge[]
-  auditLogs       AuditLog[]
+  id                   String                @id @default(uuid())
+  email                String                @unique
+  phone                String?
+  name                 String
+  passwordHash         String?
+  role                 Role                  @default(CUSTOMER)
+  isEmailVerified      Boolean               @default(false)
+  isActive             Boolean               @default(true)
+  addresses            Address[]
+  orders               Order[]
+  sessions             Session[]
+  otpChallenges        OtpChallenge[]
+  auditLogs            AuditLog[]
   inventoryAdjustments InventoryAdjustment[]
-  artworkUploads  ArtworkUpload[]
-  corporateMemberships        CorporateMembership[]
-  corporateRFQsCreated        CorporateRFQ[]                @relation("CorporateRFQsCreated")
-  corporateQuotesCreated      CorporateQuote[]              @relation("CorporateQuotesCreated")
-  corporateQuotesApproved     CorporateQuote[]              @relation("CorporateQuotesApproved")
-  corporateOrderGroupsCreated CorporateOrderGroup[]         @relation("CorporateOrderGroupsCreated")
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  artworkUploads       ArtworkUpload[]
+  carts                Cart[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   @@index([email])
   @@index([role])
@@ -123,53 +115,19 @@ model OtpChallenge {
 
   @@index([email])
   @@index([email, purpose, isUsed])
-}
-
-model Organization {
-  id                        String                 @id @default(uuid())
-  companyName               String
-  legalName                 String?
-  displayName               String?
-  gstin                     String?                @unique
-  businessEmail             String
-  contactPerson             String
-  phone                     String
-  industry                  String?
-  annualBudget              String?
-  status                    CorporateAccountStatus @default(PENDING_APPROVAL)
-  creditLimitPaise          BigInt                 @default(0)
-  creditUsedPaise           BigInt                 @default(0)
-  isApproved                Boolean                @default(false)
-  registeredAddress         Json?
-  rejectionReason           String?
-  reviewedBy                String?
-  reviewedAt                DateTime?
-  users                     User[]
-  quotations                Quotation[]
-  orders                    Order[]
-  memberships               CorporateMembership[]
-  corporateAddresses        CorporateAddress[]
-  corporateRFQs             CorporateRFQ[]
-  corporateQuotes           CorporateQuote[]
-  corporatePriceAgreements  CorporatePriceAgreement[]
-  corporateOrderGroups      CorporateOrderGroup[]
-  createdAt                 DateTime               @default(now())
-  updatedAt                 DateTime               @updatedAt
-
-  @@index([gstin])
-  @@index([status])
+  @@index([userId])
 }
 
 model Address {
   id        String   @id @default(uuid())
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   name      String
   company   String?
   street    String
   city      String
   state     String
-  stateCode String   // e.g. "08" for Rajasthan
+  stateCode String   // e.g. "36" for Telangana, "08" for Rajasthan
   pincode   String   // 6-digit Indian PIN code
   phone     String
   isDefault Boolean  @default(false)
@@ -180,11 +138,15 @@ model Address {
   @@index([pincode])
 }
 
+// =============================================================
+// CATALOGUE & TAXONOMY
+// =============================================================
+
 model Category {
   id          String    @id @default(uuid())
   name        String    @unique
   slug        String    @unique
-  description String?
+  description String?   @db.Text
   imageUrl    String?
   isActive    Boolean   @default(true)
   products    Product[]
@@ -193,44 +155,49 @@ model Category {
 }
 
 model Product {
-  id                    String           @id @default(uuid())
+  id                    String            @id @default(uuid())
   name                  String
-  slug                  String           @unique
+  slug                  String            @unique
   tagline               String?
-  description           String
+  description           String            @db.Text
   categoryId            String
-  category              Category         @relation(fields: [categoryId], references: [id])
-  occasions             String[]
-  recipients            String[]
-  hsnCode               String           // e.g. "69120010"
-  taxRatePercent        Int              @default(18) // GST %
-  basePricePaise        Int              // e.g. 129900 = ₹1,299.00
-  mrpPaise              Int              // MRP in paise
-  isCustomizable        Boolean          @default(false)
-  customizationType     String?          // "engraving" | "photo" | "logo" | "combo"
-  customizationFeePaise Int              @default(0)
-  isB2BRecommended      Boolean          @default(false)
-  minOrderQty           Int              @default(1)
-  images                String[]
+  category              Category          @relation(fields: [categoryId], references: [id])
+  productType           String            @default("REGULAR") // "REGULAR" | "CUSTOMIZABLE"
+  occasions             Json?             // Array of occasion slug strings e.g. ["birthday", "anniversary"]
+  recipients            Json?             // Array of recipient tags e.g. ["for-her", "couples"]
+  hsnCode               String            // e.g. "69120010"
+  taxRatePercent        Int               @default(18) // GST %
+  isTaxInclusive        Boolean           @default(false)
+  basePricePaise        Int               // Base selling price in integer paise
+  mrpPaise              Int               // Maximum retail price in integer paise
+  costPricePaise        Int?              // Manufacturing / procurement cost in integer paise
+  isCustomizable        Boolean           @default(false)
+  customizationType     String?           // "engraving" | "photo" | "combo"
+  customizationFeePaise Int               @default(0)
+  customizationConfig   Json?             // Form configuration / validation rules
+  minOrderQty           Int               @default(1)
+  images                Json?             // Array of image URL strings
   galleryImages         ProductImage[]
   productOccasions      ProductOccasion[]
-  isActive              Boolean          @default(true)
-  isArchived            Boolean          @default(false)
+  isActive              Boolean           @default(true)
+  isArchived            Boolean           @default(false)
   variants              ProductVariant[]
   bulkTiers             BulkTier[]
-  corporatePriceAgreements CorporatePriceAgreement[]
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  cartItems             CartItem[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   @@index([categoryId])
   @@index([slug])
+  @@index([productType])
+  @@index([isActive])
 }
 
 model Occasion {
   id          String            @id @default(uuid())
   name        String            @unique
   slug        String            @unique
-  description String?
+  description String?           @db.Text
   imageUrl    String?
   isActive    Boolean           @default(true)
   products    ProductOccasion[]
@@ -272,11 +239,12 @@ model ProductVariant {
   sku                  String                @unique
   name                 String
   attributes           Json
-  pricePaise           Int                   // Paise
+  pricePaise           Int                   // Integer Paise
   stockQuantity        Int                   @default(0)
   isActive             Boolean               @default(true)
   isArchived           Boolean               @default(false)
   orderItems           OrderItem[]
+  cartItems            CartItem[]
   inventoryAdjustments InventoryAdjustment[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
@@ -285,36 +253,26 @@ model ProductVariant {
   @@index([productId])
 }
 
-enum InventoryAdjustmentReason {
-  RESTOCK
-  MANUAL_CORRECTION
-  DAMAGE_WRITE_OFF
-  RETURN_RESTOCK
-  ORDER_RESERVATION
-  RESERVATION_EXPIRED
-  ORDER_FULFILLMENT
-  AUDIT_RECONCILIATION
-}
-
 model InventoryAdjustment {
   id            String                    @id @default(uuid())
   variantId     String
   variant       ProductVariant            @relation(fields: [variantId], references: [id], onDelete: Restrict)
-  sku           String                    // Immutable SKU snapshot at time of adjustment
-  productName   String?                   // Product name snapshot
+  sku           String
+  productName   String?
   previousStock Int
   adjustedQty   Int                       // Signed delta: +50, -10
   newStock      Int                       // Balance after adjustment
   reason        InventoryAdjustmentReason @default(MANUAL_CORRECTION)
-  referenceId   String?                   // e.g. PO number, Batch ID, Order ID
+  referenceId   String?                   // e.g. Order ID, PO number
   userId        String?
-  user          User?                     @relation(fields: [userId], references: [id])
-  notes         String?
+  user          User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  notes         String?                   @db.Text
   createdAt     DateTime                  @default(now())
 
   @@index([variantId])
   @@index([createdAt])
   @@index([reason])
+  @@index([userId])
 }
 
 model BulkTier {
@@ -325,73 +283,126 @@ model BulkTier {
   maxQty             Int?
   discountPercentage Int
   pricePerUnitPaise  Int     // Paise
+
+  @@index([productId])
 }
 
+// =============================================================
+// PERSISTENT CART SYSTEM
+// =============================================================
+
+model Cart {
+  id           String     @id @default(uuid())
+  userId       String?
+  user         User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String?    @unique
+  items        CartItem[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([sessionToken])
+}
+
+model CartItem {
+  id                String          @id @default(uuid())
+  cartId            String
+  cart              Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId         String?
+  variant           ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  quantity          Int             @default(1)
+  isCustomized      Boolean         @default(false)
+  customizationData Json?           // In-cart customization notes, text, etc.
+  uploads           ArtworkUpload[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([cartId])
+  @@index([productId])
+  @@index([variantId])
+}
+
+// =============================================================
+// ORDERS & CHECKOUT ENGINE
+// =============================================================
+
 model Order {
-  id                   String        @id @default(uuid())
-  orderNumber          String        @unique // e.g. "SG-2026-10492"
-  type                 OrderType     @default(B2C)
-  userId               String?
-  user                 User?         @relation(fields: [userId], references: [id])
-  organizationId       String?
-  organization         Organization? @relation(fields: [organizationId], references: [id])
-  
-  customerName         String
-  customerEmail        String
-  customerPhone        String
-  gstin                String?
-  
-  shippingAddress      Json
-  destinationStateCode String
-  
+  id                      String               @id @default(uuid())
+  orderNumber             String               @unique // e.g. "SG-2026-10492"
+  userId                  String?
+  user                    User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName            String
+  customerEmail           String
+  customerPhone           String
+  gstin                   String?
+  shippingAddress         Json
+  destinationStateCode    String
+
   // Financial Totals in Integer Paise
   itemsSubtotalPaise      BigInt
-  customizationTotalPaise BigInt        @default(0)
-  discountTotalPaise      BigInt        @default(0)
+  customizationTotalPaise BigInt               @default(0)
+  discountTotalPaise      BigInt               @default(0)
   taxableAmountPaise      BigInt
   taxTotalPaise           BigInt
-  cgstPaise               BigInt        @default(0)
-  sgstPaise               BigInt        @default(0)
-  igstPaise               BigInt        @default(0)
-  shippingTotalPaise      BigInt        @default(0)
+  cgstPaise               BigInt               @default(0)
+  sgstPaise               BigInt               @default(0)
+  igstPaise               BigInt               @default(0)
+  shippingTotalPaise      BigInt               @default(0)
   grandTotalPaise         BigInt
-  
-  orderStatus          OrderStatus   @default(PENDING)
-  paymentStatus        PaymentStatus @default(PENDING)
-  paymentMethod        String
-  
-  idempotencyKey       String?       @unique
-  reservationExpiresAt DateTime?
-  guestLookupToken     String?
-  
-  items                OrderItem[]
-  payments             Payment[]
-  shipments            Shipment[]
-  statusHistory        OrderStatusHistory[]
-  invoices             Invoice[]
-  corporateOrderGroupId       String?
-  corporateOrderGroup         CorporateOrderGroup?         @relation(fields: [corporateOrderGroupId], references: [id])
-  corporateDeliveryAllocation CorporateDeliveryAllocation?
-  
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+
+  orderStatus             OrderStatus          @default(PENDING)
+  paymentStatus           PaymentStatus        @default(PENDING)
+  paymentMethod           String               // "RAZORPAY" | "COD"
+
+  idempotencyKey          String?              @unique
+  reservationExpiresAt    DateTime?
+  guestLookupToken        String?
+  fulfillmentMethod       String               @default("DELIVERY") // "DELIVERY" | "STORE_PICKUP"
+  shippingPincode         String?
+  deliveryFeeRuleId       String?
+  notes                   String?              @db.Text
+  cancellationReason      String?              @db.Text
+  cancelledAt             DateTime?
+  cancelledBy             String?
+
+  // Store Pickup Verification
+  pickupOtpHash           String?
+  pickupOtpExpiresAt      DateTime?
+  pickupVerifiedAt        DateTime?
+  pickupVerifiedBy        String?
+
+  items                   OrderItem[]
+  payments                Payment[]
+  shipments               Shipment[]
+  statusHistory           OrderStatusHistory[]
+  invoices                Invoice[]
+  codCollection           CodCollectionRecord?
+  refunds                 RefundRecord[]
+  deliveryRecord          DeliveryRecord?
+
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
 
   @@index([orderNumber])
   @@index([customerEmail])
   @@index([customerPhone])
   @@index([orderStatus])
+  @@index([paymentStatus])
   @@index([reservationExpiresAt])
-  @@index([corporateOrderGroupId])
+  @@index([shippingPincode])
+  @@index([userId])
 }
 
 model OrderItem {
-  id                    String          @id @default(uuid())
+  id                    String                @id @default(uuid())
   orderId               String
-  order                 Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order                 Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variantId             String?
-  variant               ProductVariant? @relation(fields: [variantId], references: [id])
-  
-  // Historical Snapshot
+  variant               ProductVariant?       @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  // Historical Snapshot (Preserves immutable record at purchase)
   productName           String
   sku                   String
   hsnCode               String
@@ -399,40 +410,48 @@ model OrderItem {
   unitPricePaise        Int
   quantity              Int
   subtotalPaise         BigInt
-  
-  isCustomized          Boolean         @default(false)
-  customizationNote     String?
-  customizationFeePaise Int             @default(0)
+
+  isCustomized          Boolean               @default(false)
+  customizationNote     String?               @db.Text
+  customizationFeePaise Int                   @default(0)
   proofImageUrl         String?
   customizationMeta     Json?
   personalization       OrderPersonalization?
-  
-  createdAt             DateTime        @default(now())
+  uploads               ArtworkUpload[]
+
+  createdAt             DateTime              @default(now())
 
   @@index([orderId])
+  @@index([variantId])
 }
 
+// =============================================================
+// PAYMENTS, COD & REFUNDS
+// =============================================================
+
 model Payment {
-  id               String        @id @default(uuid())
+  id               String         @id @default(uuid())
   orderId          String
-  order            Order         @relation(fields: [orderId], references: [id])
-  gateway          String        // "RAZORPAY" | "MOCK"
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  gateway          String         // "RAZORPAY" | "COD" | "MOCK"
   gatewayOrderId   String
   gatewayPaymentId String?
   gatewaySignature String?
   amountPaise      BigInt
-  currency         String        @default("INR")
-  status           PaymentStatus @default(PENDING)
+  currency         String         @default("INR")
+  status           PaymentStatus  @default(PENDING)
   capturedAt       DateTime?
-  errorMessage     String?
-  idempotencyKey   String?       @unique
+  errorMessage     String?        @db.Text
+  idempotencyKey   String?        @unique
   rawEventPayload  Json?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  refunds          RefundRecord[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@index([orderId])
   @@index([gatewayOrderId])
   @@index([gatewayPaymentId])
+  @@index([status])
 }
 
 model WebhookEvent {
@@ -459,7 +478,7 @@ model PaymentReconciliation {
   receivedAmountPaise BigInt
   discrepancyType     String   // "LATE_PAYMENT_EXPIRED_HOLD", "AMOUNT_MISMATCH", "UNKNOWN_ORDER", "UNAUTHORIZED_CURRENCY"
   status              String   @default("OPEN") // "OPEN", "RESOLVED", "REFUNDED"
-  notes               String?
+  notes               String?  @db.Text
   rawEvent            Json?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -469,20 +488,131 @@ model PaymentReconciliation {
   @@index([status])
 }
 
+model CodCollectionRecord {
+  id                   String   @id @default(uuid())
+  orderId              String   @unique
+  order                Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amountCollectedPaise BigInt
+  collectedAt          DateTime @default(now())
+  collectedBy          String   // Courier / staff / owner identifier
+  collectionMethod     String   @default("CASH") // "CASH", "UPI_ON_DELIVERY"
+  receiptNumber        String?
+  notes                String?  @db.Text
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([collectedAt])
+}
+
+model RefundRecord {
+  id              String        @id @default(uuid())
+  orderId         String
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentId       String?
+  payment         Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  amountPaise     BigInt
+  reason          String        @db.Text
+  status          String        @default("PENDING") // "PENDING", "PROCESSED", "FAILED"
+  gatewayRefundId String?       // Razorpay refund ID e.g. "rfnd_..."
+  processedBy     String?       // Admin user ID
+  idempotencyKey  String?       @unique
+  failureReason   String?       @db.Text
+  rawResponse     Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([orderId])
+  @@index([paymentId])
+  @@index([gatewayRefundId])
+  @@index([status])
+}
+
+// =============================================================
+// HYDERABAD DELIVERY SYSTEM
+// =============================================================
+
+model DeliveryZone {
+  id        String               @id @default(uuid())
+  code      String               @unique // e.g. "HYD_CENTRAL", "HYD_WEST", "HYD_EAST"
+  name      String
+  city      String               @default("Hyderabad")
+  state     String               @default("Telangana")
+  stateCode String               @default("36")
+  isActive  Boolean              @default(true)
+  pincodes  ServiceablePincode[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
+model ServiceablePincode {
+  id           String        @id @default(uuid())
+  pincode      String        @unique // 6-digit Indian PIN code
+  areaName     String?
+  city         String        @default("Hyderabad")
+  state        String        @default("Telangana")
+  stateCode    String        @default("36")
+  zoneId       String?
+  zone         DeliveryZone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  isActive     Boolean       @default(true)
+  deliveryDays Int           @default(1)
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([zoneId])
+  @@index([pincode])
+  @@index([isActive])
+}
+
+model DeliveryFeeRule {
+  id                  String   @id @default(uuid())
+  name                String   // e.g. "Free delivery above Rs 999", "Standard delivery"
+  minOrderAmountPaise BigInt   @default(0)
+  maxOrderAmountPaise BigInt?
+  feePaise            BigInt   @default(0)
+  priority            Int      @default(0) // Higher priority evaluated first
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([isActive, priority])
+}
+
+model DeliveryRecord {
+  id                String    @id @default(uuid())
+  orderId           String    @unique
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  assignedPerson    String?   // Owner or designated delivery associate
+  assignedPhone     String?
+  deliveryStatus    String    @default("ASSIGNED") // "ASSIGNED", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED"
+  deliveryNotes     String?   @db.Text
+  startedAt         DateTime?
+  deliveredAt       DateTime?
+  recipientName     String?
+  recipientPhone    String?
+  codAmountDuePaise BigInt    @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([orderId])
+  @@index([deliveryStatus])
+}
+
 model Shipment {
-  id             String    @id @default(uuid())
-  orderId        String
-  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  recipientName  String
-  recipientEmail String?
-  recipientPhone String
-  addressStreet  String
-  city           String
-  state          String
-  pincode        String
-  carrierPartner String?
-  awbNumber      String?   @unique
-  trackingUrl    String?
+  id                        String    @id @default(uuid())
+  orderId                   String
+  order                     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  recipientName             String
+  recipientEmail            String?
+  recipientPhone            String
+  addressStreet             String
+  city                      String
+  state                     String
+  pincode                   String
+  carrierPartner            String?
+  awbNumber                 String?   @unique
+  trackingUrl               String?
   dispatchStatus            String    @default("PENDING")
   dispatchedAt              DateTime?
   deliveredAt               DateTime?
@@ -495,34 +625,6 @@ model Shipment {
   @@index([awbNumber])
 }
 
-model Quotation {
-  id                        String          @id @default(uuid())
-  rfqNumber                 String          @unique
-  userId                    String?
-  user                      User?           @relation(fields: [userId], references: [id])
-  organizationId            String?
-  organization              Organization?   @relation(fields: [organizationId], references: [id])
-  companyName               String
-  contactPerson             String
-  email                     String
-  phone                     String
-  gstin                     String
-  itemsJson                 Json
-  subtotalPaise             BigInt
-  negotiatedDiscountPercent Int             @default(0)
-  taxAmountPaise            BigInt
-  shippingAmountPaise       BigInt          @default(0)
-  grandTotalPaise           BigInt
-  validUntil                DateTime
-  status                    QuotationStatus @default(DRAFT)
-  paymentTerms              String          @default("100% Advance")
-  notes                     String?
-  createdAt                 DateTime        @default(now())
-  updatedAt                 DateTime        @updatedAt
-
-  @@index([rfqNumber])
-}
-
 model OrderStatusHistory {
   id         String      @id @default(uuid())
   orderId    String
@@ -530,7 +632,7 @@ model OrderStatusHistory {
   fromStatus OrderStatus
   toStatus   OrderStatus
   changedBy  String
-  notes      String?
+  notes      String?     @db.Text
   createdAt  DateTime    @default(now())
 
   @@index([orderId])
@@ -539,7 +641,7 @@ model OrderStatusHistory {
 model AuditLog {
   id        String   @id @default(uuid())
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   action    String
   resource  String
   details   Json?
@@ -551,68 +653,72 @@ model AuditLog {
   @@index([createdAt])
 }
 
+// =============================================================
+// CUSTOMIZATION & PRIVATE UPLOADS
+// Max 3 images per customized item, max 10MB per image
+// =============================================================
+
 model ArtworkUpload {
-  id                 String                 @id @default(uuid())
-  fileKey            String                 @unique // Cryptographic storage identifier (e.g., "proofs/timestamp-hash.png")
-  originalFilename   String
-  mimeType           String
-  sizeBytes          Int
-  fileHash           String?                // SHA-256 hash of raw binary buffer
-  storageFolder      String                 @default("proofs")
-  uploadedByUserId   String?
-  user               User?                  @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
-  guestSessionToken  String?                // Ephemeral guest authorization token
-  status             String                 @default("ACTIVE") // "ACTIVE", "ATTACHED", "ABANDONED"
-  expiresAt          DateTime?              // Lifecycle policy for unattached uploads
-  personalizations   OrderPersonalization[]
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
+  id                String                 @id @default(uuid())
+  fileKey           String                 @unique // Storage identifier: "customizations/uuid.jpg"
+  originalFilename  String
+  mimeType          String
+  sizeBytes         Int
+  fileHash          String?                // SHA-256 hash of raw binary buffer
+  storageFolder     String                 @default("customizations")
+  cartItemId        String?
+  cartItem          CartItem?              @relation(fields: [cartItemId], references: [id], onDelete: SetNull)
+  orderItemId       String?
+  orderItem         OrderItem?             @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  uploadedByUserId  String?
+  user              User?                  @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  guestSessionToken String?
+  status            String                 @default("ACTIVE") // "ACTIVE", "ATTACHED", "ABANDONED"
+  expiresAt         DateTime?
+  personalizations  OrderPersonalization[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
   @@index([fileKey])
+  @@index([cartItemId])
+  @@index([orderItemId])
   @@index([uploadedByUserId])
   @@index([guestSessionToken])
   @@index([status])
 }
 
 model OrderPersonalization {
-  id                    String         @id @default(uuid())
-  orderItemId           String         @unique
-  orderItem             OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  personalizationType   String         @default("TEXT_ENGRAVING") // "TEXT_ENGRAVING", "PHOTO_PRINT", "LOGO_BRANDING", "BESPOKE_COMBO"
-  engravedText          String?
-  fontFamily            String?
-  giftNote              String?
-  ribbonColor           String?
-  boxWrapStyle          String?
-  waxSealColor          String?
-  artworkUploadId       String?
-  artworkUpload         ArtworkUpload? @relation(fields: [artworkUploadId], references: [id], onDelete: SetNull)
-  cropSettings          Json?          // { x: number, y: number, width: number, height: number, zoom: number, rotation: number }
-  placementSettings     Json?          // { position: string, scale: number, offsetX: number, offsetY: number }
-  proofImageUrl         String?        // Private preview proof asset identifier
-  proofAssetKey         String?        // Storage key in storage/private/proofs/
-  proofVersion          Int            @default(1)
-  
-  // Backward-compatible aggregated status
-  approvalStatus        String         @default("APPROVED_BY_CUSTOMER") // "DRAFT", "APPROVED_BY_CUSTOMER", "ARTWORK_VERIFIED_BY_STAFF", "REJECTED_FOR_REWORK"
-  approvedAt            DateTime?
-  approvedBy            String?        // Primary auditor / approver
-  
-  // Unambiguous Customer Approval Record
-  customerApprovalStatus String        @default("PENDING") // "PENDING", "APPROVED"
+  id                     String         @id @default(uuid())
+  orderItemId            String         @unique
+  orderItem              OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  personalizationType    String         @default("TEXT_ENGRAVING") // "TEXT_ENGRAVING", "PHOTO_PRINT", "BESPOKE_COMBO"
+  engravedText           String?
+  fontFamily             String?
+  giftNote               String?
+  ribbonColor            String?
+  boxWrapStyle           String?
+  waxSealColor           String?
+  artworkUploadId        String?
+  artworkUpload          ArtworkUpload? @relation(fields: [artworkUploadId], references: [id], onDelete: SetNull)
+  cropSettings           Json?
+  placementSettings      Json?
+  proofImageUrl          String?
+  proofAssetKey          String?
+  proofVersion           Int            @default(1)
+  approvalStatus         String         @default("APPROVED_BY_CUSTOMER")
+  approvedAt             DateTime?
+  approvedBy             String?
+  customerApprovalStatus String         @default("PENDING")
   customerApprovedAt     DateTime?
-  customerApprovedBy     String?       // Customer email or authenticated session
-  
-  // Unambiguous Artisan / Staff Review Record
-  staffReviewStatus      String        @default("PENDING_REVIEW") // "PENDING_REVIEW", "ARTWORK_VERIFIED_BY_STAFF", "REJECTED_FOR_REWORK"
+  customerApprovedBy     String?
+  staffReviewStatus      String         @default("PENDING_REVIEW")
   staffReviewedAt        DateTime?
-  staffReviewedBy        String?       // Authorized staff member identifier
-  
-  customizationFeePaise Int            @default(0)
-  staffNotes            String?
-  metadata              Json?          // Technical laser specs & coordinates
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  staffReviewedBy        String?
+  customizationFeePaise  Int            @default(0)
+  staffNotes             String?        @db.Text
+  metadata               Json?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
 
   @@index([orderItemId])
   @@index([artworkUploadId])
@@ -621,60 +727,62 @@ model OrderPersonalization {
   @@index([staffReviewStatus])
 }
 
+// =============================================================
+// INVOICING & GST COMPLIANCE
+// =============================================================
+
 model Invoice {
-  id                      String    @id @default(uuid())
-  invoiceNumber           String    @unique // e.g. "SG/26-27/0001" (<= 16 characters)
-  orderId                 String
-  order                   Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderNumber             String
-  invoiceDate             DateTime  @default(now())
-  financialYear           String    // e.g. "2026-27"
-  series                  String    @default("SG")
-  sequenceNumber          Int
-  
+  id                           String    @id @default(uuid())
+  invoiceNumber                String    @unique // e.g. "SG/26-27/0001"
+  orderId                      String
+  order                        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderNumber                  String
+  invoiceDate                  DateTime  @default(now())
+  financialYear                String    // e.g. "2026-27"
+  series                       String    @default("SG")
+  sequenceNumber               Int
+
   // Supplier Snapshot
-  supplierLegalName       String
-  supplierTradeName       String?
-  supplierGstin           String
-  supplierAddress         Json
-  supplierState           String
-  supplierStateCode       String    // e.g. "08"
-  
+  supplierLegalName            String
+  supplierTradeName            String?
+  supplierGstin                String
+  supplierAddress              Json
+  supplierState                String
+  supplierStateCode            String
+
   // Recipient Snapshot
-  customerName            String
-  customerEmail           String
-  customerPhone           String?
-  customerGstin           String?
-  billingAddress          Json
-  shippingAddress         Json
-  placeOfSupply           String
-  placeOfSupplyStateCode  String
-  isIntraState            Boolean
-  
+  customerName                 String
+  customerEmail                String
+  customerPhone                String?
+  customerGstin                String?
+  billingAddress               Json
+  shippingAddress              Json
+  placeOfSupply                String
+  placeOfSupplyStateCode       String
+  isIntraState                 Boolean
+
   // Financial Snapshot in Integer Paise
-  itemsSubtotalPaise      BigInt
-  customizationTotalPaise BigInt    @default(0)
-  discountTotalPaise      BigInt    @default(0)
-  taxableAmountPaise      BigInt
-  cgstPaise               BigInt    @default(0)
-  sgstPaise               BigInt    @default(0)
-  igstPaise               BigInt    @default(0)
-  taxTotalPaise           BigInt
-  shippingTotalPaise      BigInt    @default(0)
-  grandTotalPaise         BigInt
-  
-  // Line items detailed JSON snapshot
-  itemsJson               Json
-  pdfStorageKey           String?   // Private storage key in storage/private/invoices/
-  pdfGeneratedAt          DateTime?
-  isSample                Boolean   @default(false)
-  status                  String    @default("ISSUED") // "ISSUED", "CANCELLED", "PROVISIONAL"
-  
-  // E-Invoicing & Signature Compliance Snapshots (Rule 46 & Rule 48(4))
-  eInvoiceStatus               String    @default("PENDING_ACCOUNTANT_CONFIRMATION")
-  irn                          String?   // 64-character hash from IRP
-  signedQrData                 String?   // JWT signed QR payload from IRP
-  rule46Declaration            String?   // Rule 46(s) declaration where aggregate turnover > 5Cr but exempt
+  itemsSubtotalPaise           BigInt
+  customizationTotalPaise      BigInt    @default(0)
+  discountTotalPaise           BigInt    @default(0)
+  taxableAmountPaise           BigInt
+  cgstPaise                    BigInt    @default(0)
+  sgstPaise                    BigInt    @default(0)
+  igstPaise                    BigInt    @default(0)
+  taxTotalPaise                BigInt
+  shippingTotalPaise           BigInt    @default(0)
+  grandTotalPaise              BigInt
+
+  itemsJson                    Json
+  pdfStorageKey                String?
+  pdfGeneratedAt               DateTime?
+  isSample                     Boolean   @default(false)
+  status                       String    @default("ISSUED") // "ISSUED", "CANCELLED", "PROVISIONAL"
+
+  eInvoiceStatus               String    @default("EXEMPT_BELOW_THRESHOLD")
+  irn                          String?
+  signedQrData                 String?   @db.Text
+  rule46Declaration            String?   @db.Text
   signatureMode                String    @default("PHYSICAL_SIGNATURE_ON_PRINT")
   physicalSignatureConfirmedBy String?
   physicalSignatureConfirmedAt DateTime?
@@ -690,7 +798,7 @@ model Invoice {
 
 model InvoiceSequence {
   id              String   @id @default(uuid())
-  financialYear   String   // e.g. "2026-27"
+  financialYear   String
   series          String   @default("SG")
   currentSequence Int      @default(0)
   updatedAt       DateTime @updatedAt
@@ -698,23 +806,27 @@ model InvoiceSequence {
   @@unique([financialYear, series])
 }
 
+// =============================================================
+// EMAIL NOTIFICATIONS (OUTBOX PATTERN)
+// =============================================================
+
 model EmailOutbox {
   id                 String    @id @default(uuid())
   idempotencyKey     String    @unique
-  eventType          String    // "ORDER_CONFIRMATION", "INVOICE_AVAILABLE", "SHIPMENT_DISPATCHED"
+  eventType          String    // "ORDER_CONFIRMATION", "OWNER_NEW_ORDER", "COD_APPROVED", "COD_REJECTED", "SHIPMENT_DISPATCHED", "INVOICE_AVAILABLE"
   orderId            String?
   orderNumber        String?
   recipientEmail     String
   recipientName      String?
   subject            String
-  htmlBody           String
-  textBody           String?
+  htmlBody           String    @db.Text
+  textBody           String?   @db.Text
   attachmentKey      String?
   attachmentFilename String?
   status             String    @default("PENDING") // "PENDING", "PROCESSING", "SENT", "FAILED"
   attempts           Int       @default(0)
   maxAttempts        Int       @default(5)
-  lastError          String?
+  lastError          String?   @db.Text
   nextRetryAt        DateTime?
   lockedAt           DateTime?
   lockedBy           String?
@@ -728,6 +840,10 @@ model EmailOutbox {
   @@index([idempotencyKey])
 }
 
+// =============================================================
+// BUSINESS CONFIGURATION & SETTINGS
+// =============================================================
+
 model SellerConfig {
   id                                           String    @id @default("default")
   legalName                                    String
@@ -736,27 +852,23 @@ model SellerConfig {
   pan                                          String?
   registeredStreet                             String
   city                                         String
-  state                                        String    @default("Rajasthan")
-  stateCode                                    String    @default("08")
+  state                                        String    @default("Telangana")
+  stateCode                                    String    @default("36")
   pincode                                      String
   contactEmail                                 String
   contactPhone                                 String
   invoicePrefix                                String    @default("SG")
   authorizedSignatoryName                      String?
   authorizedSignatoryDesignation               String?
-  invoiceFooterTerms                           String?
+  invoiceFooterTerms                           String?   @db.Text
   isVerified                                   Boolean   @default(false)
 
-  // E-Invoicing Applicability (CGST Rule 48(4) & Rule 46(s))
-  // Status: "PENDING_ACCOUNTANT_CONFIRMATION", "EXEMPT_BELOW_THRESHOLD", "EXEMPT_NOTIFIED_CATEGORY", "APPLICABLE"
-  eInvoiceStatus                               String    @default("PENDING_ACCOUNTANT_CONFIRMATION")
+  eInvoiceStatus                               String    @default("EXEMPT_BELOW_THRESHOLD")
   eInvoiceExemptionReason                      String?
-  eInvoiceConfirmedBy                          String?   // Name & CA membership/ARN of accountant who verified turnover
+  eInvoiceConfirmedBy                          String?
   eInvoiceConfirmedAt                          DateTime?
   panAggregateTurnoverExceeds5Cr               Boolean   @default(false)
-  
-  // Signature Compliance Mode (CGST Rule 46(q))
-  // Mode: "PHYSICAL_SIGNATURE_ON_PRINT", "DIGITAL_SIGNATURE_IT_ACT", "ELECTRONIC_INVOICE_EXCEPTION", "E_INVOICE_IRP_QR"
+
   signatureMode                                String    @default("PHYSICAL_SIGNATURE_ON_PRINT")
   digitalSignatureConfigured                   Boolean   @default(false)
   electronicInvoiceSignatureExemptionConfirmed Boolean   @default(false)
@@ -767,280 +879,31 @@ model SellerConfig {
   updatedBy                                    String?
 }
 
-// =============================================================
-// Batch 9A: Corporate B2B Portal, RFQ, Pricing & Multi-Address
-// =============================================================
-
-model CorporateMembership {
-  id             String         @id @default(uuid())
-  organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role           CorporateRole  @default(REQUESTER)
-  isActive       Boolean        @default(true)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-
-  @@unique([organizationId, userId])
-  @@index([organizationId])
-  @@index([userId])
-}
-
-model CorporateAddress {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  label          String
-  recipientName  String
-  recipientPhone String
-  recipientEmail String?
-  street         String
-  city           String
-  state          String
-  stateCode      String
-  pincode        String
-  isDefault      Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  @@index([organizationId])
-  @@index([pincode])
-}
-
-model CorporateRFQ {
-  id                     String             @id @default(uuid())
-  rfqNumber              String             @unique // e.g. "CRFQ-2026-0001"
-  organizationId         String
-  organization           Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdById            String
-  createdBy              User               @relation("CorporateRFQsCreated", fields: [createdById], references: [id])
-  title                  String
-  status                 String             @default("SUBMITTED") // "DRAFT", "SUBMITTED", "UNDER_REVIEW", "QUOTED", "ACCEPTED", "REJECTED", "CANCELLED", "EXPIRED"
-  requiredDeliveryDate   DateTime?
-  estimatedBudgetPaise   BigInt?
-  numberOfLocations      Int                @default(1)
-  packagingRequirements  String?
-  brandingRequirements   String?
-  additionalInstructions String?
-  customerNotes          String?
-  internalAdminNotes     String?
-  reviewedById           String?
-  reviewedAt             DateTime?
-  rejectionReason        String?
-  items                  CorporateRFQItem[]
-  quotes                 CorporateQuote[]
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
-
-  @@index([organizationId])
-  @@index([rfqNumber])
-  @@index([status])
-}
-
-model CorporateRFQItem {
-  id                       String       @id @default(uuid())
-  rfqId                    String
-  rfq                      CorporateRFQ @relation(fields: [rfqId], references: [id], onDelete: Cascade)
-  productId                String
-  variantId                String?
-  productName              String
-  variantName              String?
-  sku                      String
-  requestedQuantity        Int
-  personalizationNote      String?
-  logoUrl                  String?
-  estimatedUnitBudgetPaise BigInt?
-
-  @@index([rfqId])
-  @@index([productId])
-}
-
-model CorporateQuote {
-  id                      String               @id @default(uuid())
-  quoteNumber             String               // e.g. "QT-2026-0001"
-  revision                Int                  @default(1)
-  isLatestRevision        Boolean              @default(true)
-  rfqId                   String?
-  rfq                     CorporateRFQ?        @relation(fields: [rfqId], references: [id])
-  organizationId          String
-  organization            Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdById             String
-  createdBy               User                 @relation("CorporateQuotesCreated", fields: [createdById], references: [id])
-  status                  String               @default("DRAFT") // "DRAFT", "ISSUED", "ACCEPTED", "REJECTED", "SUPERSEDED", "EXPIRED"
-  validUntil              DateTime
-  itemsSubtotalPaise      BigInt
-  customizationTotalPaise BigInt               @default(0)
-  discountTotalPaise      BigInt               @default(0)
-  taxableAmountPaise      BigInt
-  taxTotalPaise           BigInt
-  cgstPaise               BigInt               @default(0)
-  sgstPaise               BigInt               @default(0)
-  igstPaise               BigInt               @default(0)
-  shippingTotalPaise      BigInt               @default(0)
-  grandTotalPaise         BigInt
-  commercialTerms         String?
-  customerNotes           String?
-  internalAdminNotes      String?
-  approvedById            String?
-  approvedBy              User?                @relation("CorporateQuotesApproved", fields: [approvedById], references: [id])
-  approvedAt              DateTime?
-  rejectedById            String?
-  rejectedAt              DateTime?
-  rejectionReason         String?
-  items                   CorporateQuoteItem[]
-  corporateOrderGroup     CorporateOrderGroup?
-  createdAt               DateTime             @default(now())
-  updatedAt               DateTime             @updatedAt
-
-  @@unique([quoteNumber, revision])
-  @@index([organizationId])
-  @@index([quoteNumber])
-  @@index([rfqId])
-  @@index([status])
-}
-
-model CorporateQuoteItem {
-  id                     String         @id @default(uuid())
-  quoteId                String
-  quote                  CorporateQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  productId              String
-  variantId              String?
-  productName            String
-  variantName            String?
-  sku                    String
-  hsnCode                String
-  taxRatePercent         Int
-  quantity               Int
-  unitPricePaise         Int
-  customizationFeePaise  Int            @default(0)
-  discountPercent        Int            @default(0)
-  lineSubtotalPaise      BigInt
-  lineTaxPaise           BigInt
-  lineTotalPaise         BigInt
-  personalizationDetails Json?
-
-  @@index([quoteId])
-  @@index([sku])
-}
-
-model CorporatePriceAgreement {
-  id                String               @id @default(uuid())
-  organizationId    String
-  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  productId         String
-  product           Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variantId         String?
-  agreementName     String
-  unitPricePaise    Int
-  effectiveFrom     DateTime
-  effectiveTo       DateTime
-  isActive          Boolean              @default(true)
-  negotiatedBy      String
-  negotiationReason String?
-  tiers             CorporatePriceTier[]
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-
-  @@index([organizationId])
-  @@index([productId])
-  @@index([isActive])
-}
-
-model CorporatePriceTier {
-  id             String                  @id @default(uuid())
-  agreementId    String
-  agreement      CorporatePriceAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
-  minQuantity    Int
-  maxQuantity    Int?
-  unitPricePaise Int
-
-  @@index([agreementId])
-}
-
-model CorporateOrderGroup {
-  id                  String                        @id @default(uuid())
-  groupOrderNumber    String                        @unique // e.g. "CORP-2026-9001"
-  organizationId      String
-  organization        Organization                  @relation(fields: [organizationId], references: [id])
-  quoteId             String?                       @unique
-  quote               CorporateQuote?               @relation(fields: [quoteId], references: [id])
-  createdById         String
-  createdBy           User                          @relation("CorporateOrderGroupsCreated", fields: [createdById], references: [id])
-  totalDestinations   Int
-  totalQuantity       Int
-  grandTotalPaise     BigInt
-  paymentStatus       PaymentStatus                 @default(PENDING)
-  paymentMethod       String                        @default("ONLINE_UPI")
-  paymentReference    String?
-  orders              Order[]
-  deliveryAllocations CorporateDeliveryAllocation[]
-  createdAt           DateTime                      @default(now())
-  updatedAt           DateTime                      @updatedAt
-
-  @@index([organizationId])
-  @@index([groupOrderNumber])
-}
-
-model CorporateDeliveryAllocation {
-  id                  String              @id @default(uuid())
-  orderGroupId        String
-  orderGroup          CorporateOrderGroup @relation(fields: [orderGroupId], references: [id], onDelete: Cascade)
-  childOrderId        String?             @unique
-  childOrder          Order?              @relation(fields: [childOrderId], references: [id])
-  recipientName       String
-  recipientPhone      String
-  recipientEmail      String?
-  street              String
-  city                String
-  state               String
-  stateCode           String
-  pincode             String
-  department          String?
-  customGiftNote      String?
-  quantity            Int
-  productId           String
-  variantId           String?
-  sku                 String
-  allocatedTotalPaise BigInt
-  shipmentStatus      String              @default("PENDING")
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-
-  @@index([orderGroupId])
-  @@index([pincode])
-}
-
-// =============================================================
-// Batch 10: Store Settings, Operations & Administration
-// =============================================================
-
 model StoreConfig {
   id                         String   @id @default("default")
-  storeName                  String   @default("Snappy Gifts")
-  supportEmail               String   @default("support@snappygifts.in")
-  supportPhone               String   @default("+91 145 200 1234")
-  operatingHours             String   @default("Mon-Sat 9:30 AM - 6:30 PM IST")
-  headquartersAddress        String   @default("Ajmer Central Gifting Hub, Rajasthan - 305001")
-  
-  // Shipping Configuration (Paise)
+  storeName                  String   @default("SNAPPY GIFTZ")
+  supportEmail               String   @default("support@snappygiftz.com")
+  supportPhone               String   @default("+91 90000 00000")
+  operatingHours             String   @default("Mon-Sat 10:00 AM - 8:00 PM IST")
+  headquartersAddress        String   @default("Hyderabad, Telangana - 500001")
+
+  // Delivery Configuration (Paise)
   standardShippingFeePaise   BigInt   @default(9900)
   freeShippingThresholdPaise BigInt   @default(99900)
   expressShippingFeePaise    BigInt   @default(19900)
-  shippingInstructions       String?
-  
+  shippingInstructions       String?  @db.Text
+
   // Inventory Alert Thresholds
-  lowStockThreshold          Int      @default(100)
+  lowStockThreshold          Int      @default(10)
   outOfStockThreshold        Int      @default(0)
   autoNotifyLowStock         Boolean  @default(true)
-  
+
   // Personalization Configuration
   allowCustomText            Boolean  @default(true)
   allowArtworkUpload         Boolean  @default(true)
-  maxArtworkUploadBytes      Int      @default(5242880)
+  maxArtworkUploadBytes      Int      @default(10485760) // 10 MB
   woodenCrateSurchargePaise  BigInt   @default(15000)
-  
+
   updatedAt                  DateTime @updatedAt
   updatedBy                  String?
 }
-

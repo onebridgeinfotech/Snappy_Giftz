@@ -283,3 +283,256 @@ Support: ${seller.contactEmail} | ${seller.contactPhone}
 
   return { subject, html, text };
 }
+
+
+export interface OwnerNewOrderDetails {
+  orderNumber: string;
+  orderDate: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  paymentMethod: 'ONLINE' | 'COD';
+  totalInr: string;
+  codAmountDueInr?: string;
+  shippingAddress: {
+    fullName: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    phone?: string;
+  };
+  items: Array<{
+    productName: string;
+    quantity: number;
+    unitPriceInr: string;
+    totalInr: string;
+    isCustomized: boolean;
+    customizationNote?: string;
+    customizationPhotosCount?: number;
+  }>;
+}
+
+export function renderOwnerNewOrderTemplate(
+  seller: SellerConfigData,
+  details: OwnerNewOrderDetails
+): { subject: string; html: string; text: string } {
+  const subject = `[SNAPPY GIFTZ ALERT] New Order Received #${details.orderNumber} - ${details.paymentMethod === 'COD' ? 'COD (Pending)' : 'Paid Online'}`;
+
+  const itemRowsHtml = details.items
+    .map(
+      (item) => `
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px 0; font-size: 13px; color: #1e293b;">
+          <strong>${escapeHtml(item.productName)}</strong>
+          ${
+            item.isCustomized
+              ? `<br><span style="display: inline-block; font-size: 11px; background-color: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; margin-top: 4px;">Customized (${item.customizationPhotosCount || 0} photo(s))</span>${
+                  item.customizationNote ? `<br><em style="font-size: 12px; color: #64748b;">Note: ${escapeHtml(item.customizationNote)}</em>` : ''
+                }`
+              : ''
+          }
+        </td>
+        <td style="padding: 10px 0; text-align: center; font-size: 13px; color: #475569;">${item.quantity}</td>
+        <td style="padding: 10px 0; text-align: right; font-size: 13px; color: #475569;">${item.unitPriceInr}</td>
+        <td style="padding: 10px 0; text-align: right; font-size: 13px; font-weight: 600; color: #1e293b;">${item.totalInr}</td>
+      </tr>
+    `
+    )
+    .join('');
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <div style="background-color: #0f172a; padding: 20px 24px; border-top-left-radius: 7px; border-top-right-radius: 7px;">
+        <h1 style="color: #ffffff; font-size: 20px; margin: 0;">SNAPPY GIFTZ — Operations Alert</h1>
+        <p style="color: #94a3b8; font-size: 13px; margin: 4px 0 0 0;">New Consumer Order Notice</p>
+      </div>
+      <div style="padding: 24px; background-color: #ffffff;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+          <h2 style="font-size: 18px; color: #0f172a; margin: 0;">Order #${escapeHtml(details.orderNumber)}</h2>
+          <span style="font-size: 13px; color: #64748b;">${escapeHtml(details.orderDate)}</span>
+        </div>
+
+        <div style="margin: 16px 0; padding: 12px 16px; background-color: ${details.paymentMethod === 'COD' ? '#fffbeb' : '#f0fdf4'}; border: 1px solid ${details.paymentMethod === 'COD' ? '#fef3c7' : '#dcfce7'}; border-radius: 6px;">
+          <strong style="color: ${details.paymentMethod === 'COD' ? '#b45309' : '#15803d'}; font-size: 14px;">
+            Payment Method: ${details.paymentMethod === 'COD' ? 'Cash on Delivery (Pending Review)' : 'Paid Online (Razorpay)'}
+          </strong>
+          ${details.codAmountDueInr ? `<div style="font-size: 13px; color: #b45309; margin-top: 4px;">Cash to Collect upon delivery: <strong>${details.codAmountDueInr}</strong></div>` : ''}
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+          <tr>
+            <td style="width: 50%; vertical-align: top; padding-right: 12px;">
+              <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Customer Details</h4>
+              <div style="font-size: 13px; color: #334155; line-height: 1.5;">
+                <strong>${escapeHtml(details.customerName)}</strong><br>
+                ${escapeHtml(details.customerEmail)}<br>
+                ${details.customerPhone ? `Tel: ${escapeHtml(details.customerPhone)}` : ''}
+              </div>
+            </td>
+            <td style="width: 50%; vertical-align: top; padding-left: 12px;">
+              <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Delivery Address</h4>
+              <div style="font-size: 13px; color: #334155; line-height: 1.5;">
+                ${escapeHtml(details.shippingAddress.fullName)}<br>
+                ${escapeHtml(details.shippingAddress.addressLine1)}<br>
+                ${escapeHtml(details.shippingAddress.city)}, ${escapeHtml(details.shippingAddress.state)} - ${escapeHtml(details.shippingAddress.postalCode)}
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <h4 style="margin: 24px 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Ordered Items</h4>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <thead>
+            <tr style="border-bottom: 2px solid #e2e8f0; font-size: 11px; color: #64748b; text-transform: uppercase;">
+              <th style="padding: 6px 0; text-align: left;">Item</th>
+              <th style="padding: 6px 0; text-align: center;">Qty</th>
+              <th style="padding: 6px 0; text-align: right;">Unit Price</th>
+              <th style="padding: 6px 0; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRowsHtml}
+          </tbody>
+        </table>
+
+        <div style="text-align: right; font-size: 16px; font-weight: 700; color: #0f172a; padding: 12px 0; border-top: 2px solid #0f172a;">
+          Total Order Value: ${details.totalInr}
+        </div>
+      </div>
+      <div style="padding: 16px 24px; background-color: #f8fafc; border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; font-size: 12px; color: #64748b; text-align: center;">
+        SNAPPY GIFTZ Admin & Fulfillment System
+      </div>
+    </div>
+  `;
+
+  const text = `
+[SNAPPY GIFTZ ALERT] NEW ORDER: #${details.orderNumber}
+Customer: ${details.customerName} (${details.customerEmail})
+Payment Method: ${details.paymentMethod}
+Total: ${details.totalInr}
+${details.codAmountDueInr ? `COD Amount to Collect: ${details.codAmountDueInr}\n` : ''}
+Delivery Address:
+${details.shippingAddress.fullName}
+${details.shippingAddress.addressLine1}
+${details.shippingAddress.city}, ${details.shippingAddress.state} - ${details.shippingAddress.postalCode}
+
+Items:
+${details.items.map((i) => `- ${i.productName} x ${i.quantity} = ${i.totalInr}${i.isCustomized ? ' (Customized)' : ''}`).join('\n')}
+  `.trim();
+
+  return { subject, html, text };
+}
+
+export function renderCodApprovedTemplate(
+  seller: SellerConfigData,
+  details: { orderNumber: string; customerName: string; codAmountDueInr: string }
+): { subject: string; html: string; text: string } {
+  const subject = `Order Confirmed: #${details.orderNumber} (Cash on Delivery) - SNAPPY GIFTZ`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+      ${renderHeader(seller, 'COD Order Confirmed')}
+      <div style="padding: 24px; background-color: #ffffff;">
+        <h2 style="font-size: 18px; color: #0f172a; margin-top: 0;">Hi ${escapeHtml(details.customerName)}, your order is confirmed!</h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          Your Cash on Delivery order <strong>#${escapeHtml(details.orderNumber)}</strong> has been approved and is now being processed for packing and delivery.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 14px; color: #334155;">
+            <strong>Amount Payable on Delivery:</strong> <span style="font-size: 16px; color: #0f172a; font-weight: 700;">${details.codAmountDueInr}</span>
+          </p>
+          <p style="margin: 8px 0 0 0; font-size: 12px; color: #64748b;">
+            Please keep the exact cash amount ready at the time of delivery. You may also pay via UPI QR to our delivery executive.
+          </p>
+        </div>
+      </div>
+      ${renderFooter(seller)}
+    </div>
+  `;
+
+  const text = `
+Hi ${details.customerName},
+Your Cash on Delivery order #${details.orderNumber} has been approved!
+Amount Payable on Delivery: ${details.codAmountDueInr}
+
+We are preparing your gift for delivery.
+Seller: ${seller.legalName}
+Support: ${seller.contactEmail} | ${seller.contactPhone}
+  `.trim();
+
+  return { subject, html, text };
+}
+
+export function renderCodRejectedTemplate(
+  seller: SellerConfigData,
+  details: { orderNumber: string; customerName: string; reason?: string }
+): { subject: string; html: string; text: string } {
+  const subject = `Order Update: #${details.orderNumber} - SNAPPY GIFTZ`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+      ${renderHeader(seller, 'Order Cancellation Notice')}
+      <div style="padding: 24px; background-color: #ffffff;">
+        <h2 style="font-size: 18px; color: #0f172a; margin-top: 0;">Order #${escapeHtml(details.orderNumber)} Notice</h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          Hi ${escapeHtml(details.customerName)}, we were unable to process your Cash on Delivery order <strong>#${escapeHtml(details.orderNumber)}</strong>.
+        </p>
+        ${
+          details.reason
+            ? `<div style="background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 6px; padding: 14px; margin: 16px 0; color: #991b1b; font-size: 13px;">
+                <strong>Reason:</strong> ${escapeHtml(details.reason)}
+               </div>`
+            : ''
+        }
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          Any reserved items have been restored. If you wish to place this order again with online payment, please visit our website.
+        </p>
+      </div>
+      ${renderFooter(seller)}
+    </div>
+  `;
+
+  const text = `
+Hi ${details.customerName},
+We were unable to process your COD order #${details.orderNumber}.
+${details.reason ? `Reason: ${details.reason}\n` : ''}
+Please visit SNAPPY GIFTZ to place an order or contact us for assistance.
+Support: ${seller.contactEmail} | ${seller.contactPhone}
+  `.trim();
+
+  return { subject, html, text };
+}
+
+export function renderCustomerRegistrationTemplate(
+  seller: SellerConfigData,
+  details: { customerName: string; customerEmail: string }
+): { subject: string; html: string; text: string } {
+  const subject = `Welcome to SNAPPY GIFTZ!`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+      ${renderHeader(seller, 'Welcome to SNAPPY GIFTZ')}
+      <div style="padding: 24px; background-color: #ffffff;">
+        <h2 style="font-size: 18px; color: #0f172a; margin-top: 0;">Welcome, ${escapeHtml(details.customerName)}!</h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          Thank you for creating an account with SNAPPY GIFTZ. We are thrilled to bring thoughtful, personalized gifting and rapid Hyderabad personal delivery to your fingertips.
+        </p>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          You can track your orders, manage your delivery addresses, and personalize unique gifts directly from your account.
+        </p>
+      </div>
+      ${renderFooter(seller)}
+    </div>
+  `;
+
+  const text = `
+Welcome to SNAPPY GIFTZ, ${details.customerName}!
+Thank you for creating an account.
+Browse gifts and track orders at SNAPPY GIFTZ.
+Support: ${seller.contactEmail} | ${seller.contactPhone}
+  `.trim();
+
+  return { subject, html, text };
+}

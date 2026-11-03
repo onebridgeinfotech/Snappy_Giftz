@@ -246,7 +246,10 @@ export async function getPublicProducts(
     // Query succeeded against real database!
     const sanitized: PublicProduct[] = dbProducts.map((p) => ({
       ...p,
-      rating: 0, // Genuine database catalog starts with 0 reviews
+      occasions: Array.isArray(p.occasions) ? (p.occasions as string[]) : [],
+      recipients: Array.isArray(p.recipients) ? (p.recipients as string[]) : [],
+      images: Array.isArray(p.images) ? (p.images as string[]) : [],
+      rating: 0,
       reviewsCount: 0,
       variants: p.variants.map((v) => ({
         ...v,
@@ -427,7 +430,10 @@ export async function getPublicProductBySlug(slugOrId: string): Promise<PublicPr
     if (p) {
       return {
         ...p,
-        rating: 0, // Genuine database product starts with 0 reviews
+        occasions: Array.isArray(p.occasions) ? (p.occasions as string[]) : [],
+        recipients: Array.isArray(p.recipients) ? (p.recipients as string[]) : [],
+        images: Array.isArray(p.images) ? (p.images as string[]) : [],
+        rating: 0,
         reviewsCount: 0,
         variants: p.variants.map((v) => ({
           ...v,

@@ -1,3 +1,8 @@
+// Ensure local test runs fail-fast on unreachable remote host into dev stores
+if (!process.env.CI && process.env.NODE_ENV !== 'production') {
+  process.env.DATABASE_URL = 'mysql://127.0.0.1:3306/dev_fallback';
+}
+
 import { runTestSuite } from './auth.test';
 import { runCatalogTestSuite } from './catalog.test';
 import { runStorefrontTestSuite } from './storefront.test';

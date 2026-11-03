@@ -11,7 +11,7 @@ export interface PrivateUploadResult {
   fileHash: string;
 }
 
-const MAX_ARTWORK_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_ARTWORK_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 export class PrivateStorageService {
@@ -39,7 +39,7 @@ export class PrivateStorageService {
     // 1. Enforce strict size threshold
     if (fileBuffer.length > MAX_ARTWORK_SIZE_BYTES) {
       throw new StorageValidationError(
-        `File size (${(fileBuffer.length / (1024 * 1024)).toFixed(2)} MB) exceeds the maximum allowed limit of 5 MB.`,
+        `File size (${(fileBuffer.length / (1024 * 1024)).toFixed(2)} MB) exceeds the maximum allowed limit of 10 MB.`,
         'FILE_TOO_LARGE'
       );
     }

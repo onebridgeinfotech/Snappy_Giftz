@@ -9,7 +9,6 @@ import { ProductDetailModal } from './components/ProductDetailModal';
 import { PersonalizationStudio } from './components/PersonalizationStudio';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
-import { CorporatePortal } from './components/b2b/CorporatePortal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { OrderTrackingModal } from './components/OrderTrackingModal';
 import { TaxInvoiceModal } from './components/TaxInvoiceModal';
@@ -150,8 +149,6 @@ const MainContent: React.FC = () => {
       {/* Main Mode View Routing */}
       {mode === 'admin' ? (
         <AdminDashboard />
-      ) : mode === 'b2b' ? (
-        <CorporatePortal />
       ) : (
         /* B2C STOREFRONT */
         <main className="flex-1">

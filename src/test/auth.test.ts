@@ -238,10 +238,10 @@ async function runTestSuite() {
     assert.equal(hasRole(Role.CUSTOMER, [Role.STAFF]), false);
   });
 
-  await test('Corporate client permitted B2B routes but denied admin routes', () => {
-    assert.equal(hasRole(Role.B2B_CLIENT, [Role.B2B_CLIENT]), true);
-    assert.equal(hasRole(Role.B2B_CLIENT, [Role.ADMIN]), false);
-    assert.equal(hasRole(Role.B2B_CLIENT, [Role.STAFF]), false);
+  await test('Reject obsolete B2B_CLIENT role and deny access to all routes', () => {
+    assert.equal(hasRole('B2B_CLIENT' as any, [Role.CUSTOMER]), false);
+    assert.equal(hasRole('B2B_CLIENT' as any, [Role.ADMIN]), false);
+    assert.equal(hasRole('B2B_CLIENT' as any, [Role.STAFF]), false);
   });
 
   await test('Staff permitted staff and customer routes but denied super-admin-only operations', () => {
@@ -252,7 +252,7 @@ async function runTestSuite() {
   await test('Super Administrator has universal access across all role boundaries', () => {
     assert.equal(hasRole(Role.ADMIN, [Role.ADMIN]), true);
     assert.equal(hasRole(Role.ADMIN, [Role.STAFF]), true);
-    assert.equal(hasRole(Role.ADMIN, [Role.B2B_CLIENT]), true);
+    // B2B_CLIENT role removed
     assert.equal(hasRole(Role.ADMIN, [Role.CUSTOMER]), true);
   });
 

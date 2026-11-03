@@ -154,7 +154,7 @@ export async function runPersonalizationTestSuite() {
   // Test 5: Reject Oversized Upload (>5MB)
   try {
     let threw = false;
-    const oversizedBuffer = Buffer.alloc(5.5 * 1024 * 1024); // 5.5 MB
+    const oversizedBuffer = Buffer.alloc(11 * 1024 * 1024); // 11 MB (> 10MB limit)
     // Add valid png header to ensure it fails on size, not magic bytes
     validPngHeader.copy(oversizedBuffer, 0);
 
@@ -170,12 +170,12 @@ export async function runPersonalizationTestSuite() {
       assert.ok(e instanceof StorageValidationError);
       assert.strictEqual(e.code, 'FILE_TOO_LARGE');
     }
-    assert.ok(threw, 'Should throw FILE_TOO_LARGE for buffers > 5MB');
+    assert.ok(threw, 'Should throw FILE_TOO_LARGE for buffers > 10MB');
     passed++;
-    console.log('  [PASS] 5. Enforces authoritative 5MB upload size threshold');
+    console.log('  [PASS] 5. Enforces authoritative 10MB upload size threshold');
   } catch (err: any) {
     failed++;
-    console.error('  [FAIL] 5. Enforces authoritative 5MB upload size threshold:', err.message);
+    console.error('  [FAIL] 5. Enforces authoritative 10MB upload size threshold:', err.message);
   }
 
   // Test 6: Path Traversal Prevention in Storage Key

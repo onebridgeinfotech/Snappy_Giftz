@@ -188,12 +188,12 @@ export async function runAdminTestSuite() {
   });
 
   await test('User management: updates user role and revokes active sessions', async () => {
-    // Update role of customer to B2B_CLIENT
+    // Update role of customer to STAFF
     const targetUserId = 'usr_cust_1';
     const actor = { id: 'usr_admin_1', email: 'admin@snappygifts.in', role: 'ADMIN' };
 
-    const updated = await updateAdminUserStatusOrRole(targetUserId, { role: 'B2B_CLIENT' }, actor);
-    assert.strictEqual(updated.role, 'B2B_CLIENT');
+    const updated = await updateAdminUserStatusOrRole(targetUserId, { role: 'STAFF' }, actor);
+    assert.strictEqual(updated.role, 'STAFF');
 
     // Verify audit log was recorded
     const logs = await queryAuditLogs({ action: 'USER_ROLE_UPDATE' });

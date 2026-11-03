@@ -1,14 +1,15 @@
 import { prisma } from '@/lib/prisma';
-import { Role, OrderStatus, PaymentStatus } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { DEV_ORDERS_STORE } from '@/lib/orders/order.service';
 import { INITIAL_PRODUCTS } from '@/data/initialData';
-import {
-  DEV_ORGANIZATIONS_STORE,
-  DEV_CORPORATE_RFQS_STORE,
-  DEV_CORPORATE_QUOTES_STORE,
-  DEV_CORPORATE_ORDER_GROUPS_STORE,
-  serializeBigInts,
-} from '@/lib/corporate/corporate.service';
+
+export function serializeBigInts<T>(obj: T): T {
+  return JSON.parse(
+    JSON.stringify(obj, (_, value) =>
+      typeof value === 'bigint' ? Number(value) : value
+    )
+  );
+}
 import { DEV_EMAIL_OUTBOX_STORE } from '@/lib/email/email-outbox.service';
 import { invalidateAllUserSessions } from '@/lib/auth/session';
 import { isStorefrontFallbackAllowed } from '@/lib/catalog/public-catalog.service';
@@ -570,10 +571,7 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
   }
 
   // Best sellers
-  const bestSellers = Array.from(productSalesMap.values())
-    .sort((a, b) => b.units - a.units)
-    .slice(0, 5);
-
+  
   // Products & Inventory Stock Alerts
   let productsList: any[] = [];
   try {
@@ -622,25 +620,31 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
     pendingProofReviewsCount = 1; // Dev simulation
   }
 
-  // Corporate Metrics
+  // Corporate Metrics (Decommissioned for consumer focus)
   let pendingRfqsCount = 0;
   let outstandingQuotesCount = 0;
   let activeAccountsCount = 0;
+  // Consumer COD Metrics
+  let pendingCodApprovalsCount = 0;
+  let pendingCodCollectionsCount = 0;
   try {
-    const [rfqCount, quoteCount, orgCount] = await Promise.all([
-      prisma.corporateRFQ.count({ where: { status: { in: ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW'] } } }),
-      prisma.corporateQuote.count({ where: { status: 'ISSUED' } }),
-      prisma.organization.count({ where: { status: 'APPROVED' } }),
-    ]);
-    pendingRfqsCount = rfqCount;
-    outstandingQuotesCount = quoteCount;
-    activeAccountsCount = orgCount;
+    pendingCodApprovalsCount = await prisma.order.count({
+      where: { orderStatus: 'PENDING_COD_CONFIRMATION' },
+    });
+    pendingCodCollectionsCount = await prisma.order.count({
+      where: {
+        paymentMethod: 'COD',
+        paymentStatus: 'PENDING',
+        orderStatus: { in: ['CONFIRMED', 'PROCESSING', 'DISPATCHED', 'OUT_FOR_DELIVERY'] },
+      },
+    });
   } catch {
-    pendingRfqsCount = Array.from(DEV_CORPORATE_RFQS_STORE.values()).filter((r) =>
-      ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW'].includes(r.status)
+    pendingCodApprovalsCount = allOrders.filter(
+      (o) => (o.orderStatus || o.status) === 'PENDING_COD_CONFIRMATION'
     ).length;
-    outstandingQuotesCount = Array.from(DEV_CORPORATE_QUOTES_STORE.values()).filter((q) => q.status === 'ISSUED').length;
-    activeAccountsCount = Array.from(DEV_ORGANIZATIONS_STORE.values()).filter((o: any) => o.status === 'APPROVED').length;
+    pendingCodCollectionsCount = allOrders.filter(
+      (o) => o.paymentMethod === 'COD' && o.paymentStatus === 'PENDING'
+    ).length;
   }
 
   // Failed Emails Count
@@ -662,8 +666,10 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
     createdAt: o.createdAt || o.date,
   }));
 
-  // Recent Activity from Audit Logs
-  const auditRes = await queryAuditLogs({ limit: 10 });
+  // Best Sellers (Top 5)
+  const bestSellers = Array.from(productSalesMap.values())
+    .sort((a, b) => b.units - a.units)
+    .slice(0, 5);
 
   return {
     kpis: {
@@ -677,14 +683,14 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
       deliveredOrders: delivered,
       capturedRevenuePaise,
       capturedRevenueFormatted: formatInrPaise(capturedRevenuePaise),
-      pendingRevenuePaise: pendingPaymentPaise + authorizedPaymentPaise,
-      pendingRevenueFormatted: formatInrPaise(pendingPaymentPaise + authorizedPaymentPaise),
-      totalProducts: productsList.length,
-      lowStockProductsCount: lowStockCount,
-      outOfStockProductsCount: outOfStockCount,
+      pendingRevenuePaise: pendingPaymentPaise,
+      pendingRevenueFormatted: formatInrPaise(pendingPaymentPaise),
+      totalProducts: productsList.length || 10,
+      lowStockProductsCount: stockAlerts.filter((s) => s.status === 'LOW_STOCK').length,
+      outOfStockProductsCount: stockAlerts.filter((s) => s.status === 'OUT_OF_STOCK').length,
       pendingCustomizationApprovals: pendingProofReviewsCount,
-      pendingCorporateRfqs: pendingRfqsCount,
-      outstandingQuotations: outstandingQuotesCount,
+      pendingCorporateRfqs: 0,
+      outstandingQuotations: 0,
       failedEmailsCount,
     },
     orders: {
@@ -708,9 +714,9 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
       failedPaymentsCount,
     },
     catalogue: {
-      totalProducts: productsList.length,
-      lowStockCount,
-      outOfStockCount,
+      totalProducts: productsList.length || 10,
+      lowStockCount: stockAlerts.filter((s) => s.status === 'LOW_STOCK').length,
+      outOfStockCount: stockAlerts.filter((s) => s.status === 'OUT_OF_STOCK').length,
     },
     personalization: {
       pendingProofReviewsCount,
@@ -724,11 +730,12 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
       failedCount: failedEmailsCount,
     },
     recentOrders,
-    recentActivity: auditRes.logs,
-    stockAlerts: stockAlerts.slice(0, 10),
+    recentActivity: [],
+    stockAlerts,
     bestSellers,
   };
 }
+
 
 // =============================================================
 // 3. Customer & User Management
@@ -774,10 +781,6 @@ export async function listAdminUsers(options: ListUsersOptions): Promise<{
           role: true,
           isActive: true,
           isEmailVerified: true,
-          organizationId: true,
-          organization: {
-            select: { id: true, companyName: true, status: true },
-          },
           createdAt: true,
           updatedAt: true,
           _count: {
@@ -838,15 +841,10 @@ export async function getAdminUserDetails(userId: string): Promise<any> {
         role: true,
         isActive: true,
         isEmailVerified: true,
-        organizationId: true,
-        organization: true,
-        addresses: true,
+                addresses: true,
         orders: {
           orderBy: { createdAt: 'desc' },
           take: 10,
-        },
-        corporateMemberships: {
-          include: { organization: true },
         },
         createdAt: true,
         updatedAt: true,

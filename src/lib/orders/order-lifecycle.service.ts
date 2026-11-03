@@ -51,13 +51,19 @@ export class OrderStateConflictError extends Error {
  * Terminal states (DELIVERED, CANCELLED) cannot transition to any other status.
  */
 export const ORDER_TRANSITION_MATRIX: Record<OrderStatus, OrderStatus[]> = {
-  PENDING: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
-  CONFIRMED: [OrderStatus.IN_CUSTOMIZATION, OrderStatus.QUALITY_CHECK, OrderStatus.CANCELLED],
-  IN_CUSTOMIZATION: [OrderStatus.QUALITY_CHECK, OrderStatus.CANCELLED],
-  QUALITY_CHECK: [OrderStatus.DISPATCHED, OrderStatus.IN_CUSTOMIZATION, OrderStatus.CANCELLED],
-  DISPATCHED: [OrderStatus.DELIVERED],
-  DELIVERED: [], // Terminal state
-  CANCELLED: [], // Terminal state
+  PENDING: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_COD_CONFIRMATION],
+  PENDING_PAYMENT: [OrderStatus.CONFIRMED, OrderStatus.EXPIRED, OrderStatus.CANCELLED],
+  PENDING_COD_CONFIRMATION: [OrderStatus.CONFIRMED, OrderStatus.REJECTED, OrderStatus.CANCELLED],
+  CONFIRMED: [OrderStatus.PROCESSING, OrderStatus.IN_CUSTOMIZATION, OrderStatus.QUALITY_CHECK, OrderStatus.CANCELLED],
+  PROCESSING: [OrderStatus.IN_CUSTOMIZATION, OrderStatus.QUALITY_CHECK, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DISPATCHED, OrderStatus.CANCELLED],
+  IN_CUSTOMIZATION: [OrderStatus.QUALITY_CHECK, OrderStatus.PROCESSING, OrderStatus.CANCELLED],
+  QUALITY_CHECK: [OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DISPATCHED, OrderStatus.IN_CUSTOMIZATION, OrderStatus.CANCELLED],
+  OUT_FOR_DELIVERY: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
+  DISPATCHED: [OrderStatus.DELIVERED, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED],
+  DELIVERED: [],
+  CANCELLED: [],
+  REJECTED: [],
+  EXPIRED: [],
 };
 
 /**
@@ -457,6 +463,43 @@ export async function transitionOrderStatus(
                   `Cannot transition order to IN_CUSTOMIZATION: personalized item "${item.productName}" has pending customer proof approval.`
                 );
               }
+            }
+          }
+        }
+      }
+
+      // Deduct stock only when an order is successfully marked DELIVERED (Deduct actual delivered qty exactly once)
+      if (newStatus === OrderStatus.DELIVERED && currentStatus !== OrderStatus.DELIVERED) {
+        const existingDeduction = await tx.inventoryAdjustment.findFirst({
+          where: {
+            referenceId: order.orderNumber,
+            reason: 'ORDER_FULFILLMENT',
+          },
+        });
+
+        if (!existingDeduction) {
+          for (const itm of order.items) {
+            if (itm.variantId) {
+              await tx.productVariant.update({
+                where: { id: itm.variantId },
+                data: { stockQuantity: { decrement: itm.quantity } },
+              });
+              const v = await tx.productVariant.findUnique({ where: { id: itm.variantId } });
+              const nStock = v?.stockQuantity || 0;
+              await tx.inventoryAdjustment.create({
+                data: {
+                  variantId: itm.variantId,
+                  sku: itm.sku,
+                  productName: itm.productName,
+                  previousStock: nStock + itm.quantity,
+                  adjustedQty: -itm.quantity,
+                  newStock: nStock,
+                  reason: 'ORDER_FULFILLMENT',
+                  referenceId: order.orderNumber,
+                  userId: null,
+                  notes: `Deducted ${itm.quantity} unit(s) upon successful delivery of order ${order.orderNumber}`,
+                },
+              });
             }
           }
         }

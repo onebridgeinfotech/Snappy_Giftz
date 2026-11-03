@@ -100,10 +100,6 @@ export const Header: React.FC = () => {
       setCurrentRole(role);
       setRoleMenuOpen(false);
       setMode('admin');
-    } else if (role === 'b2b_client' || role === 'corporate_procurement') {
-      setCurrentRole(role);
-      setRoleMenuOpen(false);
-      setMode('b2b');
     } else {
       setCurrentRole(role);
       setRoleMenuOpen(false);
@@ -594,17 +590,7 @@ export const Header: React.FC = () => {
                 mode === 'b2c' ? 'bg-[#D5A34A] text-[#08090B]' : 'text-[#CBD5E1]'
               }`}
             >
-              B2C Store
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMode('b2b'); setMobileMenuOpen(false); }}
-              className={`flex-1 py-1.5 rounded-lg font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                mode === 'b2b' ? 'bg-[#D5A34A] text-[#08090B]' : 'text-[#CBD5E1]'
-              }`}
-            >
-              <Building2 className="w-3 h-3" />
-              <span>B2B Corporate</span>
+              Consumer Store
             </button>
             {isStaffOrAdmin && (
               <button
@@ -617,52 +603,6 @@ export const Header: React.FC = () => {
                 Ops HQ
               </button>
             )}
-          </div>
-
-          {/* Mobile Persona Simulator Selection */}
-          <div className="bg-[#24252A]/60 p-2.5 rounded-xl border border-[#D5A34A]/20 space-y-2">
-            <div className="text-[10px] font-bold text-[#D5A34A] uppercase tracking-wider flex items-center gap-1.5">
-              <SlidersHorizontal className="w-3 h-3 text-[#D5A34A]" />
-              <span>Simulate User Persona</span>
-            </div>
-            <div className="grid grid-cols-1 gap-1 text-xs">
-              <button
-                type="button"
-                onClick={() => { handleRoleSelect('b2c_customer'); setMobileMenuOpen(false); }}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
-                  currentRole === 'b2c_customer'
-                    ? 'bg-[#17181C] text-[#F5BD48] font-bold border border-[#D5A34A]/40'
-                    : 'text-[#CBD5E1] hover:bg-[#17181C]'
-                }`}
-              >
-                <span>Individual Retail Buyer</span>
-                <span className="text-[9px] bg-[#08090B] border border-[#D5A34A]/30 text-[#D5A34A] px-1.5 py-0.5 rounded font-mono">B2C</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { handleRoleSelect('corporate_procurement'); setMobileMenuOpen(false); }}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
-                  currentRole === 'corporate_procurement'
-                    ? 'bg-[#17181C] text-[#F5BD48] font-bold border border-[#D5A34A]/40'
-                    : 'text-[#CBD5E1] hover:bg-[#17181C]'
-                }`}
-              >
-                <span>Corporate Procurement</span>
-                <span className="text-[9px] bg-[#EC3E98]/20 border border-[#EC3E98]/40 text-[#EC3E98] px-1.5 py-0.5 rounded font-bold">B2B</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { handleRoleSelect('admin'); setMobileMenuOpen(false); }}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
-                  currentRole === 'admin'
-                    ? 'bg-[#17181C] text-[#F5BD48] font-bold border border-[#D5A34A]/40'
-                    : 'text-[#CBD5E1] hover:bg-[#17181C]'
-                }`}
-              >
-                <span>Super Administrator</span>
-                <span className="text-[9px] bg-[#D5A34A]/20 border border-[#D5A34A]/40 text-[#F5BD48] px-1.5 py-0.5 rounded font-bold">HQ</span>
-              </button>
-            </div>
           </div>
 
           {/* Quick Category List */}

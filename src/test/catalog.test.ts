@@ -181,7 +181,7 @@ async function runCatalogTestSuite() {
   });
 
   await test('Deny B2B_CLIENT access to Admin Catalog endpoints', () => {
-    const isAllowed = hasRole(Role.B2B_CLIENT, [Role.ADMIN, Role.STAFF]);
+    const isAllowed = hasRole('B2B_CLIENT' as any, [Role.ADMIN, Role.STAFF]);
     assert.equal(isAllowed, false);
   });
 
@@ -360,11 +360,11 @@ async function runCatalogTestSuite() {
     assert.equal(check.valid, false);
   });
 
-  await test('Storage adapter rejects oversized files (> 5MB)', async () => {
+  await test('Storage adapter rejects oversized files (> 10MB)', async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'snappy-storage-test-'));
     try {
       const storage = new LocalDiskStorageService(tempDir);
-      const hugeBuffer = Buffer.alloc(6 * 1024 * 1024); // 6 MB
+      const hugeBuffer = Buffer.alloc(12 * 1024 * 1024); // 12 MB (> 10 MB limit)
 
       await assert.rejects(
         async () => {

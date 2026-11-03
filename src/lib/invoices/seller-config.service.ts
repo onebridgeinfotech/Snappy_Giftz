@@ -17,7 +17,7 @@ export interface SellerConfigData {
   id?: string;
   legalName: string;
   tradeName?: string | null;
-  gstin: string;
+  gstin?: string | null;
   pan?: string | null;
   registeredStreet: string;
   city: string;
@@ -78,7 +78,7 @@ export const DEFAULT_SAMPLE_SELLER_CONFIG: SellerConfigData = {
   id: 'default',
   legalName: BUSINESS_CONFIG.legalName,
   tradeName: BUSINESS_CONFIG.tradeName,
-  gstin: `${BUSINESS_CONFIG.address.stateCode}AAAAA0000A1Z5`,
+  gstin: process.env.SELLER_GSTIN || (BUSINESS_CONFIG.address.stateCode + 'AAAAA0000A1Z5'),
   pan: 'AAAAA0000A',
   registeredStreet: `${BUSINESS_CONFIG.address.line1}, ${BUSINESS_CONFIG.address.line2}`,
   city: BUSINESS_CONFIG.address.city,
@@ -271,7 +271,7 @@ export async function updateSellerConfig(
     ...input,
     legalName: input.legalName !== undefined ? input.legalName.trim() : current.legalName,
     tradeName: input.tradeName !== undefined ? (input.tradeName?.trim() || null) : current.tradeName,
-    gstin: input.gstin !== undefined ? input.gstin.trim().toUpperCase() : current.gstin,
+    gstin: input.gstin !== undefined ? (input.gstin ? input.gstin.trim().toUpperCase() : null) : current.gstin,
     pan: input.pan !== undefined ? (input.pan?.trim().toUpperCase() || null) : current.pan,
     registeredStreet: input.registeredStreet !== undefined ? input.registeredStreet.trim() : current.registeredStreet,
     city: input.city !== undefined ? input.city.trim() : current.city,

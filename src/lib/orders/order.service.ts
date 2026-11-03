@@ -25,6 +25,9 @@ import {
   getArtworkRecord,
 } from '@/lib/personalization/personalization.service';
 import { privateStorageService } from '@/services/storage/private-storage.service';
+import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
+import { renderOwnerNewOrderTemplate } from '@/lib/email/email-templates';
+import { getSellerConfig } from '@/lib/invoices/seller-config.service';
 import {
   validateAndDecodeProofDataUrl as validateProofDataUrlInternal,
   DecodedProofPng,
@@ -49,7 +52,7 @@ export interface CreateOrderInput {
   items: CartItemInput[];
   paymentMethod: string;
   userId?: string;
-  organizationId?: string;
+  // organizationId removed
   idempotencyKey?: string;
 }
 
@@ -105,6 +108,7 @@ export interface SanitizedOrderResult {
   shippingTotalPaise: number;
   grandTotalPaise: number;
   reservationExpiresAt: string;
+  cancellationReason?: string | null;
   guestLookupToken: string;
   createdAt: string;
   shipment?: {
@@ -369,63 +373,17 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
   const randomSuffix = Math.floor(100000 + Math.random() * 900000);
   const orderNumber = `SG-${currentYear}-${randomSuffix}`;
   const guestLookupToken = crypto.randomUUID();
-  const reservationExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15-minute hold
+  const isCodOrder = input.paymentMethod?.toUpperCase() === 'COD';
+  const reservationExpiresAt = isCodOrder ? new Date(Date.now() + 24 * 60 * 60 * 1000) : new Date(Date.now() + 15 * 60 * 1000);
 
   // 4. Transactional Order Creation & Concurrency-Safe Stock Reservation
   let resolvedProofs: Array<{ proofUrl: string | null; proofAssetKey: string | null; isCustomerApprovedProof: boolean }> = [];
 
   try {
     const createdOrder = await prisma.$transaction(async (tx) => {
-      // Step A: Concurrency-safe inventory stock verification & deduction
-      for (const line of pricing.items) {
-        if (line.variantId) {
-          // Atomically check and decrement stock
-          const updateResult = await tx.productVariant.updateMany({
-            where: {
-              id: line.variantId,
-              stockQuantity: { gte: line.quantity },
-              isActive: true,
-              isArchived: false,
-            },
-            data: {
-              stockQuantity: { decrement: line.quantity },
-            },
-          });
-
-          if (updateResult.count === 0) {
-            // Stock balance changed or insufficient
-            const currentVariant = await tx.productVariant.findUnique({
-              where: { id: line.variantId },
-            });
-            const available = currentVariant?.stockQuantity || 0;
-            throw new InsufficientStockError(line.productName, available, line.quantity);
-          }
-
-          // Fetch updated stock balance for ledger
-          const updatedVariant = await tx.productVariant.findUnique({
-            where: { id: line.variantId },
-          });
-
-          const newStock = updatedVariant?.stockQuantity || 0;
-          const previousStock = newStock + line.quantity;
-
-          // Record immutable audit history
-          await tx.inventoryAdjustment.create({
-            data: {
-              variantId: line.variantId,
-              sku: line.sku,
-              productName: line.productName,
-              previousStock,
-              adjustedQty: -line.quantity,
-              newStock,
-              reason: 'ORDER_RESERVATION',
-              referenceId: orderNumber,
-              userId: input.userId || null,
-              notes: `15-minute hold reserved for order ${orderNumber}`,
-            },
-          });
-        }
-      }
+      // Step A: Inventory maintained manually by owner.
+      // Do not reserve or deduct inventory when an order is placed.
+      // Stock is deducted only upon successful DELIVERED status.
 
       // Step B: Resolve proofs for custom items before creating Order record
       resolvedProofs = await Promise.all(
@@ -447,14 +405,13 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       const order = await tx.order.create({
         data: {
           orderNumber,
-          type: 'B2C',
-          userId: input.userId || null,
-          organizationId: input.organizationId || null,
-          customerName: input.customerName.trim(),
+                    userId: input.userId || null,
+                    customerName: input.customerName.trim(),
           customerEmail: cleanEmail,
           customerPhone: cleanPhone,
           gstin: input.gstin?.trim() || null,
           shippingAddress: input.shippingAddress as any,
+          shippingPincode: input.shippingAddress.pincode,
           destinationStateCode,
           itemsSubtotalPaise: BigInt(pricing.itemsSubtotalPaise),
           customizationTotalPaise: BigInt(pricing.customizationTotalPaise),
@@ -466,7 +423,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
           igstPaise: BigInt(pricing.igstPaise),
           shippingTotalPaise: BigInt(pricing.shippingTotalPaise),
           grandTotalPaise: BigInt(pricing.grandTotalPaise),
-          orderStatus: 'PENDING',
+          orderStatus: input.paymentMethod.toUpperCase() === 'COD' ? 'PENDING_COD_CONFIRMATION' : 'PENDING',
           paymentStatus: 'PENDING',
           paymentMethod: input.paymentMethod,
           idempotencyKey: input.idempotencyKey?.trim() || null,
@@ -566,7 +523,9 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       return order;
     });
 
-    return formatOrderResponse(createdOrder);
+    const formatted = formatOrderResponse(createdOrder);
+    notifyOwnerOfNewOrder(formatted, input).catch(() => {});
+    return formatted;
   } catch (err: any) {
     // If order reservation or transaction failed, clean up any uncommitted proof files
     if (
@@ -597,7 +556,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       id: `dev-ord-${randomSuffix}`,
       orderNumber,
       userId: input.userId || null,
-      orderStatus: 'PENDING',
+      orderStatus: input.paymentMethod?.toUpperCase() === 'COD' ? 'PENDING_COD_CONFIRMATION' : 'PENDING',
       paymentStatus: 'PENDING',
       paymentMethod: input.paymentMethod,
       customerName: input.customerName.trim(),
@@ -718,6 +677,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       DEV_IDEMPOTENCY_STORE.set(input.idempotencyKey.trim(), orderNumber);
     }
 
+    notifyOwnerOfNewOrder(devOrder, input).catch(() => {});
     return devOrder;
   }
 }
@@ -725,6 +685,61 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
 /**
  * Format Prisma database entity into a clean, JSON-serializable public response.
  */
+
+async function notifyOwnerOfNewOrder(order: SanitizedOrderResult, rawInput: CreateOrderInput) {
+  try {
+    const seller = await getSellerConfig();
+    const formattedDate = new Date().toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    const isCod = order.paymentMethod.toUpperCase() === 'COD';
+    const emailData = renderOwnerNewOrderTemplate(seller, {
+      orderNumber: order.orderNumber,
+      orderDate: formattedDate,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      customerPhone: order.customerPhone,
+      paymentMethod: isCod ? 'COD' : 'ONLINE',
+      totalInr: `₹${(order.grandTotalPaise / 100).toFixed(2)}`,
+      codAmountDueInr: isCod ? `₹${(order.grandTotalPaise / 100).toFixed(2)}` : undefined,
+      shippingAddress: {
+        fullName: rawInput.shippingAddress.name,
+        addressLine1: rawInput.shippingAddress.street,
+        city: rawInput.shippingAddress.city,
+        state: rawInput.shippingAddress.state,
+        postalCode: rawInput.shippingAddress.pincode,
+        phone: rawInput.shippingAddress.phone,
+      },
+      items: order.items.map((i) => ({
+        productName: i.productName,
+        quantity: i.quantity,
+        unitPriceInr: `₹${(i.unitPricePaise / 100).toFixed(2)}`,
+        totalInr: `₹${(i.subtotalPaise / 100).toFixed(2)}`,
+        isCustomized: Boolean(i.customizationNote || i.customizationMeta || i.proofImageUrl),
+        customizationNote: i.customizationNote || undefined,
+        customizationPhotosCount: i.customizationMeta?.artworkUploadId ? 1 : 0,
+      })),
+    });
+
+    await enqueueTransactionalEmail({
+      idempotencyKey: `email:owner_new_order:${order.orderNumber}`,
+      eventType: 'OWNER_NEW_ORDER',
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      recipientEmail: seller.contactEmail || 'orders@snappygiftz.com',
+      recipientName: 'SNAPPY GIFTZ Operations',
+      subject: emailData.subject,
+      htmlBody: emailData.html,
+      textBody: emailData.text,
+    });
+  } catch (err) {
+    console.error(`[ORDER_NOTIFICATION] Failed to enqueue owner new order alert for #${order.orderNumber}:`, err);
+  }
+}
+
 function formatOrderResponse(order: any): SanitizedOrderResult {
   return {
     id: order.id,

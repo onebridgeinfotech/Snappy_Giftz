@@ -157,38 +157,31 @@ export async function runCheckoutTestSuite() {
     assert.equal(quoteRaj.grandTotalPaise, 153282); // 129900 + 23382 + 0
 
     // prod-4: ₹899 = 89,900 paise, 18% GST to Maharashtra (27)
-    const quoteMum = await calculateCartPricing([{ productId: 'prod-4', quantity: 1 }], '27');
+    const quoteMum = await calculateCartPricing([{ productId: 'prod-4', quantity: 1 }], '27', 9900);
     assert.equal(quoteMum.itemsSubtotalPaise, 89900);
     assert.equal(quoteMum.taxableAmountPaise, 89900);
     assert.equal(quoteMum.taxTotalPaise, 16182); // round(89900 * 0.18) = 16182
     assert.equal(quoteMum.cgstPaise, 0);
     assert.equal(quoteMum.sgstPaise, 0);
     assert.equal(quoteMum.igstPaise, 16182);
-    assert.equal(quoteMum.shippingTotalPaise, 9900); // < ₹999 flat ₹99
+    assert.equal(quoteMum.shippingTotalPaise, 9900); // Owner manual delivery charge
     assert.equal(quoteMum.grandTotalPaise, 115982); // 89900 + 16182 + 9900
   });
 
   // ------------------------------------------------------------------
-  // 3. Shipping Policy & Thresholds
+  // 3. Shipping Policy & Manual Delivery Charge Policy
   // ------------------------------------------------------------------
-  console.log('\n--- 3. Shipping Fee & Free Delivery Threshold Invariants ---');
+  console.log('\n--- 3. Manual Delivery Charge Policy (Automatic Slabs Removed) ---');
 
-  await test('Free shipping applied when items subtotal >= ₹999 (99,900 paise)', async () => {
-    // prod-1 base price is 129,900 paise >= 99,900 paise
+  await test('Delivery charges default to 0 paise when unassigned (entered manually by owner)', async () => {
     const quote = await calculateCartPricing([{ productId: 'prod-1', quantity: 1 }]);
-    assert.ok(quote.itemsSubtotalPaise >= FREE_SHIPPING_THRESHOLD_PAISE);
-    assert.equal(quote.shippingTotalPaise, 0, 'Shipping must be 0 for orders >= ₹999');
+    assert.equal(quote.shippingTotalPaise, 0, 'Delivery charge must default to 0 when not manually set');
   });
 
-  await test('Flat shipping fee applied when items subtotal < ₹999 (99,900 paise)', async () => {
-    // prod-4 Backlit Acrylic Plaque is ₹899 (89,900 paise) < 99,900 paise
-    const quote = await calculateCartPricing([{ productId: 'prod-4', quantity: 1 }]);
-    assert.ok(quote.itemsSubtotalPaise < FREE_SHIPPING_THRESHOLD_PAISE);
-    assert.equal(
-      quote.shippingTotalPaise,
-      STANDARD_SHIPPING_FEE_PAISE,
-      'Shipping must be ₹99 (9,900 paise) for orders < ₹999'
-    );
+  await test('Owner-specified manual delivery charge is authoritatively applied to grand total', async () => {
+    const quote = await calculateCartPricing([{ productId: 'prod-4', quantity: 1 }], '36', 12000);
+    assert.equal(quote.shippingTotalPaise, 12000);
+    assert.equal(quote.grandTotalPaise, quote.taxableAmountPaise + quote.taxTotalPaise + 12000);
   });
 
   // ------------------------------------------------------------------
@@ -214,12 +207,12 @@ export async function runCheckoutTestSuite() {
   });
 
   await test('Checks delivery serviceability against approved registry', () => {
-    const resAjmer = checkPincodeServiceability('305001');
-    assert.equal(resAjmer.valid, true);
-    assert.equal(resAjmer.serviceable, true);
-    assert.equal(resAjmer.city, 'Ajmer');
-    assert.equal(resAjmer.stateCode, '08');
-    assert.equal(resAjmer.estimatedDays, 1);
+    const resHyd = checkPincodeServiceability('500001');
+    assert.equal(resHyd.valid, true);
+    assert.equal(resHyd.serviceable, true);
+    assert.equal(resHyd.city, 'Hyderabad');
+    assert.equal(resHyd.stateCode, '36');
+    assert.equal(resHyd.estimatedDays, 1);
   });
 
   await test('Rejects unapproved PIN codes without inventing coverage', () => {
