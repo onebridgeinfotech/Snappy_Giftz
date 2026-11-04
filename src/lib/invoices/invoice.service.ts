@@ -693,6 +693,7 @@ export async function sendInvoiceAvailableEmail(
       sellerConfig
     );
 
+    // 1. Dispatch invoice available notification to customer
     await enqueueTransactionalEmail({
       idempotencyKey: `email-invoice-${invoiceRecord.invoiceNumber}`,
       eventType: 'INVOICE_AVAILABLE',
@@ -701,6 +702,22 @@ export async function sendInvoiceAvailableEmail(
       recipientEmail: invoiceRecord.customerEmail,
       recipientName: invoiceRecord.customerName,
       subject: emailData.subject,
+      htmlBody: emailData.html,
+      textBody: emailData.text,
+      attachmentKey: pdfStorageKey,
+      attachmentFilename: safeFilename,
+    });
+
+    // 2. Dispatch official tax invoice archive copy to protected admin account
+    const adminEmail = BUSINESS_CONFIG.adminEmail || 'phoenixnot13@gmail.com';
+    await enqueueTransactionalEmail({
+      idempotencyKey: `email:admin_invoice_archive:${invoiceRecord.invoiceNumber}`,
+      eventType: 'ADMIN_INVOICE_ARCHIVE',
+      orderId: invoiceRecord.orderId,
+      orderNumber: invoiceRecord.orderNumber,
+      recipientEmail: adminEmail,
+      recipientName: 'SNAPPY GIFTZ Admin Desk',
+      subject: `[INVOICE ARCHIVE] ${invoiceRecord.invoiceNumber} for Order #${invoiceRecord.orderNumber}`,
       htmlBody: emailData.html,
       textBody: emailData.text,
       attachmentKey: pdfStorageKey,

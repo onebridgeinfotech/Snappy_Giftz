@@ -303,12 +303,6 @@ export async function calculateCartPricing(
 
     // Customization fee (authoritative calculation on server)
     let customizationFeePaise = 0;
-
-    // Gift wrapping fee: flat ₹20 (2000 paise) per item
-    const isGiftWrapped = Boolean((item as any).isGiftWrapped || item.customization?.giftWrap);
-    if (isGiftWrapped) {
-      customizationFeePaise += 2000;
-    }
     const hasCustomization = !!(
       item.customization?.note ||
       item.customization?.engravedText ||
@@ -406,7 +400,13 @@ export async function calculateCartPricing(
 
   // Calculate Aggregates
   const itemsSubtotalPaise = lineQuotes.reduce((acc, l) => acc + l.lineSubtotalPaise, 0);
-  const customizationTotalPaise = lineQuotes.reduce((acc, l) => acc + l.lineCustomizationPaise, 0);
+  const lineCustomizationTotalPaise = lineQuotes.reduce((acc, l) => acc + l.lineCustomizationPaise, 0);
+
+  // Gift wrapping fee: flat ₹20 (2000 paise) charged exactly once per order if at least one item requests gift wrapping
+  const isOrderGiftWrapped = items.some((item) => Boolean(item.isGiftWrapped || item.customization?.giftWrap));
+  const giftWrapTotalPaise = isOrderGiftWrapped ? 2000 : 0;
+
+  const customizationTotalPaise = lineCustomizationTotalPaise + giftWrapTotalPaise;
   const discountTotalPaise = 0; // Coupons deferred in Batch 4
   const taxableAmountPaise = itemsSubtotalPaise + customizationTotalPaise - discountTotalPaise;
 

@@ -185,6 +185,85 @@ export async function runCheckoutTestSuite() {
   });
 
   // ------------------------------------------------------------------
+  // 3.5. Authoritative Flat ₹20 Gift Wrapping Invariants
+  // ------------------------------------------------------------------
+  console.log('\n--- 3.5. Authoritative Flat ₹20 Gift Wrapping Calculation ---');
+
+  await test('Gift wrapping invariant: No gift wrapping results in ₹0 fee', async () => {
+    const quote = await calculateCartPricing([{ productId: 'prod-1', quantity: 1 }]);
+    assert.equal(quote.customizationTotalPaise, 0, 'No gift wrapping must have 0 customization fee');
+  });
+
+  await test('Gift wrapping invariant: One wrapped item charges exactly ₹20 (2000 paise)', async () => {
+    const quote = await calculateCartPricing([
+      { productId: 'prod-1', quantity: 1, isGiftWrapped: true },
+    ]);
+    assert.equal(quote.customizationTotalPaise, 2000, 'One wrapped item must charge flat ₹20 (2000 paise)');
+  });
+
+  await test('Gift wrapping invariant: Three units of one wrapped product charges exactly ₹20 (not multiplied by quantity)', async () => {
+    const quote = await calculateCartPricing([
+      { productId: 'prod-1', quantity: 3, isGiftWrapped: true },
+    ]);
+    assert.equal(
+      quote.customizationTotalPaise,
+      2000,
+      'Three units of wrapped product must still charge flat ₹20 exactly once'
+    );
+  });
+
+  await test('Gift wrapping invariant: Multiple wrapped cart items charges exactly ₹20 (not charged multiple times)', async () => {
+    const quote = await calculateCartPricing([
+      { productId: 'prod-1', quantity: 2, isGiftWrapped: true },
+      { productId: 'prod-4', quantity: 1, customization: { giftWrap: true } },
+    ]);
+    assert.equal(
+      quote.customizationTotalPaise,
+      2000,
+      'Multiple wrapped cart items must charge flat ₹20 exactly once per order'
+    );
+  });
+
+  await test('Gift wrapping invariant: Gift wrapping combined with engraving equals engraving fee plus ₹20', async () => {
+    const prevEnv = process.env.WOODEN_CRATE_SURCHARGE_APPROVED;
+    try {
+      process.env.WOODEN_CRATE_SURCHARGE_APPROVED = 'true';
+      const quoteWithEngravingOnly = await calculateCartPricing([
+        {
+          productId: 'prod-1',
+          quantity: 1,
+          customization: {
+            engravedText: 'Forever Love',
+            boxWrapStyle: 'Vintage Wooden Keepsake Crate',
+            giftWrap: false,
+          },
+        },
+      ]);
+      const engravingFee = quoteWithEngravingOnly.customizationTotalPaise;
+      assert.equal(engravingFee, 15000, 'Engraving + wooden crate fee must be 15000 paise (₹150)');
+
+      const quoteWithBoth = await calculateCartPricing([
+        {
+          productId: 'prod-1',
+          quantity: 1,
+          customization: {
+            engravedText: 'Forever Love',
+            boxWrapStyle: 'Vintage Wooden Keepsake Crate',
+            giftWrap: true,
+          },
+        },
+      ]);
+      assert.equal(
+        quoteWithBoth.customizationTotalPaise,
+        engravingFee + 2000,
+        'Gift wrapping combined with engraving must equal engraving fee plus exactly ₹20 (2000 paise)'
+      );
+    } finally {
+      process.env.WOODEN_CRATE_SURCHARGE_APPROVED = prevEnv;
+    }
+  });
+
+  // ------------------------------------------------------------------
   // 4. Pincode & Shipping Address Validation
   // ------------------------------------------------------------------
   console.log('\n--- 4. Pincode Validation & GST State Code Resolution ---');
