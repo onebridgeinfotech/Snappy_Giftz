@@ -15,6 +15,7 @@ import { generatePackingSlipPdf, PackingSlipItem, PackingSlipPdfData } from '../
 import { privateStorageService } from '@/services/storage/private-storage.service';
 import { enqueueTransactionalEmail } from '../email/email-outbox.service';
 import { renderInvoiceAvailableTemplate } from '../email/email-templates';
+import { BUSINESS_CONFIG } from '@/config/business';
 
 export class InvoiceValidationError extends Error {
   constructor(message: string) {

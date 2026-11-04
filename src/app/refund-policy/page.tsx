@@ -1,12 +1,12 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowLeft, RefreshCw, Mail, MapPin } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Mail, MapPin, Phone, MessageCircle } from 'lucide-react';
 import { BUSINESS_CONFIG } from '@/config/business';
 
 export const metadata: Metadata = {
   title: `Refund & Replacement Policy | ${BUSINESS_CONFIG.brandName}`,
-  description: `Replacement and refund terms for personalized gifts and curations at ${BUSINESS_CONFIG.brandName}.`,
+  description: `Transit damage reporting, replacement, and refund terms at ${BUSINESS_CONFIG.brandName}.`,
 };
 
 export default function RefundPolicyPage() {
@@ -29,7 +29,7 @@ export default function RefundPolicyPage() {
         <div className="space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#17181C] border border-[#D5A34A]/30 text-[#D5A34A] text-xs font-mono uppercase tracking-wider">
             <RefreshCw className="w-3.5 h-3.5 text-[#F5BD48]" />
-            <span>Customer Satisfaction Pledge</span>
+            <span>Customer Satisfaction &amp; Quality Pledge</span>
           </div>
           <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-white">
             Refund &amp; Replacement Policy
@@ -39,44 +39,62 @@ export default function RefundPolicyPage() {
 
         <div className="bg-[#17181C] rounded-3xl border border-[#D5A34A]/25 p-6 sm:p-10 space-y-8 text-xs sm:text-sm text-[#CBD5E1] leading-relaxed shadow-xl">
           <section className="space-y-3">
-            <h2 className="font-serif font-bold text-base sm:text-lg text-white">1. Personalized Products Policy</h2>
+            <h2 className="font-serif font-bold text-base sm:text-lg text-white">1. Personalized Products &amp; Change of Mind</h2>
             <p>
-              Due to the unique nature of custom-made, monogrammed, and laser-engraved items, orders produced according to individual customer specifications cannot be returned or refunded for change of mind once craftsmanship has commenced.
+              Due to the bespoke nature of personalized and engraved gifting, orders crafted to your individual specifications (names, photos, engraved messages, or custom designs) cannot be returned, cancelled, or refunded for general change of mind once craftsmanship or preparation has begun.
             </p>
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif font-bold text-base sm:text-lg text-white">2. Transit Damage &amp; Defect Guarantee</h2>
+            <h2 className="font-serif font-bold text-base sm:text-lg text-white">2. Transit Damage Reporting Window (Within 24 Hours)</h2>
             <p>
-              We stand 100% behind the condition of our gifts. If an item arrives broken, cracked, or defective, <strong>{BUSINESS_CONFIG.brandName}</strong> provides an immediate complimentary replacement:
+              We hand-pack every gift with premium protective cushioning. If your package arrives damaged, broken, or defective in transit:
             </p>
-            <ul className="list-disc pl-5 space-y-1 text-xs text-[#CBD5E1]/90">
-              <li>Please notify our team within 7 calendar days of delivery.</li>
-              <li>Provide clear photographs or a short video showing the packaging and damaged item.</li>
-              <li>Upon swift verification, an expedited replacement will be dispatched at zero additional charge to you.</li>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs text-[#CBD5E1]/90">
+              <li><strong className="text-white">Time Limit:</strong> You must report the damage within <strong>24 hours of delivery</strong>.</li>
+              <li><strong className="text-white">Required Evidence:</strong> Please share clear photographs or an unboxing video showing the shipping label, packaging box, and the damaged item.</li>
+              <li><strong className="text-white">Owner Review:</strong> The store owner personally reviews all damage reports. For verified damage, we arrange an immediate priority replacement at zero additional charge, or process an eligible refund.</li>
             </ul>
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif font-bold text-base sm:text-lg text-white">3. Refund Processing</h2>
+            <h2 className="font-serif font-bold text-base sm:text-lg text-white">3. Eligible Refund Processing</h2>
             <p>
-              Where an approved refund is issued (e.g. out-of-stock items or delivery cancellations before production), the refund will be credited back to the original source payment method (bank account, UPI, or card) within 5–7 business days via our payment gateway.
+              Where an eligible refund is approved by the owner (such as out-of-stock items, delivery cancellations before preparation, or mutually agreed damage settlements):
             </p>
+            <ul className="list-disc pl-5 space-y-1 text-xs text-[#CBD5E1]/90">
+              <li>Refunds are processed back to the original source payment method (UPI, bank account, or card) via Razorpay.</li>
+              <li>Processing typically completes within 5 to 7 business days depending on banking channels.</li>
+              <li>Cash on Delivery orders eligible for refund will be credited directly to the customer&apos;s verified bank/UPI account upon confirmation.</li>
+            </ul>
           </section>
 
           <section className="space-y-4 pt-4 border-t border-[#D5A34A]/20">
-            <h2 className="font-serif font-bold text-base sm:text-lg text-white">4. Contact For Claims &amp; Returns</h2>
+            <h2 className="font-serif font-bold text-base sm:text-lg text-white">4. Direct Contact &amp; Damage Claims</h2>
             <p>
-              To initiate a transit replacement or refund claim, reach out to our team:
+              To report a damaged product within 24 hours or request customization adjustments, reach out directly to the store owner:
             </p>
-            <div className="bg-[#08090B]/60 p-5 rounded-2xl border border-[#D5A34A]/20 space-y-2.5 text-xs">
+            <div className="bg-[#08090B]/60 p-5 rounded-2xl border border-[#D5A34A]/20 space-y-3 text-xs">
               <div className="font-bold text-white text-sm">{BUSINESS_CONFIG.brandName}</div>
               <div className="flex items-start gap-2 text-[#CBD5E1]">
                 <MapPin className="w-4 h-4 text-[#D5A34A] shrink-0 mt-0.5" />
                 <span>{BUSINESS_CONFIG.address.formattedSingleLine}</span>
               </div>
               <div className="flex items-center gap-2 text-[#CBD5E1]">
+                <MessageCircle className="w-4 h-4 text-[#25D366] shrink-0" />
+                <span>Direct WhatsApp: </span>
+                <a
+                  href={`https://wa.me/91${BUSINESS_CONFIG.whatsappPhone}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#F5BD48] hover:text-white underline underline-offset-2 transition-colors font-semibold"
+                >
+                  +91 {BUSINESS_CONFIG.whatsappPhone}
+                </a>
+              </div>
+              <div className="flex items-center gap-2 text-[#CBD5E1]">
                 <Mail className="w-4 h-4 text-[#D5A34A] shrink-0" />
+                <span>Customer Care: </span>
                 <a
                   href={`mailto:${BUSINESS_CONFIG.officialEmail}`}
                   className="text-[#F5BD48] hover:text-white underline underline-offset-2 transition-colors font-medium"

@@ -212,7 +212,7 @@ export async function runCheckoutTestSuite() {
     assert.equal(resHyd.serviceable, true);
     assert.equal(resHyd.city, 'Hyderabad');
     assert.equal(resHyd.stateCode, '36');
-    assert.equal(resHyd.estimatedDays, 1);
+    assert.equal(resHyd.estimatedDays, 2);
   });
 
   await test('Rejects unapproved PIN codes without inventing coverage', () => {

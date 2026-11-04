@@ -47,7 +47,7 @@ export const Footer: React.FC = () => {
             </div>
 
             <p className="text-xs text-[#CBD5E1]/80 leading-relaxed max-w-sm">
-              India&apos;s premier luxury online gift studio and corporate bulk gifting house. We craft 24K gold-rim ceramic drinkware, laser-etched keepsakes, soy candles, brass lattice lanterns, festive hampers, and day-one employee onboarding kits with pan-India insured express logistics.
+              India&apos;s premier luxury online gift studio. We craft 24K gold-rim ceramic drinkware, laser-etched keepsakes, scented candles, brass lattice lanterns, and festive hampers with insured express logistics across Hyderabad and beyond.
             </p>
 
             <div className="space-y-2.5 text-xs text-[#CBD5E1]/80 pt-1">
@@ -83,7 +83,7 @@ export const Footer: React.FC = () => {
               <li><button onClick={() => navigateToCatalog({ occasion: 'Wedding' })} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Wedding &amp; Engagement Hampers</button></li>
               <li><button onClick={() => navigateToCatalog({ occasion: 'Diwali' })} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Diwali &amp; Festive Baskets</button></li>
               <li><button onClick={() => navigateToCatalog({ category: 'Home Decor' })} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Housewarming &amp; Pooja Diya Sets</button></li>
-              <li><button onClick={() => navigateToCatalog({ occasion: 'Corporate' })} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Farewell &amp; Milestone Awards</button></li>
+              <li><button onClick={() => navigateToCatalog({ occasion: 'Festival' })} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Festivals &amp; Milestones</button></li>
             </ul>
           </div>
 
@@ -183,7 +183,7 @@ export const Footer: React.FC = () => {
             <span className="text-[#D5A34A]/40">•</span>
             <a href="/about" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">About Us</a>
             <span className="text-[#D5A34A]/40">•</span>
-            <button onClick={() => setMode('b2b')} className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">B2B Procurement</button>
+            <a href="https://wa.me/918309600721" target="_blank" rel="noopener noreferrer" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">WhatsApp: 8309600721</a>
           </div>
         </div>
 

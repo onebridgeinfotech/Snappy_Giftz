@@ -128,6 +128,7 @@ export interface CustomizationOption {
   proofVersion?: number;
   clientProofDataUrl?: string;
   requireProof?: boolean;
+  giftWrap?: boolean;
 }
 
 export interface CartItem {
@@ -138,6 +139,7 @@ export interface CartItem {
   quantity: number;
   unitPrice: number;
   customization?: CustomizationOption;
+  isGiftWrapped?: boolean;
   isCorporateBulk?: boolean;
   recipientList?: BulkRecipient[];
 }

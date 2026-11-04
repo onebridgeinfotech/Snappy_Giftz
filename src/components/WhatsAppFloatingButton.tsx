@@ -7,8 +7,8 @@ interface WhatsAppFloatingButtonProps {
 }
 
 export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
-  phoneNumber = '919829084721',
-  defaultMessage = 'Hello Snappy Giftz! I would like to inquire about personalized gifts and corporate bulk orders.'
+  phoneNumber = '918309600721',
+  defaultMessage = 'Hello SNAPPY GIFTZ! I have a question about customizing a gift or order status.'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [userMsg, setUserMsg] = useState('');
@@ -89,7 +89,7 @@ export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
                 <span>🙏</span>
               </div>
               <p className="leading-relaxed">
-                Welcome to SNAPPY GIFTZ. Need help customizing a gift, tracking an order, or getting bulk corporate GST pricing?
+                Welcome to SNAPPY GIFTZ. Need help customizing a gift, requesting a customization change, or tracking an order?
               </p>
               <div className="text-[9.5px] text-[#94A3B8] text-right pt-0.5">
                 Just now
@@ -113,14 +113,14 @@ export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
               <button
                 onClick={() => {
                   window.open(
-                    `https://wa.me/${phoneNumber}?text=${encodeURIComponent('Hello! Looking for corporate bulk gifting catalog and GST invoice quotation.')}`,
+                    `https://wa.me/${phoneNumber}?text=${encodeURIComponent('Hello! I would like to request customization changes for my order.')}`,
                     '_blank',
                     'noopener,noreferrer'
                   );
                 }}
                 className="w-full text-left text-[11px] font-medium text-[#CBD5E1] bg-[#1A1C22] hover:bg-[#242730] hover:text-[#F5BD48] p-2.5 rounded-xl border border-[#D5A34A]/20 hover:border-[#D5A34A]/50 transition-all shadow-2xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-[#D5A34A]"
               >
-                💼 Corporate bulk order with GST quotation
+                ✏️ Request customization changes for my order
               </button>
             </div>
           </div>

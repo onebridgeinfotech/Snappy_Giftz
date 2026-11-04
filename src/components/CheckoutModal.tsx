@@ -69,9 +69,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     mode === 'b2b' ? organization.phone : '+91 98290 12345'
   );
   const [street, setStreet] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [pincode, setPincode] = useState(currentPincode || '');
+  const [city, setCity] = useState('Hyderabad');
+  const [state, setState] = useState('Telangana');
+  const [pincode, setPincode] = useState(currentPincode || '500062');
   const [gstin, setGstin] = useState(mode === 'b2b' ? organization.gstin : '');
   const [companyName, setCompanyName] = useState(mode === 'b2b' ? organization.companyName : '');
 
@@ -627,35 +627,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                   </div>
                 </label>
-
-                {/* Corporate Credit / Net 30 */}
-                {mode === 'b2b' && (
-                  <label
-                    onClick={() => setPaymentMethod('CorporateCredit')}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 col-span-1 sm:col-span-2 ${
-                      paymentMethod === 'CorporateCredit'
-                        ? 'border-[#D5A34A] bg-[#D5A34A]/10 ring-1 ring-[#D5A34A]'
-                        : 'border-[#D5A34A]/20 bg-[#17181C] hover:border-[#D5A34A]/50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="pay"
-                      checked={paymentMethod === 'CorporateCredit'}
-                      onChange={() => setPaymentMethod('CorporateCredit')}
-                      className="mt-1 text-[#D5A34A] accent-[#D5A34A]"
-                    />
-                    <div>
-                      <div className="font-bold text-xs sm:text-sm text-[#F5BD48] flex items-center gap-1.5">
-                        <Building2 className="w-4 h-4 text-[#D5A34A]" />
-                        Approved Corporate Credit (Net 30 Terms)
-                      </div>
-                      <div className="text-[11px] text-[#CBD5E1] mt-0.5">
-                        Credit limit available: ₹{(organization.creditLimit - organization.creditUsed).toLocaleString('en-IN')}. Invoiced directly against PO.
-                      </div>
-                    </div>
-                  </label>
-                )}
 
                 {/* COD */}
                 <label

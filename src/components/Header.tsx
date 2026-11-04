@@ -169,19 +169,6 @@ export const Header: React.FC = () => {
               >
                 B2C Store
               </button>
-              <button
-                type="button"
-                onClick={() => setMode('b2b')}
-                className={`px-3 py-0.5 rounded-full font-semibold transition-all duration-200 flex items-center gap-1 cursor-pointer ${
-                  mode === 'b2b'
-                    ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] shadow-xs'
-                    : 'text-[#CBD5E1] hover:text-white'
-                }`}
-                title="Corporate Bulk Gifting Portal"
-              >
-                <Building2 className="w-3 h-3" />
-                <span>B2B Portal</span>
-              </button>
               {isStaffOrAdmin && (
                 <button
                   type="button"
@@ -242,19 +229,6 @@ export const Header: React.FC = () => {
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={() => handleRoleSelect('corporate_procurement')}
-                    className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
-                      currentRole === 'corporate_procurement'
-                        ? 'bg-[#24252A] text-[#F5BD48] font-bold border border-[#D5A34A]/40'
-                        : 'text-[#CBD5E1] hover:bg-[#24252A]/60'
-                    }`}
-                  >
-                    <span>Corporate Procurement</span>
-                    <span className="text-[9px] bg-[#EC3E98]/20 border border-[#EC3E98]/40 text-[#EC3E98] px-1.5 py-0.5 rounded font-bold">B2B</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
                     onClick={() => handleRoleSelect('admin')}
                     className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
                       currentRole === 'admin'
@@ -302,7 +276,7 @@ export const Header: React.FC = () => {
             <form onSubmit={handleSearchSubmit} className="relative w-full">
               <input
                 type="text"
-                placeholder="Search bespoke gifts, hampers, corporate kits..."
+                placeholder="Search personalized gifts, keepsakes, hampers..."
                 value={searchQuery}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setTimeout(() => setSearchFocused(false), 250)}

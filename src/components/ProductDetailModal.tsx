@@ -274,46 +274,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 )}
               </div>
 
-              {/* Bulk Tier Matrix */}
-              {product.bulkTiers && product.bulkTiers.length > 0 && (
-                <div className="mt-4 p-3.5 rounded-2xl bg-[#121316] border border-[#D5A34A]/20">
-                  <div className="flex items-center justify-between text-xs font-bold text-[#F5BD48] mb-2">
-                    <span className="flex items-center gap-1">
-                      <Building2 className="w-3.5 h-3.5 text-[#D5A34A]" />
-                      Bulk Corporate Volume Discounts
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleRequestQuote}
-                      className="text-[11px] text-[#D5A34A] hover:text-[#F5BD48] hover:underline font-bold cursor-pointer"
-                    >
-                      Need 100+ units? Request RFQ &rarr;
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    {product.bulkTiers.map((tier, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setQuantity(tier.minQty)}
-                        className={`p-2 rounded-xl border transition-all cursor-pointer ${
-                          quantity >= tier.minQty && (!tier.maxQty || quantity <= tier.maxQty)
-                            ? 'bg-[#D5A34A]/20 border-[#D5A34A] ring-1 ring-[#D5A34A] font-bold text-white shadow-xs'
-                            : 'bg-[#24252A] border-[#D5A34A]/20 text-[#CBD5E1] hover:border-[#D5A34A]/40'
-                        }`}
-                      >
-                        <div className="text-[10px] font-semibold text-[#94A3B8]">
-                          {tier.maxQty ? `${tier.minQty} - ${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
-                        </div>
-                        <div className="font-bold text-[#F5BD48] font-serif">₹{tier.pricePerUnit}</div>
-                        <div className="text-[9.5px] text-emerald-400 font-bold">{tier.discountPercentage}% OFF</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Personalization Section */}
               {product.isCustomizable && (
                 <div className="mt-4 p-3.5 rounded-2xl bg-[#24252A] border border-[#D5A34A]/25 shadow-xs">
@@ -422,7 +382,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <div className="grid grid-cols-2 gap-2 text-[11px] text-[#94A3B8] pt-2">
                   {product.dimensions && <div>📐 <strong>Dimensions:</strong> {product.dimensions}</div>}
                   {product.weight && <div>⚖️ <strong>Weight:</strong> {product.weight}</div>}
-                  <div>🛡️ <strong>Guarantee:</strong> 7-day transit damage replacement</div>
+                  <div>🛡️ <strong>Guarantee:</strong> Transit damage replacement (report within 24h of delivery)</div>
                   <div>🎁 <strong>Packaging:</strong> Premium rigid keepsake box included</div>
                 </div>
               </div>

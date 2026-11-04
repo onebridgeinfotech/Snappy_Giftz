@@ -83,6 +83,7 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
     return initial;
   });
   const [waxSealColor, setWaxSealColor] = useState<'crimson' | 'gold' | 'navy' | 'emerald'>('gold');
+  const [giftWrap, setGiftWrap] = useState(Boolean(initialCustomization?.giftWrap));
   const [activeTab, setActiveTab] = useState<'engrave' | 'artwork' | 'giftnote' | 'packaging'>('engrave');
 
   // Batch 7: Artwork Upload, Crop & Placement State
@@ -373,6 +374,7 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
       ribbonColor,
       boxWrapStyle: finalBoxWrap,
       waxSealColor,
+      giftWrap,
       artworkUploadId: artworkUploadId || undefined,
       artworkPreviewUrl: artworkPreviewUrl || undefined,
       artworkFilename: artworkFilename || undefined,
@@ -865,6 +867,30 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
               {/* Tab 4: Packaging & Ribbon */}
               {activeTab === 'packaging' && (
                 <div className="space-y-4">
+                  {/* Signature Gift Wrapping Option (₹20) */}
+                  <div className="p-3.5 rounded-2xl bg-[#24252A] border border-[#D5A34A]/30 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-[#D5A34A]/20 flex items-center justify-center text-[#F5BD48]">
+                        <Gift className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span>Signature Gift Wrapping</span>
+                          <span className="text-[10px] bg-[#D5A34A]/20 text-[#F5BD48] px-1.5 py-0.2 rounded font-mono">+₹20</span>
+                        </div>
+                        <div className="text-[11px] text-[#CBD5E1]">Handcrafted decorative gold-trim wrapping with satin ribbon</div>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={giftWrap}
+                        onChange={(e) => setGiftWrap(e.target.checked)}
+                        className="w-4 h-4 rounded text-[#D5A34A] focus:ring-[#D5A34A] accent-[#D5A34A] cursor-pointer"
+                      />
+                    </label>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-[#CBD5E1] uppercase tracking-wider mb-2">
                       Pure Mulberry Silk Ribbon

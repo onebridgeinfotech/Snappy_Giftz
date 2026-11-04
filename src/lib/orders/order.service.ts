@@ -26,7 +26,8 @@ import {
 } from '@/lib/personalization/personalization.service';
 import { privateStorageService } from '@/services/storage/private-storage.service';
 import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
-import { renderOwnerNewOrderTemplate } from '@/lib/email/email-templates';
+import { renderOwnerNewOrderTemplate, renderOrderConfirmationTemplate } from '@/lib/email/email-templates';
+import { BUSINESS_CONFIG } from '@/config/business';
 import { getSellerConfig } from '@/lib/invoices/seller-config.service';
 import {
   validateAndDecodeProofDataUrl as validateProofDataUrlInternal,
@@ -724,17 +725,63 @@ async function notifyOwnerOfNewOrder(order: SanitizedOrderResult, rawInput: Crea
       })),
     });
 
+    // 1. Alert owner & admin account (phoenixnot13@gmail.com) of new order
     await enqueueTransactionalEmail({
       idempotencyKey: `email:owner_new_order:${order.orderNumber}`,
       eventType: 'OWNER_NEW_ORDER',
       orderId: order.id,
       orderNumber: order.orderNumber,
-      recipientEmail: seller.contactEmail || 'orders@snappygiftz.com',
-      recipientName: 'SNAPPY GIFTZ Operations',
+      recipientEmail: BUSINESS_CONFIG.adminEmail || 'phoenixnot13@gmail.com',
+      recipientName: 'SNAPPY GIFTZ Admin Desk',
       subject: emailData.subject,
       htmlBody: emailData.html,
       textBody: emailData.text,
     });
+
+    // 2. Dispatch immediate order receipt to customer's individual email address
+    if (order.customerEmail) {
+      try {
+        const custEmailData = renderOrderConfirmationTemplate(
+          {
+            orderNumber: order.orderNumber,
+            orderDate: formattedDate,
+            customerName: order.customerName,
+            items: order.items.map((i) => ({
+              productName: i.productName,
+              quantity: i.quantity,
+              unitPriceInr: (i.unitPricePaise / 100).toFixed(2),
+              totalInr: (i.subtotalPaise / 100).toFixed(2),
+            })),
+            taxableSubtotalInr: (order.itemsSubtotalPaise / 100).toFixed(2),
+            taxTotalInr: (order.taxTotalPaise / 100).toFixed(2),
+            shippingTotalInr: (order.shippingTotalPaise / 100).toFixed(2),
+            grandTotalInr: (order.grandTotalPaise / 100).toFixed(2),
+            shippingAddress: {
+              fullName: rawInput.shippingAddress.name,
+              addressLine1: rawInput.shippingAddress.street,
+              city: rawInput.shippingAddress.city,
+              state: rawInput.shippingAddress.state,
+              postalCode: rawInput.shippingAddress.pincode,
+            },
+          },
+          seller
+        );
+
+        await enqueueTransactionalEmail({
+          idempotencyKey: `email:customer_receipt:${order.orderNumber}`,
+          eventType: 'ORDER_CONFIRMED',
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          recipientEmail: order.customerEmail,
+          recipientName: order.customerName,
+          subject: custEmailData.subject,
+          htmlBody: custEmailData.html,
+          textBody: custEmailData.text,
+        });
+      } catch (custErr) {
+        console.warn(`[ORDER_NOTIFICATION] Customer receipt enqueue warning for #${order.orderNumber}:`, custErr);
+      }
+    }
   } catch (err) {
     console.error(`[ORDER_NOTIFICATION] Failed to enqueue owner new order alert for #${order.orderNumber}:`, err);
   }

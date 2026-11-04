@@ -2742,7 +2742,7 @@ export const AdminDashboard: React.FC = () => {
               >
                 <option value="">All Roles</option>
                 <option value="CUSTOMER">Customer</option>
-                <option value="B2B_CLIENT">B2B Client</option>
+
                 <option value="STAFF">Staff</option>
                 <option value="ADMIN">Admin</option>
               </select>
@@ -2775,11 +2775,6 @@ export const AdminDashboard: React.FC = () => {
                         <td className="p-3">
                           <div className="font-bold text-slate-900">{u.name || 'Unnamed User'}</div>
                           <div className="text-[11px] font-mono text-slate-500">{u.email}</div>
-                          {u.corporateMembership && (
-                            <div className="text-[10px] text-indigo-700 font-semibold mt-0.5">
-                              🏢 {u.corporateMembership.organizationName} ({u.corporateMembership.role})
-                            </div>
-                          )}
                         </td>
                         <td className="p-3">
                           <span
@@ -2788,8 +2783,7 @@ export const AdminDashboard: React.FC = () => {
                                 ? 'bg-rose-100 text-rose-800'
                                 : u.role === 'STAFF'
                                 ? 'bg-purple-100 text-purple-800'
-                                : u.role === 'B2B_CLIENT'
-                                ? 'bg-indigo-100 text-indigo-800'
+                                
                                 : 'bg-slate-100 text-slate-800'
                             }`}
                           >
@@ -4460,7 +4454,7 @@ export const AdminDashboard: React.FC = () => {
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
               >
                 <option value="CUSTOMER">CUSTOMER (Standard retail buyer)</option>
-                <option value="B2B_CLIENT">B2B_CLIENT (Corporate buyer / RFQ access)</option>
+
                 <option value="STAFF">STAFF (Fulfillment, stock & operations management)</option>
                 <option value="ADMIN">ADMIN (Full platform ownership & configuration)</option>
               </select>
@@ -4532,21 +4526,6 @@ export const AdminDashboard: React.FC = () => {
                   <span className="text-slate-800">{new Date(selectedUserDetail.createdAt).toLocaleString('en-IN')}</span>
                 </div>
               </div>
-
-              {selectedUserDetail.corporateMembership && (
-                <div className="p-3 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-1">
-                  <div className="font-bold text-indigo-900 flex items-center gap-1.5">
-                    <Building2 className="w-4 h-4 text-indigo-600" />
-                    <span>Corporate Organization Association</span>
-                  </div>
-                  <div className="text-slate-700">
-                    Company: <strong>{selectedUserDetail.corporateMembership.organizationName}</strong>
-                  </div>
-                  <div className="text-slate-600">
-                    Corporate Role: <span className="font-mono">{selectedUserDetail.corporateMembership.role}</span>
-                  </div>
-                </div>
-              )}
 
               <div className="p-3 rounded-2xl bg-amber-50/50 border border-amber-100 text-[10.5px] text-amber-900 flex items-center gap-2">
                 <Lock className="w-4 h-4 text-amber-700 shrink-0" />

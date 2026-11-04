@@ -141,7 +141,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 Your gifting bag is empty
               </h3>
               <p className="text-xs text-[#94A3B8] max-w-xs mx-auto mb-6">
-                Explore our 24K gold-rim mugs, handcrafted brass lanterns, or bespoke corporate hampers.
+                Explore our 24K gold-rim mugs, handcrafted brass lanterns, or bespoke luxury hampers.
               </p>
               <button
                 type="button"

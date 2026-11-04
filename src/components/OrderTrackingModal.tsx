@@ -787,6 +787,29 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
             })}
           </div>
 
+          {/* 24-Hour Damage Reporting Window Banner */}
+          {activeIdx === steps.length - 1 && (
+            <div className="p-4 rounded-2xl bg-[#24252A] border border-[#D5A34A]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div>
+                <div className="font-bold text-white flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-[#F5BD48]" />
+                  <span>Transit Damage Guarantee (Report within 24 Hours)</span>
+                </div>
+                <p className="text-[11px] text-[#CBD5E1] mt-0.5">
+                  Package delivered. Did anything arrive cracked or broken? The owner reviews reports within 24 hours to arrange replacement or eligible refund.
+                </p>
+              </div>
+              <a
+                href={`https://wa.me/918309600721?text=${encodeURIComponent(`Hi SNAPPY GIFTZ, I need to report transit damage for Order #${displayOrder?.orderNumber}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs shrink-0 flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span>Report to Owner</span>
+              </a>
+            </div>
+          )}
+
           {/* Action Row */}
           <div className="pt-4 border-t border-[#D5A34A]/20 flex justify-between items-center text-xs">
             <button

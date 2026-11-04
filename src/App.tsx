@@ -92,7 +92,7 @@ const MainContent: React.FC = () => {
     'Soft Toys',
     'Luxury Gifts',
     'Gift Hampers',
-    'Corporate Kits',
+    'Festive Hampers',
     'Stationery & Desk'
   ];
 
@@ -100,7 +100,7 @@ const MainContent: React.FC = () => {
     'All',
     'Birthday',
     'Anniversary',
-    'Corporate',
+    'Festival',
     'Diwali',
     'Wedding',
     'Valentine',
@@ -408,8 +408,8 @@ const MainContent: React.FC = () => {
                       <div className="text-[#94A3B8] text-[10.5px] sm:text-xs mt-1 font-medium">Delighted Givers</div>
                     </div>
                     <div className="bg-[#17181C]/70 border border-[#D5A34A]/15 rounded-2xl p-3 sm:p-4 text-center shadow-xs">
-                      <div className="font-serif font-bold text-2xl sm:text-3xl text-[#F5BD48]">450+</div>
-                      <div className="text-[#94A3B8] text-[10.5px] sm:text-xs mt-1 font-medium">Enterprise Clients</div>
+                      <div className="font-serif font-bold text-2xl sm:text-3xl text-[#F5BD48]">1000+</div>
+                      <div className="text-[#94A3B8] text-[10.5px] sm:text-xs mt-1 font-medium">Curated Designs</div>
                     </div>
                     <div className="bg-[#17181C]/70 border border-[#D5A34A]/15 rounded-2xl p-3 sm:p-4 text-center shadow-xs">
                       <div className="font-serif font-bold text-2xl sm:text-3xl text-[#F5BD48]">24K</div>
@@ -516,16 +516,16 @@ const MainContent: React.FC = () => {
                       ))}
                     </div>
                     <p className="text-xs sm:text-sm text-[#CBD5E1] italic leading-relaxed font-light">
-                      "SNAPPY GIFTZ handled our company's Diwali gifting for 320 employees across Delhi, Mumbai, and Bengaluru. The multi-address CSV dispatch and GST tax invoice made accounting seamless!"
+                      "Ordered customized anniversary gifts with personalized family photos and engraved messages. The craftsmanship and ₹20 gift wrap were stunning! Delivered safely right to our doorstep."
                     </p>
                   </div>
                   <div className="mt-6 pt-4 border-t border-[#D5A34A]/15 flex items-center justify-between text-xs">
                     <div>
                       <div className="font-bold text-white">Vikramaditya Roy</div>
-                      <div className="text-[11px] text-[#94A3B8] mt-0.5">Head of People • Zephyr Cloud Labs</div>
+                      <div className="text-[11px] text-[#94A3B8] mt-0.5">Banjara Hills, Hyderabad</div>
                     </div>
-                    <span className="text-[10px] bg-[#24252A] border border-[#D5A34A]/30 text-[#CBD5E1] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                      Corporate
+                    <span className="text-[10px] bg-[#D5A34A]/15 border border-[#D5A34A]/30 text-[#F5BD48] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                      Verified
                     </span>
                   </div>
                 </div>

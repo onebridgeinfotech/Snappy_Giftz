@@ -24,7 +24,9 @@ export interface CartItemInput {
     proofVersion?: number;
     clientProofDataUrl?: string;
     requireProof?: boolean;
+    giftWrap?: boolean;
   };
+  isGiftWrapped?: boolean;
 }
 
 export interface LineItemQuote {
@@ -301,6 +303,12 @@ export async function calculateCartPricing(
 
     // Customization fee (authoritative calculation on server)
     let customizationFeePaise = 0;
+
+    // Gift wrapping fee: flat ₹20 (2000 paise) per item
+    const isGiftWrapped = Boolean((item as any).isGiftWrapped || item.customization?.giftWrap);
+    if (isGiftWrapped) {
+      customizationFeePaise += 2000;
+    }
     const hasCustomization = !!(
       item.customization?.note ||
       item.customization?.engravedText ||

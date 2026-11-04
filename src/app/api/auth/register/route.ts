@@ -47,6 +47,14 @@ export async function POST(req: Request) {
     // Corporate client onboarding requires organization profile submission and staff verification.
     const assignedRole: Role = Role.CUSTOMER;
 
+    // Security Rule: Protected Admin Account Reservation
+    if (cleanEmail === 'phoenixnot13@gmail.com') {
+      return NextResponse.json(
+        { error: 'This administrative account is protected and cannot be registered via public customer signup.' },
+        { status: 403 }
+      );
+    }
+
     // 4. Duplicate account check
     const existing = await prisma.user.findUnique({
       where: { email: cleanEmail },
