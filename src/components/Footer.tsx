@@ -193,8 +193,19 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="text-[11px] text-[#94A3B8]/80 pt-2 border-t border-white/5">
-          © 2026 {BUSINESS_CONFIG.brandName}. All rights reserved.
+        <div className="text-[11px] text-[#94A3B8]/80 pt-2 border-t border-white/5 space-y-1">
+          <div>© 2026 {BUSINESS_CONFIG.brandName}. All rights reserved.</div>
+          <div>
+            Developed by{' '}
+            <a
+              href="https://www.onebridgeinfotech.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#D5A34A]/90 hover:text-[#F5BD48] transition-colors underline-offset-2 hover:underline focus-visible:outline-hidden focus-visible:text-[#F5BD48]"
+            >
+              Onebridge Infotech
+            </a>
+          </div>
         </div>
       </div>
     </footer>

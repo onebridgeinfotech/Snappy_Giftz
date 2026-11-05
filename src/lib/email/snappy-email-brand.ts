@@ -104,6 +104,11 @@ export function renderSnappyEmailCardFooter(opts?: {
           </td>
         </tr>
         <tr><td style="padding:10px 0 0;font-size:11px;color:${brand.muted};">${escapeHtml(BUSINESS_CONFIG.operatingHours)}</td></tr>
+        <tr>
+          <td style="padding:14px 0 0;font-size:11px;color:${brand.muted};">
+            Developed by <a href="https://www.onebridgeinfotech.com" target="_blank" rel="noopener noreferrer" style="color:${brand.accentHover};text-decoration:none;font-weight:600;">Onebridge Infotech</a>
+          </td>
+        </tr>
       </table>
     </td>
   </tr>
