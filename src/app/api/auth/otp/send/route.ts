@@ -46,8 +46,21 @@ export async function POST(req: Request) {
       success: true,
       message: `A verification code has been sent to ${cleanEmail}.`,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[API_AUTH_OTP_SEND] Error:', error);
+    if (
+      error?.code === 'P1001' ||
+      error?.name === 'PrismaClientInitializationError' ||
+      /reach database|connection|ECONNREFUSED|ETIMEDOUT|PrismaClientInitializationError/i.test(error?.message || '')
+    ) {
+      return NextResponse.json(
+        {
+          error: 'Authentication database is temporarily unreachable. Please try again in a few moments or contact support.',
+          code: 'DATABASE_UNAVAILABLE',
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ error: 'Failed to send verification code. Please try again.' }, { status: 500 });
   }
 }
