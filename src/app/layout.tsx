@@ -1,17 +1,30 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AppProvider } from '@/context/AppContext';
+import { BUSINESS_CONFIG } from '@/config/business';
+
+const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || BUSINESS_CONFIG.website).replace(/\/$/, '');
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: 'SNAPPY GIFTZ | Turning Moments Into Memories — Luxury Gifting Studio',
   description: 'Hyderabad’s premier personalized luxury gifting atelier. Handcrafted bespoke gifts, custom laser engraving, signature keepsake packaging, and direct express delivery across Hyderabad.',
+  icons: {
+    icon: '/assets/snappy-gifts-trimmed.png',
+    shortcut: '/assets/snappy-gifts-trimmed.png',
+    apple: '/assets/snappy-gifts-trimmed.png',
+  },
   openGraph: {
     title: 'SNAPPY GIFTZ | Turning Moments Into Memories — Luxury Gifting Studio',
     description: 'Hyderabad’s premier personalized luxury gifting atelier. Handcrafted bespoke gifts, custom laser engraving, signature keepsake packaging, and direct express delivery across Hyderabad.',
     type: 'website',
+    url: siteUrl,
+    siteName: BUSINESS_CONFIG.brandName,
+    images: [{ url: '/assets/snappy-gifts-trimmed.png', width: 512, height: 512, alt: 'SNAPPY GIFTZ' }],
   },
   twitter: {
     card: 'summary_large_image',
+    images: ['/assets/snappy-gifts-trimmed.png'],
   },
 };
 

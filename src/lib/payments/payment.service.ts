@@ -8,6 +8,7 @@ import {
   VerifyPaymentInput,
 } from '@/services/adapters/payment.adapter';
 import { getPaymentAdapter } from './payment-factory';
+import { getRazorpayKeyId } from './razorpay-env';
 import { isStorefrontFallbackAllowed, CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
 import { DEV_ORDERS_STORE } from '@/lib/orders/order.service';
 
@@ -199,7 +200,7 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
 
   if (existingPendingPayment) {
     gatewayOrderId = existingPendingPayment.gatewayOrderId;
-    gatewayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_mock_key';
+    gatewayKeyId = getRazorpayKeyId() || 'rzp_mock_key';
   } else {
     // Create new gateway order via adapter
     const paymentResult = await adapter.createOrder({
@@ -253,7 +254,7 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
     gatewayOrderId,
     amountPaise: grandTotalPaise,
     currency: 'INR',
-    gatewayKeyId: gatewayKeyId || (adapter as any).keyId || process.env.RAZORPAY_KEY_ID || 'rzp_mock_snappy_key_id',
+    gatewayKeyId: gatewayKeyId || (adapter as any).keyId || getRazorpayKeyId() || 'rzp_mock_snappy_key_id',
     orderNumber: order.orderNumber,
     customerName: order.customerName,
     customerEmail: order.customerEmail,

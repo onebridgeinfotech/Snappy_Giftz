@@ -6,8 +6,12 @@ import { Role } from '@prisma/client';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
 import { getClientIp } from '@/lib/security/client-ip';
 import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
-import { renderCustomerRegistrationTemplate } from '@/lib/email/email-templates';
+import {
+  renderAdminNewRegistrationTemplate,
+  renderCustomerRegistrationTemplate,
+} from '@/lib/email/email-templates';
 import { getSellerConfig } from '@/lib/invoices/seller-config.service';
+import { getAdminNotificationEmails } from '@/config/business';
 
 export async function POST(req: Request) {
   try {
@@ -111,6 +115,23 @@ export async function POST(req: Request) {
         htmlBody: emailContent.html,
         textBody: emailContent.text,
       });
+
+      const adminAlert = renderAdminNewRegistrationTemplate(seller, {
+        customerName: user.name,
+        customerEmail: user.email,
+        role: user.role,
+      });
+      for (const adminEmail of getAdminNotificationEmails()) {
+        await enqueueTransactionalEmail({
+          idempotencyKey: `email:admin_new_user:${user.id}:${adminEmail}`,
+          eventType: 'ADMIN_NEW_REGISTRATION',
+          recipientEmail: adminEmail,
+          recipientName: 'SNAPPY GIFTZ Admin',
+          subject: adminAlert.subject,
+          htmlBody: adminAlert.html,
+          textBody: adminAlert.text,
+        });
+      }
     } catch (emailErr) {
       console.warn('[AUTH_REGISTER] Non-fatal welcome email enqueue failure:', emailErr);
     }

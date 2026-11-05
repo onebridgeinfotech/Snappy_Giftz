@@ -30,6 +30,8 @@ interface AuthModalProps {
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess }) => {
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<'login' | 'otp' | 'register'>('login');
+  const [loginView, setLoginView] = useState<'signin' | 'forgot' | 'reset'>('signin');
+  const [newPassword, setNewPassword] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -89,6 +91,53 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
   }, []);
 
   if (!isOpen || !mounted) return null;
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not send reset code.');
+      setSuccessMsg(data.message || 'Check your email for a reset code.');
+      setLoginView('reset');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An error occurred.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: otpCode, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not reset password.');
+      setSuccessMsg(data.message || 'Password updated. You can sign in now.');
+      setPassword(newPassword);
+      setNewPassword('');
+      setOtpCode('');
+      setLoginView('signin');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An error occurred.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -330,7 +379,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
               <div className="flex border-b border-[#D5A34A]/20 mb-5 text-xs font-semibold">
                 <button
                   type="button"
-                  onClick={() => { setTab('login'); setErrorMsg(null); }}
+                  onClick={() => { setTab('login'); setLoginView('signin'); setErrorMsg(null); }}
                   className={`flex-1 pb-2.5 text-center transition-all cursor-pointer ${
                     tab === 'login'
                       ? 'border-b-2 border-[#D5A34A] text-[#F5BD48] font-bold'
@@ -364,7 +413,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
               </div>
 
               {/* Tab 1: Password Login */}
-              {tab === 'login' && (
+              {tab === 'login' && loginView === 'signin' && (
                 <form onSubmit={handlePasswordLogin} className="space-y-3.5">
                   <div>
                     <label className="block text-[11px] font-bold text-[#CBD5E1] uppercase tracking-wider mb-1">
@@ -384,9 +433,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-[#CBD5E1] uppercase tracking-wider mb-1">
-                      Password
-                    </label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-[11px] font-bold text-[#CBD5E1] uppercase tracking-wider">
+                        Password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => { setLoginView('forgot'); setErrorMsg(null); setSuccessMsg(null); }}
+                        className="text-[11px] text-[#D5A34A] hover:text-[#F5BD48] hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
                     <div className="relative">
                       <Lock className="w-4 h-4 text-[#94A3B8] absolute left-3 top-3 pointer-events-none" />
                       <input
@@ -415,6 +473,95 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                   >
                     <span>{isLoading ? 'Authenticating...' : 'Sign In Securely'}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </form>
+              )}
+
+              {tab === 'login' && loginView === 'forgot' && (
+                <form onSubmit={handleForgotPassword} className="space-y-3.5">
+                  <p className="text-xs text-[#94A3B8] leading-relaxed">
+                    Enter your account email. We will send a 6-digit code to reset your password.
+                  </p>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#CBD5E1] uppercase tracking-wider mb-1">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-[#94A3B8] absolute left-3 top-3 pointer-events-none" />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@company.com"
+                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#D5A34A]/25 bg-[#24252A] text-xs text-[#F1F5F9] placeholder-[#94A3B8] focus:border-[#D5A34A] focus:ring-1 focus:ring-[#D5A34A] outline-hidden transition-all"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-[#F5BD48] via-[#D5A34A] to-[#B88728] text-[#08090B] text-xs font-bold hover:brightness-105 transition-all disabled:opacity-50"
+                  >
+                    {isLoading ? 'Sending...' : 'Send reset code'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginView('signin')}
+                    className="w-full text-xs text-[#D5A34A] hover:text-[#F5BD48]"
+                  >
+                    Back to sign in
+                  </button>
+                </form>
+              )}
+
+              {tab === 'login' && loginView === 'reset' && (
+                <form onSubmit={handleResetPassword} className="space-y-3.5">
+                  <p className="text-xs text-[#94A3B8] leading-relaxed">
+                    Enter the code from your email and choose a new password.
+                  </p>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#CBD5E1] uppercase tracking-wider mb-1">
+                      6-Digit Code
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000"
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#D5A34A]/25 bg-[#24252A] text-xs text-[#F1F5F9] tracking-[0.35em] text-center font-mono focus:border-[#D5A34A] outline-hidden"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#CBD5E1] uppercase tracking-wider mb-1">
+                      New Password
+                    </label>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={8}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="At least 8 characters"
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#D5A34A]/25 bg-[#24252A] text-xs text-[#F1F5F9] focus:border-[#D5A34A] outline-hidden"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-[#F5BD48] via-[#D5A34A] to-[#B88728] text-[#08090B] text-xs font-bold hover:brightness-105 transition-all disabled:opacity-50"
+                  >
+                    {isLoading ? 'Updating...' : 'Update password'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginView('forgot')}
+                    className="w-full text-xs text-[#D5A34A] hover:text-[#F5BD48]"
+                  >
+                    Resend code
                   </button>
                 </form>
               )}

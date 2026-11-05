@@ -21,6 +21,20 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.snappygiftz.com' }],
+        destination: 'https://snappygiftz.com/:path*',
+        permanent: true,
+      },
+      { source: '/shop', destination: '/#catalog-section', permanent: false },
+      { source: '/shop/:path*', destination: '/#catalog-section', permanent: false },
+      { source: '/catalog', destination: '/#catalog-section', permanent: false },
+      { source: '/catalog/:path*', destination: '/#catalog-section', permanent: false },
+    ];
+  },
   async headers() {
     return [
       {

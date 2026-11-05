@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { generateSecureOtp, hashOtp, OTP_EXPIRY_MINUTES, OTP_RESEND_COOLDOWN_SECONDS } from '@/lib/auth/otp';
-import { emailService } from '@/services/email/mailpit.service';
+import { createAndSendOtpChallenge } from '@/lib/auth/send-otp-email';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
+import type { OtpEmailPurpose } from '@/lib/email/snappy-email-brand';
+
+const ALLOWED_PURPOSES: OtpEmailPurpose[] = ['LOGIN', 'REGISTER', 'PASSWORD_RESET'];
 
 export async function POST(req: Request) {
   try {
@@ -13,10 +14,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
     }
 
+    if (!ALLOWED_PURPOSES.includes(purpose)) {
+      return NextResponse.json({ error: 'Invalid verification purpose.' }, { status: 400 });
+    }
+
     const cleanEmail = email.trim().toLowerCase();
     const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
 
-    // Rate Limiting Guard: Enforce distributed abuse limit on OTP dispatch
     const rateLimit = await enforceRateLimit('AUTH_OTP_SEND', `${ipAddress}:${cleanEmail}`);
     if (!rateLimit.allowed) {
       return NextResponse.json(
@@ -28,66 +32,15 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. Check rate-limit cooldown
-    const recentChallenge = await prisma.otpChallenge.findFirst({
-      where: {
-        email: cleanEmail,
-        purpose,
-        createdAt: {
-          gt: new Date(Date.now() - OTP_RESEND_COOLDOWN_SECONDS * 1000),
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+    const result = await createAndSendOtpChallenge({
+      email: cleanEmail,
+      purpose,
+      requirePasswordAccount: purpose === 'PASSWORD_RESET',
     });
 
-    if (recentChallenge) {
-      return NextResponse.json({
-        error: `Please wait ${OTP_RESEND_COOLDOWN_SECONDS} seconds before requesting a new code.`,
-      }, { status: 429 });
+    if (result.ok === false) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
-
-    // 2. Invalidate any existing unused OTP challenges for this email and purpose
-    await prisma.otpChallenge.updateMany({
-      where: { email: cleanEmail, purpose, isUsed: false },
-      data: { isUsed: true },
-    });
-
-    // 3. Generate secure OTP and hash
-    const rawOtp = generateSecureOtp();
-    const otpHash = hashOtp(rawOtp);
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-    // Check if user exists
-    const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
-
-    // 4. Store challenge in database
-    await prisma.otpChallenge.create({
-      data: {
-        email: cleanEmail,
-        otpHash,
-        purpose,
-        expiresAt,
-        maxAttempts: 3,
-        userId: user ? user.id : undefined,
-      },
-    });
-
-    // 5. Send via transactional email adapter
-    await emailService.sendEmail({
-      to: cleanEmail,
-      subject: `Snappy Gifts — Your Verification Code: ${rawOtp}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #f0e4de; border-radius: 12px; background-color: #fffdfb;">
-          <h2 style="color: #2f0b10; margin-bottom: 8px;">Snappy Gifts Verification</h2>
-          <p style="color: #55403b; font-size: 14px;">Use the following 6-digit one-time code to sign in or verify your account:</p>
-          <div style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #a21d32; padding: 16px; background-color: #faf4f0; border-radius: 8px; text-align: center; margin: 20px 0;">
-            ${rawOtp}
-          </div>
-          <p style="color: #8c6d68; font-size: 12px;">This verification code will expire in ${OTP_EXPIRY_MINUTES} minutes. If you did not request this, you can safely ignore this email.</p>
-        </div>
-      `,
-      text: `Your Snappy Gifts verification code is: ${rawOtp}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
-    });
 
     return NextResponse.json({
       success: true,

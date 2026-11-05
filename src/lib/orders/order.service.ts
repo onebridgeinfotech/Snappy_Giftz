@@ -27,7 +27,8 @@ import {
 import { privateStorageService } from '@/services/storage/private-storage.service';
 import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
 import { renderOwnerNewOrderTemplate, renderOrderConfirmationTemplate } from '@/lib/email/email-templates';
-import { BUSINESS_CONFIG } from '@/config/business';
+import { getAdminNotificationEmails } from '@/config/business';
+import { notifyNewOrderWhatsApp } from '@/lib/notifications/whatsapp-notify.service';
 import { getSellerConfig } from '@/lib/invoices/seller-config.service';
 import {
   validateAndDecodeProofDataUrl as validateProofDataUrlInternal,
@@ -752,17 +753,25 @@ async function notifyOwnerOfNewOrder(order: SanitizedOrderResult, rawInput: Crea
       })),
     });
 
-    // 1. Alert owner & admin account (phoenixnot13@gmail.com) of new order
-    await enqueueTransactionalEmail({
-      idempotencyKey: `email:owner_new_order:${order.orderNumber}`,
-      eventType: 'OWNER_NEW_ORDER',
-      orderId: order.id,
+    for (const adminEmail of getAdminNotificationEmails()) {
+      await enqueueTransactionalEmail({
+        idempotencyKey: `email:owner_new_order:${order.orderNumber}:${adminEmail}`,
+        eventType: 'OWNER_NEW_ORDER',
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        recipientEmail: adminEmail,
+        recipientName: 'SNAPPY GIFTZ Admin Desk',
+        subject: emailData.subject,
+        htmlBody: emailData.html,
+        textBody: emailData.text,
+      });
+    }
+
+    void notifyNewOrderWhatsApp({
       orderNumber: order.orderNumber,
-      recipientEmail: BUSINESS_CONFIG.adminEmail || 'phoenixnot13@gmail.com',
-      recipientName: 'SNAPPY GIFTZ Admin Desk',
-      subject: emailData.subject,
-      htmlBody: emailData.html,
-      textBody: emailData.text,
+      customerName: order.customerName,
+      totalInr: `₹${(order.grandTotalPaise / 100).toFixed(2)}`,
+      paymentMethod: order.paymentMethod || 'ONLINE',
     });
 
     // 2. Dispatch immediate order receipt to customer's individual email address

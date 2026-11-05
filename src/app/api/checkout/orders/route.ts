@@ -39,8 +39,14 @@ export async function POST(req: Request) {
       );
     }
     if (error instanceof CatalogDatabaseError) {
+      const catalogSync = /Authoritative database pricing|not found in production/i.test(error.message || '');
       return NextResponse.json(
-        { error: 'Checkout service is temporarily unavailable. Please try again shortly.' },
+        {
+          error: catalogSync
+            ? 'Your cart items are not available in our live catalog yet. Clear your cart, refresh the shop, and try again—or contact support if this continues.'
+            : 'Checkout service is temporarily unavailable. Please try again shortly.',
+          code: catalogSync ? 'CATALOG_SYNC' : 'DATABASE_UNAVAILABLE',
+        },
         { status: 503 }
       );
     }

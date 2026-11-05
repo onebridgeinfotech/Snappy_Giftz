@@ -9,6 +9,12 @@ import {
   PaymentConfigurationError,
   PaymentGatewayError,
 } from '@/services/adapters/payment.adapter';
+import {
+  getRazorpayKeyId,
+  getRazorpayKeySecret,
+  getRazorpayWebhookSecret,
+  isPlaceholderRazorpayValue,
+} from './razorpay-env';
 
 export const RAZORPAY_API_BASE = 'https://api.razorpay.com/v1';
 
@@ -18,29 +24,24 @@ export class RazorpayPaymentAdapter implements PaymentAdapter {
   private webhookSecret: string;
 
   constructor(
-    keyId: string = process.env.RAZORPAY_KEY_ID || '',
-    keySecret: string = process.env.RAZORPAY_KEY_SECRET || '',
-    webhookSecret: string = process.env.RAZORPAY_WEBHOOK_SECRET || ''
+    keyId: string = getRazorpayKeyId(),
+    keySecret: string = getRazorpayKeySecret(),
+    webhookSecret: string = getRazorpayWebhookSecret()
   ) {
     this.keyId = keyId.trim();
     this.keySecret = keySecret.trim();
     this.webhookSecret = webhookSecret.trim();
 
-    // Production Fail-Closed Safety Guard
+    // Checkout requires API key + secret only. Webhook secret is validated when processing webhooks.
     if (process.env.NODE_ENV === 'production') {
-      if (!this.keyId || this.keyId.includes('placeholder')) {
+      if (!this.keyId || isPlaceholderRazorpayValue(this.keyId)) {
         throw new PaymentConfigurationError(
           'Missing or placeholder RAZORPAY_KEY_ID in production environment.'
         );
       }
-      if (!this.keySecret || this.keySecret.includes('placeholder')) {
+      if (!this.keySecret || isPlaceholderRazorpayValue(this.keySecret)) {
         throw new PaymentConfigurationError(
           'Missing or placeholder RAZORPAY_KEY_SECRET in production environment.'
-        );
-      }
-      if (!this.webhookSecret || this.webhookSecret.includes('placeholder')) {
-        throw new PaymentConfigurationError(
-          'Missing or placeholder RAZORPAY_WEBHOOK_SECRET in production environment.'
         );
       }
     }

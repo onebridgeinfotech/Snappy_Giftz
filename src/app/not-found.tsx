@@ -17,7 +17,7 @@ export default function NotFound() {
         The curated gifting page or product you are looking for may have been moved, archived, or is temporarily unavailable.
       </p>
       <Link
-        href="/"
+        href="/#catalog-section"
         className="px-6 py-2.5 rounded-full bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] hover:from-[#E5AD38] hover:to-[#C5933A] text-[#08090B] text-xs font-bold transition-all shadow-md shadow-amber-950/20 active:scale-95"
       >
         Return to Snappy Gifts Catalog

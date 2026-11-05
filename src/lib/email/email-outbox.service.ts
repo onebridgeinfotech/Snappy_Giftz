@@ -48,6 +48,20 @@ export interface EnqueueEmailParams {
 // Development fallback store when database is offline
 export const DEV_EMAIL_OUTBOX_STORE: Map<string, EmailOutboxData> = new Map();
 
+let autoDispatchChain: Promise<void> = Promise.resolve();
+
+/** Sends queued mail immediately after enqueue (disable with EMAIL_AUTO_DISPATCH=false). */
+function scheduleEmailOutboxAutoDispatch(): void {
+  if (process.env.EMAIL_AUTO_DISPATCH === 'false') return;
+  autoDispatchChain = autoDispatchChain
+    .then(() =>
+      processEmailOutbox({ batchSize: 20, workerId: `auto-${process.pid}` }).then(() => undefined)
+    )
+    .catch((err) => {
+      console.warn('[EMAIL_AUTO_DISPATCH]', err instanceof Error ? err.message : err);
+    });
+}
+
 /**
  * Enqueues a transactional email into the persistent outbox table idempotently.
  * Never raises uncaught exceptions that would roll back order, dispatch, or invoice transactions.
@@ -85,6 +99,7 @@ export async function enqueueTransactionalEmail(params: EnqueueEmailParams): Pro
       },
     });
 
+    scheduleEmailOutboxAutoDispatch();
     return created as unknown as EmailOutboxData;
   } catch (err: any) {
     if (process.env.NODE_ENV === 'production' && !isStorefrontFallbackAllowed()) {

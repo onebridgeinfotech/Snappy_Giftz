@@ -9,6 +9,8 @@ export const BUSINESS_CONFIG = {
   tradeName: 'SNAPPY GIFTZ',
   officialEmail: 'ezonetechnologies2124@gmail.com',
   adminEmail: 'phoenixnot13@gmail.com',
+  /** Operations inboxes that receive new-order and signup alerts */
+  adminEmails: ['phoenixnot13@gmail.com', 'onebridgeinfotech@gmail.com'] as const,
   whatsappPhone: '8309600721',
   whatsappFormatted: '+91 83096 00721',
   website: 'https://snappygiftz.com',
@@ -41,3 +43,13 @@ export const BUSINESS_CONFIG = {
 } as const;
 
 export type BusinessConfig = typeof BUSINESS_CONFIG;
+
+/** Admin notification recipients (env ADMIN_EMAILS comma-separated overrides extras). */
+export function getAdminNotificationEmails(): string[] {
+  const fromEnv = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const merged = [...BUSINESS_CONFIG.adminEmails, ...fromEnv];
+  return [...new Set(merged.map((e) => e.toLowerCase()))];
+}
