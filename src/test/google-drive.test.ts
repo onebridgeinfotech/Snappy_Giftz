@@ -242,12 +242,35 @@ export async function runGoogleDriveTestSuite() {
   // ------------------------------------------------------------------
   console.log('\n--- 5. Folder Hierarchy & Privacy Architecture ---');
 
-  await test('Integration model defines all 4 required storage folders', async () => {
+  await test('Integration model defines all 5 required storage folders (Root + 4 Subfolders)', async () => {
     const record = await googleDriveService.getIntegrationRecord();
     assert.ok('rootFolderId' in record, 'Should have rootFolderId');
     assert.ok('productImagesFolderId' in record, 'Should have productImagesFolderId');
     assert.ok('customerPhotosFolderId' in record, 'Should have customerPhotosFolderId');
     assert.ok('orderAttachmentsFolderId' in record, 'Should have orderAttachmentsFolderId');
+    assert.ok('invoicesFolderId' in record, 'Should have invoicesFolderId');
+  });
+
+  await test('Preserves configured Google Drive folder IDs and environment overrides', async () => {
+    await googleDriveService.saveIntegrationRecord({
+      rootFolderId: '1tyIZoYxyduRYjEmJARsCc_d4LfAYyFQ8',
+      productImagesFolderId: '1auWYCCQJWgn28rk3JEexW8aKzZI5NhxL',
+      customerPhotosFolderId: '1yJnAAnmaAKWcbg1DvvTbtf3KZ8LmOtr0',
+      orderAttachmentsFolderId: '1526s264h3zrZSaF_rG5Cgmfm7WirSQLL',
+      invoicesFolderId: '1MBF1cmNf2-P6OcWxBAVP1S2qVPb0vX4s',
+    });
+
+    const status = await googleDriveService.getConnectionStatus();
+    assert.equal(status.rootFolderId, '1tyIZoYxyduRYjEmJARsCc_d4LfAYyFQ8');
+    assert.equal(status.productImagesFolderId, '1auWYCCQJWgn28rk3JEexW8aKzZI5NhxL');
+    assert.equal(status.customerPhotosFolderId, '1yJnAAnmaAKWcbg1DvvTbtf3KZ8LmOtr0');
+    assert.equal(status.orderAttachmentsFolderId, '1526s264h3zrZSaF_rG5Cgmfm7WirSQLL');
+    assert.equal(status.invoicesFolderId, '1MBF1cmNf2-P6OcWxBAVP1S2qVPb0vX4s');
+  });
+
+  await test('Delete file gracefully returns false when disconnected rather than throwing unhandled rejection', async () => {
+    const res = await googleDriveService.deleteFile('some-test-file-id');
+    assert.equal(res, false);
   });
 
   await test('Sanitized connection status never exposes tokens or secret keys', async () => {

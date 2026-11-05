@@ -213,6 +213,7 @@ export const AdminDashboard: React.FC = () => {
     productImagesFolderId?: string | null;
     customerPhotosFolderId?: string | null;
     orderAttachmentsFolderId?: string | null;
+    invoicesFolderId?: string | null;
     connectedAt?: string | null;
     lastSyncedAt?: string | null;
     lastError?: string | null;
@@ -3665,7 +3666,7 @@ export const AdminDashboard: React.FC = () => {
             )}
 
             {/* Storage Details & Folder Hierarchy */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <div className="font-bold text-slate-900 flex items-center gap-1.5">
                   <Package className="w-4 h-4 text-violet-600" />
@@ -3708,13 +3709,39 @@ export const AdminDashboard: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Audited PDF tax invoices, packing slips, and delivery proof archives.
+                  Customer order documents, packaging proofs, and delivery receipts.
                 </p>
                 <div className="font-mono text-[10px] text-slate-400 truncate pt-1">
                   ID: {gdriveStatus?.orderAttachmentsFolderId || 'Pending connection'}
                 </div>
               </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900 flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <FileSpreadsheet className="w-4 h-4 text-amber-600" />
+                    <span>Invoices</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
+                    Audited
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  GST tax invoice PDFs, signed debit notes, and tax archives.
+                </p>
+                <div className="font-mono text-[10px] text-slate-400 truncate pt-1">
+                  ID: {gdriveStatus?.invoicesFolderId || 'Pending connection'}
+                </div>
+              </div>
             </div>
+
+            {/* Root Folder Banner */}
+            {gdriveStatus?.rootFolderId && (
+              <div className="px-3.5 py-2 rounded-xl bg-slate-800/60 border border-slate-700/60 text-[11px] text-slate-300 flex items-center justify-between">
+                <span><strong>Root Folder:</strong> SNAPPY_GIFTZ_STORAGE</span>
+                <span className="font-mono text-[10px] text-slate-400">ID: {gdriveStatus.rootFolderId}</span>
+              </div>
+            )}
 
             {/* Connection Metadata Footer */}
             <div className="p-3 rounded-xl bg-slate-100/70 border border-slate-200/80 text-[11px] text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2">

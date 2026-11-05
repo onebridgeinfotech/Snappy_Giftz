@@ -923,6 +923,7 @@ model GoogleDriveIntegration {
   productImagesFolderId    String?   // Product_Images
   customerPhotosFolderId   String?   // Customer_Personalization_Photos
   orderAttachmentsFolderId String?   // Order_Attachments
+  invoicesFolderId         String?   // Invoices
   connectedBy              String?   // Admin User ID
   connectedAt              DateTime?
   lastSyncedAt             DateTime?

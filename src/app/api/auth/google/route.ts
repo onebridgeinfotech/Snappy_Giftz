@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
+import crypto from 'node:crypto';
 
 /**
- * Google OAuth Entrypoint Handler
- * 
+ * Google Customer OAuth Entrypoint Handler
+ *
  * Verifies whether GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are configured.
- * When real credentials are provided in production, redirects to Google's OAuth 2.0 flow.
- * When unconfigured (pending Hostinger lead setup), safely returns a 501 status with
- * an explicit architectural explanation, avoiding any fake or mock authentication.
+ * Generates an HMAC-signed CSRF state and redirects customers to Google's consent screen.
+ * When unconfigured, safely returns a 501 status or redirects to login with informative status.
  */
 export async function GET(req: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -34,16 +34,35 @@ export async function GET(req: Request) {
     return NextResponse.redirect(loginUrl.toString());
   }
 
+  // Generate cryptographically secure CSRF state token
+  const stateNonce = crypto.randomBytes(24).toString('hex');
+  const timestamp = Date.now();
+  const secretKey = process.env.SESSION_SECRET || 'snappy-oauth-secret-fallback';
+  const signature = crypto
+    .createHmac('sha256', secretKey)
+    .update(`${stateNonce}:${timestamp}`)
+    .digest('hex');
+
+  const state = Buffer.from(JSON.stringify({ nonce: stateNonce, timestamp, signature })).toString('base64url');
+
   // When credentials exist, redirect to Google OAuth 2.0 consent screen
   const redirectUri = `${appUrl}/api/auth/google/callback`;
   const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  googleAuthUrl.searchParams.set('client_id', clientId);
+  googleAuthUrl.searchParams.set('client_id', clientId.trim());
   googleAuthUrl.searchParams.set('redirect_uri', redirectUri);
   googleAuthUrl.searchParams.set('response_type', 'code');
   googleAuthUrl.searchParams.set('scope', 'openid email profile');
-  googleAuthUrl.searchParams.set('access_type', 'offline');
-  googleAuthUrl.searchParams.set('prompt', 'consent');
+  googleAuthUrl.searchParams.set('state', state);
+  googleAuthUrl.searchParams.set('prompt', 'select_account');
 
-  return NextResponse.redirect(googleAuthUrl.toString());
+  const response = NextResponse.redirect(googleAuthUrl.toString());
+  response.cookies.set('snappy_customer_oauth_state', state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 15 * 60, // 15 minutes
+    path: '/',
+  });
+
+  return response;
 }
-

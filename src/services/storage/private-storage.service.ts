@@ -202,11 +202,12 @@ export class PrivateStorageService {
     try {
       const gDriveStatus = await googleDriveService.getConnectionStatus();
       if (gDriveStatus.isConnected) {
+        const driveFolderType = folder === 'invoices' ? 'invoice' : 'attachment';
         const driveUpload = await googleDriveService.uploadFile({
           fileBuffer,
           fileName: sanitizedOriginalName,
           mimeType: 'application/pdf',
-          folderType: 'attachment',
+          folderType: driveFolderType,
         });
         googleDriveFileId = driveUpload.fileId;
       }
@@ -225,10 +226,14 @@ export class PrivateStorageService {
   }
 
   /**
-   * Safely deletes a private file.
+   * Safely deletes a private file (local disk or Google Drive).
    */
   async deletePrivateFile(fileKey: string): Promise<boolean> {
     try {
+      if (fileKey.startsWith('gdrive:')) {
+        const fileId = fileKey.replace('gdrive:', '').trim();
+        return await googleDriveService.deleteFile(fileId);
+      }
       const cleanKey = fileKey.replace(/\\/g, '/');
       const resolvedBase = path.resolve(this.baseDir);
       const targetPath = path.join(this.baseDir, cleanKey);

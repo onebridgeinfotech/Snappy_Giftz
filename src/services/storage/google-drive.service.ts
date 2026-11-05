@@ -13,6 +13,7 @@ export interface GoogleDriveConfigStatus {
   productImagesFolderId?: string | null;
   customerPhotosFolderId?: string | null;
   orderAttachmentsFolderId?: string | null;
+  invoicesFolderId?: string | null;
   connectedAt?: string | null;
   lastSyncedAt?: string | null;
   lastError?: string | null;
@@ -22,7 +23,7 @@ export interface GoogleDriveUploadInput {
   fileBuffer: Buffer;
   fileName: string;
   mimeType: string;
-  folderType: 'product' | 'customer' | 'attachment';
+  folderType: 'product' | 'customer' | 'attachment' | 'invoice';
 }
 
 export interface GoogleDriveUploadResult {
@@ -47,6 +48,7 @@ interface DriveIntegrationRecord {
   productImagesFolderId: string | null;
   customerPhotosFolderId: string | null;
   orderAttachmentsFolderId: string | null;
+  invoicesFolderId: string | null;
   connectedBy: string | null;
   connectedAt: Date | null;
   lastSyncedAt: Date | null;
@@ -64,6 +66,7 @@ let devDriveIntegrationState: DriveIntegrationRecord = {
   productImagesFolderId: null,
   customerPhotosFolderId: null,
   orderAttachmentsFolderId: null,
+  invoicesFolderId: null,
   connectedBy: null,
   connectedAt: null,
   lastSyncedAt: null,
@@ -75,6 +78,7 @@ export class GoogleDriveService {
   private readonly FOLDER_PRODUCT_IMAGES = 'Product_Images';
   private readonly FOLDER_CUSTOMER_PHOTOS = 'Customer_Personalization_Photos';
   private readonly FOLDER_ORDER_ATTACHMENTS = 'Order_Attachments';
+  private readonly FOLDER_INVOICES = 'Invoices';
 
   /**
    * Resolves the configured OAuth2 credentials.
@@ -224,6 +228,7 @@ export class GoogleDriveService {
           productImagesFolderId: data.productImagesFolderId ?? null,
           customerPhotosFolderId: data.customerPhotosFolderId ?? null,
           orderAttachmentsFolderId: data.orderAttachmentsFolderId ?? null,
+          invoicesFolderId: data.invoicesFolderId ?? null,
           connectedBy: data.connectedBy ?? null,
           connectedAt: data.connectedAt ?? new Date(),
           lastSyncedAt: data.lastSyncedAt ?? new Date(),
@@ -298,6 +303,7 @@ export class GoogleDriveService {
       productImagesFolderId: folders.productImagesFolderId,
       customerPhotosFolderId: folders.customerPhotosFolderId,
       orderAttachmentsFolderId: folders.orderAttachmentsFolderId,
+      invoicesFolderId: folders.invoicesFolderId,
       connectedBy: adminUserId,
       connectedAt: new Date(),
       lastSyncedAt: new Date(),
@@ -308,8 +314,8 @@ export class GoogleDriveService {
   }
 
   /**
-   * Ensures the required 3-subfolder hierarchy exists within SNAPPY_GIFTZ_STORAGE on Google Drive.
-   * Caches folder IDs to prevent unnecessary roundtrips.
+   * Ensures the required 4-subfolder hierarchy exists within SNAPPY_GIFTZ_STORAGE on Google Drive.
+   * Prioritizes explicit environment variable overrides (GOOGLE_DRIVE_*_FOLDER_ID) and cached IDs.
    */
   async ensureFolderHierarchy(
     drive: drive_v3.Drive,
@@ -319,9 +325,10 @@ export class GoogleDriveService {
     productImagesFolderId: string;
     customerPhotosFolderId: string;
     orderAttachmentsFolderId: string;
+    invoicesFolderId: string;
   }> {
     // 1. Ensure Root Folder: SNAPPY_GIFTZ_STORAGE
-    let rootFolderId = cachedFolders?.rootFolderId;
+    let rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || cachedFolders?.rootFolderId;
     if (rootFolderId) {
       const exists = await this.checkFileExists(drive, rootFolderId);
       if (!exists) rootFolderId = undefined;
@@ -331,7 +338,7 @@ export class GoogleDriveService {
     }
 
     // 2. Ensure Subfolder: Product_Images
-    let productImagesFolderId = cachedFolders?.productImagesFolderId;
+    let productImagesFolderId = process.env.GOOGLE_DRIVE_PRODUCT_IMAGES_FOLDER_ID || cachedFolders?.productImagesFolderId;
     if (productImagesFolderId) {
       const exists = await this.checkFileExists(drive, productImagesFolderId);
       if (!exists) productImagesFolderId = undefined;
@@ -341,7 +348,7 @@ export class GoogleDriveService {
     }
 
     // 3. Ensure Subfolder: Customer_Personalization_Photos
-    let customerPhotosFolderId = cachedFolders?.customerPhotosFolderId;
+    let customerPhotosFolderId = process.env.GOOGLE_DRIVE_CUSTOMER_PHOTOS_FOLDER_ID || cachedFolders?.customerPhotosFolderId;
     if (customerPhotosFolderId) {
       const exists = await this.checkFileExists(drive, customerPhotosFolderId);
       if (!exists) customerPhotosFolderId = undefined;
@@ -351,7 +358,7 @@ export class GoogleDriveService {
     }
 
     // 4. Ensure Subfolder: Order_Attachments
-    let orderAttachmentsFolderId = cachedFolders?.orderAttachmentsFolderId;
+    let orderAttachmentsFolderId = process.env.GOOGLE_DRIVE_ORDER_ATTACHMENTS_FOLDER_ID || cachedFolders?.orderAttachmentsFolderId;
     if (orderAttachmentsFolderId) {
       const exists = await this.checkFileExists(drive, orderAttachmentsFolderId);
       if (!exists) orderAttachmentsFolderId = undefined;
@@ -360,11 +367,22 @@ export class GoogleDriveService {
       orderAttachmentsFolderId = await this.findOrCreateFolder(drive, this.FOLDER_ORDER_ATTACHMENTS, rootFolderId);
     }
 
+    // 5. Ensure Subfolder: Invoices
+    let invoicesFolderId = process.env.GOOGLE_DRIVE_INVOICES_FOLDER_ID || cachedFolders?.invoicesFolderId;
+    if (invoicesFolderId) {
+      const exists = await this.checkFileExists(drive, invoicesFolderId);
+      if (!exists) invoicesFolderId = undefined;
+    }
+    if (!invoicesFolderId) {
+      invoicesFolderId = await this.findOrCreateFolder(drive, this.FOLDER_INVOICES, rootFolderId);
+    }
+
     return {
       rootFolderId,
       productImagesFolderId,
       customerPhotosFolderId,
       orderAttachmentsFolderId,
+      invoicesFolderId,
     };
   }
 
@@ -432,6 +450,7 @@ export class GoogleDriveService {
       productImagesFolderId: string;
       customerPhotosFolderId: string;
       orderAttachmentsFolderId: string;
+      invoicesFolderId: string;
     };
   }> {
     const record = await this.getIntegrationRecord();
@@ -486,7 +505,8 @@ export class GoogleDriveService {
       !record.rootFolderId ||
       !record.productImagesFolderId ||
       !record.customerPhotosFolderId ||
-      !record.orderAttachmentsFolderId
+      !record.orderAttachmentsFolderId ||
+      !record.invoicesFolderId
     ) {
       const folders = await this.ensureFolderHierarchy(drive, record);
       await this.saveIntegrationRecord(folders);
@@ -500,6 +520,7 @@ export class GoogleDriveService {
         productImagesFolderId: record.productImagesFolderId,
         customerPhotosFolderId: record.customerPhotosFolderId,
         orderAttachmentsFolderId: record.orderAttachmentsFolderId,
+        invoicesFolderId: record.invoicesFolderId,
       },
     };
   }
@@ -545,6 +566,9 @@ export class GoogleDriveService {
         break;
       case 'customer':
         targetFolderId = folders.customerPhotosFolderId;
+        break;
+      case 'invoice':
+        targetFolderId = folders.invoicesFolderId;
         break;
       case 'attachment':
       default:
@@ -601,6 +625,20 @@ export class GoogleDriveService {
   }
 
   /**
+   * Deletes a file from Google Drive by file ID.
+   */
+  async deleteFile(fileId: string): Promise<boolean> {
+    try {
+      const { drive } = await this.getAuthenticatedDriveClient();
+      await drive.files.delete({ fileId });
+      return true;
+    } catch (err) {
+      console.warn('[GoogleDriveService] Delete file failed for fileId:', fileId, err);
+      return false;
+    }
+  }
+
+  /**
    * Safely disconnects Google Drive: attempts remote token revocation with Google,
    * clears encrypted tokens, and marks integration disconnected.
    */
@@ -627,6 +665,7 @@ export class GoogleDriveService {
       productImagesFolderId: null,
       customerPhotosFolderId: null,
       orderAttachmentsFolderId: null,
+      invoicesFolderId: null,
       connectedBy: adminUserId,
       lastSyncedAt: new Date(),
       lastError: null,
@@ -649,6 +688,7 @@ export class GoogleDriveService {
       productImagesFolderId: record.productImagesFolderId,
       customerPhotosFolderId: record.customerPhotosFolderId,
       orderAttachmentsFolderId: record.orderAttachmentsFolderId,
+      invoicesFolderId: record.invoicesFolderId,
       connectedAt: record.connectedAt ? record.connectedAt.toISOString() : null,
       lastSyncedAt: record.lastSyncedAt ? record.lastSyncedAt.toISOString() : null,
       lastError: record.lastError,
