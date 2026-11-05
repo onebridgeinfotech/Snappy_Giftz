@@ -3,7 +3,8 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff, Sparkles, Fingerprint } from 'lucide-react';
+import { isPasskeySupported, passkeyLogin } from '@/lib/auth/passkey-client';
 
 function LoginForm() {
   const router = useRouter();
@@ -14,6 +15,8 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeySupported, setPasskeySupported] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Check if already authenticated
@@ -27,6 +30,29 @@ function LoginForm() {
       })
       .catch(() => {});
   }, [router, redirectUrl]);
+
+  useEffect(() => {
+    setPasskeySupported(isPasskeySupported());
+  }, []);
+
+  const handlePasskeyLogin = async () => {
+    if (!email.trim()) {
+      setErrorMsg('Enter your email first, then use Face ID / fingerprint.');
+      return;
+    }
+    setPasskeyBusy(true);
+    setErrorMsg(null);
+    try {
+      const res = await passkeyLogin(email);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Biometric sign-in failed.');
+      router.push(redirectUrl);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Biometric sign-in failed.');
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +151,7 @@ function LoginForm() {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || passkeyBusy}
               className="w-full h-11 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold text-xs flex items-center justify-center gap-2 hover:opacity-95 transition-opacity disabled:opacity-50 cursor-pointer shadow-lg shadow-[#D5A34A]/10"
             >
               {isLoading ? (
@@ -137,6 +163,18 @@ function LoginForm() {
                 </>
               )}
             </button>
+
+            {passkeySupported && (
+              <button
+                type="button"
+                disabled={isLoading || passkeyBusy}
+                onClick={() => void handlePasskeyLogin()}
+                className="w-full h-11 rounded-xl border border-[#D5A34A]/40 bg-[#08090B] text-[#F5BD48] font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#24252A] transition-colors disabled:opacity-50"
+              >
+                <Fingerprint className="w-4 h-4" />
+                <span>{passkeyBusy ? 'Confirm Face ID…' : 'Sign in with Face ID / fingerprint'}</span>
+              </button>
+            )}
           </form>
 
           <div className="mt-6 pt-6 border-t border-[#D5A34A]/15 text-center text-xs text-[#94A3B8]">

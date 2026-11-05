@@ -20,6 +20,8 @@
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@prisma/client": "^6.19.3",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.3",
     "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/vite": "^4.3.3",
     "@types/canvas-confetti": "^1.9.0",
@@ -32,11 +34,11 @@
     "motion": "^12.23.24",
     "next": "^16.4.3",
     "nodemailer": "^10.3.1",
+    "prisma": "^6.19.3",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "vite": "^8.3.0",
-    "prisma": "^6.19.3",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
   },
   "overrides": {
     "deepmerge-ts": "^8.0.0"

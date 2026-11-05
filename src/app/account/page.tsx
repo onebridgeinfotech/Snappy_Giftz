@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { User, Mail, Phone, Shield, Package, LogOut, Sparkles, ArrowRight, Clock, CheckCircle } from 'lucide-react';
+import { PasskeyManager } from '@/components/account/PasskeyManager';
 
 export default function AccountPage() {
   const router = useRouter();
@@ -153,6 +154,8 @@ export default function AccountPage() {
           </div>
 
         </div>
+
+        <PasskeyManager />
 
       </div>
     </div>
