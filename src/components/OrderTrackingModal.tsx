@@ -330,12 +330,12 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in-0 duration-200"
+      className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md p-4 animate-in fade-in-0 duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="tracking-modal-title"
     >
-      <div className="relative w-full max-w-2xl bg-[#08090B] rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.85)] border border-[#D5A34A]/30 overflow-hidden my-6 text-[#F1F5F9]">
+      <div className="relative w-full max-w-2xl bg-[#08090B] rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.85)] border border-[#D5A34A]/30 overflow-hidden my-8 mx-auto text-[#F1F5F9]">
         
         {/* Header - Refined Dark Luxury */}
         <div className="bg-[#17181C] text-white px-6 py-4 flex items-center justify-between border-b border-[#D5A34A]/20">

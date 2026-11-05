@@ -17,7 +17,8 @@ import {
   Eye,
   EyeOff,
   Crown,
-  Sparkles
+  Sparkles,
+  Package
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -292,6 +293,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                     {currentUser.isEmailVerified ? 'Verified' : 'Unverified'}
                   </span>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <a
+                  href="/account"
+                  onClick={() => onClose()}
+                  className="py-2.5 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                >
+                  <UserIcon className="w-3.5 h-3.5" />
+                  <span>My Account</span>
+                </a>
+                <a
+                  href="/account/orders"
+                  onClick={() => onClose()}
+                  className="py-2.5 rounded-xl bg-[#24252A] hover:bg-[#2D2F35] border border-[#D5A34A]/40 text-[#F5BD48] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Package className="w-3.5 h-3.5" />
+                  <span>Order History</span>
+                </a>
               </div>
 
               <button

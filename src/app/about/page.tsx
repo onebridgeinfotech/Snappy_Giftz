@@ -1,12 +1,12 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowLeft, Crown, ShieldCheck, Sparkles, MapPin, Mail, Award, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Crown, ShieldCheck, Sparkles, MapPin, Mail } from 'lucide-react';
 import { BUSINESS_CONFIG } from '@/config/business';
 
 export const metadata: Metadata = {
   title: `About Us | ${BUSINESS_CONFIG.brandName}`,
-  description: `Discover ${BUSINESS_CONFIG.brandName} — India's premier luxury online gift studio and corporate bulk gifting house.`,
+  description: `Discover ${BUSINESS_CONFIG.brandName} — India's premier luxury online gift studio and personalized keepsake atelier.`,
 };
 
 export default function AboutPage() {
@@ -60,7 +60,7 @@ export default function AboutPage() {
             </div>
             <h2 className="font-serif font-bold text-xl text-white">Guaranteed Quality</h2>
             <p className="text-xs sm:text-sm text-[#CBD5E1]/80 leading-relaxed font-light">
-              Every personalized piece is reviewed by our master craftsmen and engraved with permanent laser technology for lifetime legibility, backed by discreet gift packaging and 100% insured pan-India courier delivery.
+              Every personalized piece is reviewed by our master craftsmen and engraved with permanent laser technology for lifetime legibility, backed by discreet gift packaging and verified delivery across Hyderabad.
             </p>
           </div>
         </div>
@@ -68,7 +68,7 @@ export default function AboutPage() {
         {/* Official Business & Atelier Information */}
         <div className="bg-[#17181C] rounded-3xl border border-[#D5A34A]/30 p-6 sm:p-8 space-y-6 shadow-2xl">
           <div className="border-b border-[#D5A34A]/20 pb-4">
-            <h2 className="font-serif font-bold text-xl text-white">Corporate &amp; Atelier Headquarters</h2>
+            <h2 className="font-serif font-bold text-xl text-white">Atelier &amp; Studio Headquarters</h2>
             <p className="text-xs text-[#94A3B8]">Authoritative registered business location and customer contact channel</p>
           </div>
 
@@ -84,10 +84,8 @@ export default function AboutPage() {
                   <MapPin className="w-3.5 h-3.5 text-[#D5A34A]" />
                   <span>Headquarters &amp; Dispatch Address</span>
                 </div>
-                <div className="text-xs sm:text-sm text-[#CBD5E1] mt-1 leading-relaxed bg-[#08090B]/60 p-3.5 rounded-xl border border-[#D5A34A]/15">
-                  {BUSINESS_CONFIG.address.formattedMultiLine.map((line, idx) => (
-                    <div key={idx}>{line}</div>
-                  ))}
+                <div className="text-xs text-[#CBD5E1] mt-1 leading-relaxed">
+                  {BUSINESS_CONFIG.address.formattedSingleLine}
                 </div>
               </div>
             </div>
@@ -96,30 +94,22 @@ export default function AboutPage() {
               <div>
                 <div className="text-[11px] text-[#94A3B8] font-mono uppercase tracking-wider flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-[#D5A34A]" />
-                  <span>Official Inquiries &amp; Support Email</span>
+                  <span>Official Concierge Email</span>
                 </div>
-                <div className="mt-1">
-                  <a
-                    href={`mailto:${BUSINESS_CONFIG.officialEmail}`}
-                    className="text-xs sm:text-sm text-[#F5BD48] hover:text-white underline underline-offset-4 transition-colors font-medium break-all"
-                  >
+                <div className="text-sm font-semibold text-white mt-0.5">
+                  <a href={`mailto:${BUSINESS_CONFIG.officialEmail}`} className="text-[#F5BD48] hover:underline">
                     {BUSINESS_CONFIG.officialEmail}
                   </a>
                 </div>
               </div>
 
               <div>
-                <div className="text-[11px] text-[#94A3B8] font-mono uppercase tracking-wider">Operating Schedule</div>
-                <div className="text-xs text-[#CBD5E1] mt-1">{BUSINESS_CONFIG.operatingHours}</div>
-              </div>
-
-              <div className="pt-2">
-                <Link
-                  href="/contact"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D5A34A] to-[#F5BD48] text-[#08090B] font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all"
-                >
-                  <span>Contact Our Concierge</span>
-                </Link>
+                <div className="text-[11px] text-[#94A3B8] font-mono uppercase tracking-wider">Customer Support WhatsApp</div>
+                <div className="text-sm font-semibold text-white mt-0.5">
+                  <a href={`https://wa.me/91${BUSINESS_CONFIG.whatsappPhone}`} target="_blank" rel="noopener noreferrer" className="text-[#F5BD48] hover:underline">
+                    {BUSINESS_CONFIG.whatsappFormatted}
+                  </a>
+                </div>
               </div>
             </div>
           </div>

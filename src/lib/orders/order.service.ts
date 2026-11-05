@@ -70,6 +70,8 @@ export interface SanitizedOrderResult {
   customerEmail: string;
   customerPhone: string;
   destinationStateCode: string;
+  shippingPincode?: string;
+  customizationTotalPaise?: number;
   items: Array<{
     id: string;
     productName: string;
@@ -81,6 +83,7 @@ export interface SanitizedOrderResult {
     subtotalPaise: number;
     customizationNote?: string | null;
     proofImageUrl?: string | null;
+    isGiftWrapped?: boolean;
     customizationMeta?: any | null;
     personalization?: {
       id: string;
@@ -176,8 +179,19 @@ export function validateOrderInput(input: CreateOrderInput) {
     throw new OrderValidationError('State is required.');
   }
 
-  if (!isValidIndianPincode(addr.pincode)) {
-    throw new OrderValidationError('Please provide a valid 6-digit Indian delivery PIN code.');
+  if (!addr.pincode || !addr.pincode.trim()) {
+    throw new OrderValidationError('Delivery PIN code is required.');
+  }
+
+  const pinServiceability = checkPincodeServiceability(addr.pincode);
+  if (!pinServiceability.valid) {
+    throw new OrderValidationError(pinServiceability.message || 'Please provide a valid 6-digit Indian delivery PIN code.');
+  }
+  if (!pinServiceability.serviceable) {
+    throw new OrderValidationError(
+      pinServiceability.message ||
+        `Delivery to PIN code ${addr.pincode.trim()} is currently not available. SNAPPY GIFTZ is currently exclusively serving verified Hyderabad express hubs.`
+    );
   }
 
   if (!input.items || !Array.isArray(input.items) || input.items.length === 0) {
@@ -452,18 +466,20 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
                 customizationNote: customNote,
                 customizationFeePaise: line.customizationFeePaise,
                 proofImageUrl: proofUrl,
-                customizationMeta: custom ? {
-                  personalizationType: custom.personalizationType || 'TEXT_ENGRAVING',
-                  engravedText: custom.engravedText || null,
-                  fontFamily: custom.fontFamily || null,
-                  giftNote: custom.giftNote || null,
-                  ribbonColor: custom.ribbonColor || null,
-                  boxWrapStyle: custom.boxWrapStyle || null,
-                  waxSealColor: custom.waxSealColor || null,
-                  artworkUploadId: custom.artworkUploadId || null,
-                  cropSettings: custom.cropSettings || null,
-                  placementSettings: custom.placementSettings || null,
-                  proofVersion: custom.proofVersion || 1,
+                customizationMeta: (custom || itemInput?.isGiftWrapped) ? {
+                  personalizationType: custom?.personalizationType || (itemInput?.isGiftWrapped ? 'GIFT_WRAPPED' : 'TEXT_ENGRAVING'),
+                  engravedText: custom?.engravedText || null,
+                  fontFamily: custom?.fontFamily || null,
+                  giftNote: custom?.giftNote || null,
+                  ribbonColor: custom?.ribbonColor || null,
+                  boxWrapStyle: custom?.boxWrapStyle || null,
+                  waxSealColor: custom?.waxSealColor || null,
+                  artworkUploadId: custom?.artworkUploadId || null,
+                  artworkUploadIds: custom?.artworkUploadIds || (custom?.artworkUploadId ? [custom.artworkUploadId] : []),
+                  giftWrap: Boolean(itemInput?.isGiftWrapped || custom?.giftWrap),
+                  cropSettings: custom?.cropSettings || null,
+                  placementSettings: custom?.placementSettings || null,
+                  proofVersion: custom?.proofVersion || 1,
                   proofApproved: isCustomerApproved,
                   proofSource: isCustomerApprovedProof ? 'CLIENT_PREVIEW_CANVAS' : 'SERVER_FALLBACK_REFERENCE',
                 } : null,
@@ -564,6 +580,8 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       customerEmail: cleanEmail,
       customerPhone: cleanPhone,
       destinationStateCode,
+      shippingPincode: input.shippingAddress.pincode,
+      customizationTotalPaise: pricing.customizationTotalPaise,
       items: await Promise.all(
         pricing.items.map(async (l, idx) => {
           const itemInput = input.items[idx];
@@ -574,10 +592,16 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
           let proofAssetKey: string | null = null;
 
           if (custom) {
-            if (custom.artworkUploadId && DEV_ARTWORK_UPLOADS_STORE.has(custom.artworkUploadId)) {
-              const art = DEV_ARTWORK_UPLOADS_STORE.get(custom.artworkUploadId)!;
-              art.status = 'ATTACHED';
-              DEV_ARTWORK_UPLOADS_STORE.set(custom.artworkUploadId, art);
+            const allUploadIds = [
+              ...(custom.artworkUploadIds || []),
+              ...(custom.artworkUploadId ? [custom.artworkUploadId] : []),
+            ];
+            for (const uploadId of allUploadIds) {
+              if (DEV_ARTWORK_UPLOADS_STORE.has(uploadId)) {
+                const art = DEV_ARTWORK_UPLOADS_STORE.get(uploadId)!;
+                art.status = 'ATTACHED';
+                DEV_ARTWORK_UPLOADS_STORE.set(uploadId, art);
+              }
             }
 
             const resolved = await resolveOrderItemProof(
@@ -643,19 +667,22 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
             subtotalPaise: l.lineSubtotalPaise,
             customizationNote: customNote,
             proofImageUrl: proofUrl,
-            customizationMeta: custom ? {
-              personalizationType: custom.personalizationType || 'TEXT_ENGRAVING',
-              engravedText: custom.engravedText || null,
-              fontFamily: custom.fontFamily || null,
-              giftNote: custom.giftNote || null,
-              ribbonColor: custom.ribbonColor || null,
-              boxWrapStyle: custom.boxWrapStyle || null,
-              waxSealColor: custom.waxSealColor || null,
-              artworkUploadId: custom.artworkUploadId || null,
-              cropSettings: custom.cropSettings || null,
-              placementSettings: custom.placementSettings || null,
-              proofVersion: custom.proofVersion || 1,
-              proofApproved: Boolean(custom.proofApproved && DEV_PERSONALIZATION_STORE.get(itemId)?.customerApprovalStatus === 'APPROVED'),
+            isGiftWrapped: Boolean(itemInput?.isGiftWrapped || custom?.giftWrap),
+            customizationMeta: (custom || itemInput?.isGiftWrapped) ? {
+              personalizationType: custom?.personalizationType || (itemInput?.isGiftWrapped ? 'GIFT_WRAPPED' : 'TEXT_ENGRAVING'),
+              engravedText: custom?.engravedText || null,
+              fontFamily: custom?.fontFamily || null,
+              giftNote: custom?.giftNote || null,
+              ribbonColor: custom?.ribbonColor || null,
+              boxWrapStyle: custom?.boxWrapStyle || null,
+              waxSealColor: custom?.waxSealColor || null,
+              artworkUploadId: custom?.artworkUploadId || null,
+              artworkUploadIds: custom?.artworkUploadIds || (custom?.artworkUploadId ? [custom.artworkUploadId] : []),
+              giftWrap: Boolean(itemInput?.isGiftWrapped || custom?.giftWrap),
+              cropSettings: custom?.cropSettings || null,
+              placementSettings: custom?.placementSettings || null,
+              proofVersion: custom?.proofVersion || 1,
+              proofApproved: Boolean(custom?.proofApproved && DEV_PERSONALIZATION_STORE.get(itemId)?.customerApprovalStatus === 'APPROVED'),
               proofSource: DEV_PERSONALIZATION_STORE.get(itemId)?.metadata?.proofSource || 'SERVER_FALLBACK_REFERENCE',
             } : null,
           };
@@ -798,6 +825,8 @@ function formatOrderResponse(order: any): SanitizedOrderResult {
     customerEmail: order.customerEmail,
     customerPhone: order.customerPhone,
     destinationStateCode: order.destinationStateCode,
+    shippingPincode: order.shippingPincode || (order.shippingAddress ? (typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress)?.pincode : order.shippingAddress?.pincode) : undefined),
+    customizationTotalPaise: Number(order.customizationTotalPaise || 0),
     items: order.items.map((item: any) => ({
       id: item.id,
       productName: item.productName,
@@ -809,6 +838,7 @@ function formatOrderResponse(order: any): SanitizedOrderResult {
       subtotalPaise: Number(item.subtotalPaise),
       customizationNote: item.customizationNote,
       proofImageUrl: item.proofImageUrl || (item.personalization?.proofImageUrl ?? null),
+      isGiftWrapped: Boolean(item.isGiftWrapped || item.customizationMeta?.giftWrap),
       customizationMeta: item.customizationMeta || (item.personalization ? {
         personalizationType: item.personalization.personalizationType,
         engravedText: item.personalization.engravedText,

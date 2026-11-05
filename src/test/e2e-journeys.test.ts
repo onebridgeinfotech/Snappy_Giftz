@@ -69,7 +69,7 @@ export async function runE2EJourneysTestSuite(): Promise<{ passed: number; faile
         street: '12 Pushkar Road',
         city: 'Ajmer',
         state: 'Rajasthan',
-        pincode: '305001',
+        pincode: '500081',
       },
       items: [
         {

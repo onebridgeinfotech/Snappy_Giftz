@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 import { getPublicProducts } from '@/lib/catalog/public-catalog.service';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://snappygifts.in';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://snappygiftz.com';
 
   // 1. Core static routes
   const staticRoutes: MetadataRoute.Sitemap = [

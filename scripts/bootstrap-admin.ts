@@ -6,19 +6,25 @@ import crypto from 'node:crypto';
 async function bootstrapAdmin() {
   console.log('--- Snappy Gifts: Admin Bootstrap Procedure ---');
 
-  const email = (process.env.ADMIN_BOOTSTRAP_EMAIL || '').trim().toLowerCase();
+  const email = (
+    process.env.ADMIN_EMAIL ||
+    process.env.ADMIN_BOOTSTRAP_EMAIL ||
+    'phoenixnot13@gmail.com'
+  ).trim().toLowerCase();
+
   let password = process.env.ADMIN_BOOTSTRAP_PASSWORD || '';
 
   if (!email || !email.includes('@')) {
-    console.error('Error: Please provide a valid email via ADMIN_BOOTSTRAP_EMAIL environment variable.');
-    console.error('Example: ADMIN_BOOTSTRAP_EMAIL="admin@snappygifts.in" ADMIN_BOOTSTRAP_PASSWORD="YourSecurePassword123" npx tsx scripts/bootstrap-admin.ts');
+    console.error('Error: Please provide a valid email via ADMIN_EMAIL or ADMIN_BOOTSTRAP_EMAIL.');
     process.exit(1);
   }
 
-  // If password not provided, generate a secure 16-character alphanumeric password
+  // If password not provided in environment, generate a cryptographically strong 16-character password
+  let wasGenerated = false;
   if (!password) {
-    password = `Sg!${crypto.randomBytes(8).toString('hex')}9`;
-    console.log(`No password provided. Generated secure temporary password.`);
+    password = `Admin!${crypto.randomBytes(6).toString('hex')}9#`;
+    wasGenerated = true;
+    console.log(`Notice: No ADMIN_BOOTSTRAP_PASSWORD provided. Generated a secure one-time password.`);
   }
 
   const validation = validatePasswordStrength(password);
@@ -33,7 +39,7 @@ async function bootstrapAdmin() {
     });
 
     if (existingAdmin && existingAdmin.email !== email) {
-      console.warn(`Warning: An existing administrator (${existingAdmin.email}) is already configured.`);
+      console.warn(`[NOTICE] Existing administrator (${existingAdmin.email}) is already configured.`);
     }
 
     const hashedPassword = await hashPassword(password);
@@ -48,7 +54,7 @@ async function bootstrapAdmin() {
       },
       create: {
         email,
-        name: 'Snappy Gifts Administrator',
+        name: 'SNAPPY GIFTZ Operations Administrator',
         role: Role.ADMIN,
         passwordHash: hashedPassword,
         isActive: true,
@@ -56,11 +62,16 @@ async function bootstrapAdmin() {
       },
     });
 
-    console.log(`✔ Administrator successfully bootstrapped!`);
+    console.log(`\n✔ Administrator account successfully bootstrapped!`);
     console.log(`  User ID: ${user.id}`);
     console.log(`  Email:   ${user.email}`);
     console.log(`  Role:    ${user.role}`);
-    console.log(`  Password: ${password}`);
+    if (wasGenerated) {
+      console.log(`  One-time Password: ${password}`);
+      console.log(`  (Save this password securely; it will not be displayed again.)`);
+    } else {
+      console.log(`  Password: [Set from environment variable]`);
+    }
     console.log('--- Bootstrap Complete ---');
   } catch (error) {
     console.error('Database connection error during bootstrap:', error);

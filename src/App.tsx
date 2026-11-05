@@ -80,7 +80,7 @@ const MainContent: React.FC = () => {
     if (sortBy === 'price_asc') return a.basePrice - b.basePrice;
     if (sortBy === 'price_desc') return b.basePrice - a.basePrice;
     if (sortBy === 'newest') return b.id.localeCompare(a.id);
-    return (b.isB2BRecommended ? 1 : 0) - (a.isB2BRecommended ? 1 : 0);
+    return (b.rating || 0) - (a.rating || 0);
   });
 
   const displayedProducts = sortedProducts.slice(0, visibleCount);
@@ -113,16 +113,16 @@ const MainContent: React.FC = () => {
       a: 'Once you choose a personalized gift, you can type the recipient name or upload a company logo in our Live Personalization Studio. Our artisans in our SNAPPY GIFTZ Craft Studio preview the digital proof and engrave it using fiber-laser precision with zero fading, followed by complimentary gold-foil gift wrapping.'
     },
     {
-      q: 'Do you deliver across India with guaranteed damage-free packaging?',
-      a: 'Yes! We ship to over 24,000 Indian PIN codes via BlueDart Air Express and Delhivery Logistics. Fragile items like ceramic mugs, scented candles, and hand-cast brass lanterns are cushioned in custom honeycomb shock-absorbing materials inside luxury keepsake boxes.'
+      q: 'Do you offer guaranteed damage-free packaging in Hyderabad?',
+      a: 'Yes! Every fragile keepsake, scented candle, ceramic piece, and lantern is cushioned in custom shock-absorbing materials inside our signature rigid boxes. If any item arrives damaged, report it within 24 hours with an unboxing video for an instant complimentary replacement.'
     },
     {
-      q: 'Can we order corporate welcome kits with custom company branding and split dispatches?',
-      a: 'Absolutely! Our B2B Corporate Portal lets you upload company logos for debossing on drinkware, notebooks, and magnetic rigid boxes. You can also upload a recipient spreadsheet (CSV) to split-deliver gifts to 50 to 5,000 individual employee doorsteps across India with consolidated tracking.'
+      q: 'How does personal gift customization and photo engraving work?',
+      a: 'Our online Atelier Studio allows you to upload up to 3 high-resolution photos, enter custom names or dates in calligraphy fonts, and preview an authentic digital proof before ordering. Each piece is laser-engraved or artisan-printed in Hyderabad with extreme precision.'
     },
     {
-      q: 'Do you issue valid Indian GST Tax Invoices for corporate ITC tax credit?',
-      a: 'Yes. Every corporate and B2C order receives an official GST Tax Invoice stating HSN codes, SAC, and CGST/SGST (intra-state Telangana) or IGST (inter-state). You can claim full Input Tax Credit (ITC).'
+      q: 'What is your Hyderabad delivery policy and shipping timeline?',
+      a: 'We deliver directly across Hyderabad serviceable PIN codes with dedicated courier partners. Delivery charges are calculated based on your exact location and confirmed by our team. Handcrafted personalized gifts are dispatched within 24 to 48 hours.'
     }
   ];
 
@@ -398,7 +398,7 @@ const MainContent: React.FC = () => {
                   </h2>
                   
                   <p className="text-[#CBD5E1] text-sm sm:text-base leading-relaxed max-w-xl font-light">
-                    At SNAPPY GIFTZ, our craft atelier fuses regional metalwork, glassware, and fine ceramic traditions with modern fiber-laser engraving technology. Whether it's a single mug for your soulmate or 2,000 corporate welcome kits, our master craftsmen hand-inspect each box before sealing.
+                    At SNAPPY GIFTZ, our craft atelier fuses regional metalwork, glassware, and fine ceramic traditions with modern fiber-laser engraving technology. Whether it's a keepsake for your soulmate or a curated celebration hamper for loved ones, our master craftsmen hand-inspect each box before sealing.
                   </p>
                   
                   {/* Business Statistics Grid */}
@@ -474,7 +474,7 @@ const MainContent: React.FC = () => {
                   </span>
                 </div>
                 <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight leading-tight">
-                  Trusted by Over <span className="text-gold-gradient font-serif">50,000 Families</span> & 450+ Corporates
+                  Trusted by Over <span className="text-gold-gradient font-serif">50,000 Happy Families</span> Across Hyderabad
                 </h2>
                 <p className="text-xs sm:text-sm text-[#94A3B8] font-light max-w-xl mx-auto">
                   Authentic impressions from verified patrons across India celebrating cherished milestones.
@@ -573,7 +573,7 @@ const MainContent: React.FC = () => {
                   Frequently Asked <span className="text-gold-gradient font-serif">Questions</span>
                 </h2>
                 <p className="text-xs sm:text-sm text-[#94A3B8] font-light max-w-lg mx-auto">
-                  Everything you need to know about our handcrafted engraving, express distribution, and corporate concierge.
+                  Everything you need to know about our handcrafted engraving, Hyderabad express delivery, and bespoke gift customization.
                 </p>
               </div>
 

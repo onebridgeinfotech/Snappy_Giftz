@@ -87,18 +87,18 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Col 3: Corporate Solutions */}
+          {/* Col 3: Bespoke Services */}
           <div className="space-y-3.5">
             <h4 className="font-serif font-bold text-sm text-[#F5BD48] tracking-wider uppercase">
-              Corporate Solutions
+              Bespoke Services
             </h4>
             <ul className="space-y-2.5 text-xs text-[#CBD5E1]/80">
-              <li><button onClick={() => setMode('b2b')} className="hover:text-[#F5BD48] text-[#D5A34A] font-semibold transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Day-One Welcome Kits</button></li>
-              <li><button onClick={() => setMode('b2b')} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Custom Logo Merchandise</button></li>
-              <li><button onClick={() => setMode('b2b')} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Multi-Address Split Dispatch (CSV)</button></li>
-              <li><button onClick={() => setMode('b2b')} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Corporate Quotation (RFQ)</button></li>
-              <li><button onClick={() => setMode('b2b')} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48]">GST Input Tax Credit (ITC)</button></li>
-              <li><button onClick={() => setMode('b2b')} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Approved Net-30 Corporate Credit</button></li>
+              <li><button onClick={() => navigateToCatalog({ category: 'Personalized Gifts' })} className="hover:text-[#F5BD48] text-[#D5A34A] font-semibold transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Laser Engraving &amp; Inscriptions</button></li>
+              <li><button onClick={() => navigateToCatalog({ category: 'Personalized Gifts' })} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Artisan Photo Printing</button></li>
+              <li><button onClick={() => navigateToCatalog({ category: 'Gift Hampers' })} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Signature Keepsake Packaging</button></li>
+              <li><button onClick={() => navigateToCatalog({ category: 'Luxury Gifts' })} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Wax Seal &amp; Satin Ribbons</button></li>
+              <li><button onClick={() => navigateToCatalog({ occasion: 'All' })} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Hyderabad Express Delivery</button></li>
+              <li><button onClick={() => navigateToCatalog({ occasion: 'Birthday' })} className="hover:text-[#F5BD48] transition-colors text-left focus-visible:outline-hidden focus-visible:text-[#F5BD48] cursor-pointer">Direct Gifting to Loved Ones</button></li>
             </ul>
           </div>
 
@@ -171,6 +171,12 @@ export const Footer: React.FC = () => {
 
           {/* Legal & Business Links */}
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[10.5px] sm:text-[11px] text-[#CBD5E1]/80">
+            <a href="/login" className="hover:text-[#F5BD48] text-[#F5BD48] font-semibold transition-colors focus-visible:outline-hidden">Sign In</a>
+            <span className="text-[#D5A34A]/40">•</span>
+            <a href="/account" className="hover:text-[#F5BD48] text-[#CBD5E1] transition-colors focus-visible:outline-hidden">My Account</a>
+            <span className="text-[#D5A34A]/40">•</span>
+            <a href="/account/orders" className="hover:text-[#F5BD48] text-[#CBD5E1] transition-colors focus-visible:outline-hidden">Orders &amp; Tracking</a>
+            <span className="text-[#D5A34A]/40">•</span>
             <a href="/privacy" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Privacy Policy</a>
             <span className="text-[#D5A34A]/40">•</span>
             <a href="/terms" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">Terms of Service</a>

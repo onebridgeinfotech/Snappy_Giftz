@@ -18,6 +18,7 @@ export interface CartItemInput {
     boxWrapStyle?: string;
     waxSealColor?: string;
     artworkUploadId?: string;
+    artworkUploadIds?: string[];
     cropSettings?: any;
     placementSettings?: any;
     proofApproved?: boolean;

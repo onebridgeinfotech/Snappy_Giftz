@@ -5,6 +5,7 @@ import {
   X,
   Star,
   Sparkles,
+  Gift,
   ShoppingBag,
   Building2,
   CheckCircle2,
@@ -42,6 +43,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [isGiftWrapped, setIsGiftWrapped] = useState(false);
   const [pinInput, setPinInput] = useState(currentPincode);
   const [pinResult, setPinResult] = useState<{ serviceable: boolean; message: string; city?: string; days?: number } | null>(
     () => checkPincode(currentPincode)
@@ -80,11 +82,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   };
 
   const handleAddToCart = (isBuyNow = false) => {
+    const customWithWrap = product.isCustomizable
+      ? { ...customizationData, giftWrap: isGiftWrapped }
+      : (isGiftWrapped ? { giftWrap: true } : undefined);
+
     addToCart(
       product,
       quantity,
-      product.isCustomizable ? customizationData : undefined,
-      quantity > 10
+      customWithWrap,
+      quantity > 10,
+      undefined,
+      isGiftWrapped
     );
     if (isBuyNow) {
       onClose();
@@ -93,12 +101,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       onClose();
       setActiveModal('cart');
     }
-  };
-
-  const handleRequestQuote = () => {
-    setSelectedProduct(product);
-    onClose();
-    setActiveModal('rfq');
   };
 
   useEffect(() => {
@@ -334,6 +336,28 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </div>
                 </div>
 
+                {/* Optional Signature Gift Wrapping */}
+                <div className="w-full mt-1 mb-2">
+                  <label className="p-3 rounded-2xl bg-[#24252A] border border-[#D5A34A]/25 flex items-center justify-between cursor-pointer hover:border-[#D5A34A]/40 transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={isGiftWrapped}
+                        onChange={(e) => setIsGiftWrapped(e.target.checked)}
+                        className="w-4 h-4 rounded text-[#D5A34A] focus:ring-[#D5A34A] accent-[#D5A34A] cursor-pointer"
+                      />
+                      <div>
+                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <Gift className="w-3.5 h-3.5 text-[#F5BD48]" />
+                          Signature Gift Wrapping
+                        </div>
+                        <div className="text-[11px] text-[#CBD5E1]">Handcrafted luxury decorative gift wrapping with satin ribbon (+₹20)</div>
+                      </div>
+                    </div>
+                    <span className="font-serif font-bold text-xs text-[#F5BD48]">+₹20</span>
+                  </label>
+                </div>
+
                 {/* PIN Code Checker */}
                 <div className="flex-1 max-w-xs">
                   <label className="text-xs font-bold text-[#CBD5E1] uppercase tracking-wider block mb-1 flex items-center gap-1">
@@ -346,7 +370,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       maxLength={6}
                       value={pinInput}
                       onChange={(e) => setPinInput(e.target.value)}
-                      placeholder="e.g. 305001"
+                      placeholder="e.g. 500062"
                       className="w-full px-3 py-1.5 rounded-lg border border-[#D5A34A]/25 bg-[#24252A] text-xs font-mono font-medium text-white focus:border-[#D5A34A] focus:outline-hidden"
                     />
                     <button

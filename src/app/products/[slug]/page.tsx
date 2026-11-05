@@ -71,7 +71,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
       categoryName,
       ...(product.occasions || []),
       'Personalized Gifts India',
-      'Corporate Gifting',
+      'Luxury Bespoke Gifting',
     ],
   };
 }
@@ -111,7 +111,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       price: priceRupees,
       priceCurrency: 'INR',
       availability: 'https://schema.org/InStock',
-      url: `https://snappygifts.in/products/${product.slug}`,
+      url: `https://snappygiftz.com/products/${product.slug}`,
       seller: {
         '@type': 'Organization',
         name: BUSINESS_CONFIG.brandName,

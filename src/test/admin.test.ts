@@ -1,3 +1,7 @@
+if (!process.env.CI && process.env.NODE_ENV !== 'production') {
+  process.env.DATABASE_URL = 'mysql://127.0.0.1:3306/dev_fallback';
+}
+
 import assert from 'node:assert/strict';
 import {
   getAdminOverviewMetrics,

@@ -137,11 +137,11 @@ export const HeroBanner: React.FC = () => {
       filterValue: 'Diwali',
     },
     {
-      name: 'Corporate Gifts',
-      tagline: 'Executive & Client Kits',
-      emoji: '💼',
+      name: 'Housewarming',
+      tagline: 'New Home Blessings',
+      emoji: '🏡',
       filterType: 'occasion' as const,
-      filterValue: 'Corporate',
+      filterValue: 'Housewarming',
     },
     {
       name: 'Personalized Gifts',

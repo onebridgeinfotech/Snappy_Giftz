@@ -110,6 +110,12 @@ export interface CustomizationOption {
   artworkUploadId?: string;
   artworkPreviewUrl?: string;
   artworkFilename?: string;
+  artworkUploadIds?: string[];
+  artworkUploads?: Array<{
+    id: string;
+    originalFilename: string;
+    previewUrl?: string;
+  }>;
   cropSettings?: {
     x: number;
     y: number;

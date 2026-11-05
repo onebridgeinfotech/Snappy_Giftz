@@ -11,71 +11,18 @@ export class DeliveryError extends Error {
   }
 }
 
-export interface ServiceablePincodeDTO {
-  id: string;
-  pincode: string;
-  areaName?: string | null;
-  city: string;
-  state: string;
-  stateCode: string;
-  zoneId?: string | null;
-  zoneName?: string | null;
-  isActive: boolean;
-  deliveryDays: number;
-  notes?: string | null;
-}
+import {
+  INITIAL_HYDERABAD_PINCODES,
+  DEV_PINCODES,
+  type ServiceablePincodeDTO
+} from '@/lib/shipping/pincode.service';
 
-export interface DeliveryFeeRuleDTO {
-  id: string;
-  name: string;
-  minOrderAmountPaise: number;
-  maxOrderAmountPaise?: number | null;
-  feePaise: number;
-  priority: number;
-  isActive: boolean;
-}
-
-// Initial default Hyderabad pincodes seed list for local fallback / development
-export const INITIAL_HYDERABAD_PINCODES: Record<string, { area: string; days: number; distanceKm?: number }> = {
-  // Primary Shop Hub (Ground Floor, 1-19-68/C-8, Laxmipuram Road, A S Rao Nagar)
-  '500062': { area: 'A S Rao Nagar, ECIL, Kapra (Store Origin)', days: 2, distanceKm: 0 },
-  '500047': { area: 'Sainikpuri, Neredmet, Defence Colony', days: 2, distanceKm: 3 },
-  '500056': { area: 'Malkajgiri, Anandbagh', days: 2, distanceKm: 5 },
-  '500078': { area: 'Kushaiguda, Cherlapally', days: 2, distanceKm: 4 },
-  '500087': { area: 'Nagaram, Dammaiguda', days: 2, distanceKm: 4 },
-  '500076': { area: 'Nacharam, Mallapur', days: 2, distanceKm: 6 },
-  '500083': { area: 'Alwal, Lothkunta', days: 2, distanceKm: 7 },
-  '500010': { area: 'Bolarum, Yapral, Risala Bazar', days: 2, distanceKm: 6 },
-  '500015': { area: 'Karkhana, Gunrock Enclave', days: 2, distanceKm: 7 },
-  '500011': { area: 'Bowenpally, Trimulgherry', days: 2, distanceKm: 8 },
-  '500017': { area: 'Tarnaka, Habsiguda', days: 2, distanceKm: 8 },
-  '500051': { area: 'Uppal, Ramanthapur', days: 2, distanceKm: 9 },
-  '500003': { area: 'Secunderabad, Clock Tower, Marredpally', days: 2, distanceKm: 10 },
-  '500044': { area: 'Amberpet, Osmania University', days: 2, distanceKm: 11 },
-  '500061': { area: 'Keesara, Rampally', days: 2, distanceKm: 12 },
-  '500020': { area: 'Musheerabad, Domalguda', days: 2, distanceKm: 12 },
-  '500016': { area: 'Begumpet, Prakash Nagar', days: 2, distanceKm: 12 },
-  '500029': { area: 'Himayatnagar, Narayanguda', days: 2, distanceKm: 13 },
-  '500007': { area: 'Kacheguda, Barkatpura, Vidyanagar', days: 2, distanceKm: 14 },
-  '500082': { area: 'Somajiguda, Raj Bhavan Road', days: 2, distanceKm: 14 },
-  '500095': { area: 'Sultan Bazar, Bank Street', days: 2, distanceKm: 14 },
-  '500060': { area: 'LB Nagar, Nagole', days: 2, distanceKm: 14 },
-  '500001': { area: 'Hyderabad GPO, Abids, Koti', days: 2, distanceKm: 15 },
-  '500004': { area: 'Khairatabad, Raj Bhavan', days: 2, distanceKm: 15 },
-  '500002': { area: 'Charminar, Moghalpura', days: 2, distanceKm: 17 },
-  '500034': { area: 'Banjara Hills, Panjagutta', days: 2, distanceKm: 18 },
-  '500072': { area: 'Kukatpally, KPHB Colony', days: 2, distanceKm: 18 },
-  '500028': { area: 'Mehdipatnam, Humayun Nagar', days: 2, distanceKm: 19 },
-  '500033': { area: 'Jubilee Hills, Road No 36', days: 2, distanceKm: 19 },
-  '500032': { area: 'Gachibowli, Telecom Nagar', days: 2, distanceKm: 20 },
-  '500081': { area: 'Madhapur, Hitech City', days: 2, distanceKm: 20 },
-  '500084': { area: 'Kondapur, Whitefields', days: 2, distanceKm: 20 },
-  '500089': { area: 'Manikonda, Puppalguda', days: 2, distanceKm: 20 },
-  '500090': { area: 'Nizampet, Pragathi Nagar', days: 2, distanceKm: 20 },
+export {
+  INITIAL_HYDERABAD_PINCODES,
+  DEV_PINCODES,
+  type ServiceablePincodeDTO
 };
 
-// In-Memory Dev Store for Delivery Rules when DB is offline
-export const DEV_PINCODES = new Map<string, ServiceablePincodeDTO>();
 const DEV_FEE_RULES: DeliveryFeeRuleDTO[] = [
   {
     id: 'rule-free-999',
@@ -91,27 +38,22 @@ const DEV_FEE_RULES: DeliveryFeeRuleDTO[] = [
     name: 'Standard Hyderabad Delivery',
     minOrderAmountPaise: 0,
     maxOrderAmountPaise: 99899,
-    feePaise: 9900, // ₹99
+    feePaise: 9900,
     priority: 1,
     isActive: true,
   },
 ];
 
-// Initialize dev pincodes store
-for (const [pin, info] of Object.entries(INITIAL_HYDERABAD_PINCODES)) {
-  DEV_PINCODES.set(pin, {
-    id: `dev-pin-${pin}`,
-    pincode: pin,
-    areaName: info.area,
-    city: 'Hyderabad',
-    state: 'Telangana',
-    stateCode: '36',
-    zoneId: null,
-    zoneName: 'Central Zone',
-    isActive: true,
-    deliveryDays: info.days,
-  });
+export interface DeliveryFeeRuleDTO {
+  id: string;
+  name: string;
+  minOrderAmountPaise: number;
+  maxOrderAmountPaise?: number | null;
+  feePaise: number;
+  priority: number;
+  isActive: boolean;
 }
+
 
 /**
  * Checks whether a given delivery PIN code is serviceable in Hyderabad.

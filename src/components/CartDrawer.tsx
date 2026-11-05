@@ -5,6 +5,7 @@ import {
   Trash2,
   Sparkles,
   ShoppingBag,
+  Truck,
   ArrowRight,
   Tag,
   ShieldCheck,
@@ -31,21 +32,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     appliedCoupon,
     couponDiscount,
     applyCoupon,
-    removeCoupon
+    removeCoupon,
+    toggleItemGiftWrap
   } = useApp();
 
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
 
   const subtotal = cart.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-  const isFreeShipping = subtotal >= 999 || subtotal === 0;
-  const shippingCost = isFreeShipping ? 0 : 99;
   const finalDiscount = couponDiscount;
+  const isOrderGiftWrapped = cart.some((item) => Boolean(item.isGiftWrapped || item.customization?.giftWrap));
+  const giftWrapFee = isOrderGiftWrapped ? 20 : 0;
   
   // 18% GST calculation
-  const taxableAmount = Math.max(0, subtotal - finalDiscount);
+  const taxableAmount = Math.max(0, subtotal + giftWrapFee - finalDiscount);
   const estimatedGst = taxableAmount * 0.18;
-  const grandTotal = taxableAmount + estimatedGst + shippingCost;
+  const totalExclDelivery = taxableAmount + estimatedGst;
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,18 +118,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </button>
         </div>
 
-        {/* Free Shipping Progress Indicator */}
+        {/* Hyderabad Delivery Notice */}
         <div className="bg-[#24252A] px-4 py-2.5 text-xs border-b border-[#D5A34A]/20 flex items-center justify-between">
-          {subtotal >= 999 ? (
-            <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Complimentary <strong>Pan-India Insured Express Shipping</strong> Unlocked!</span>
-            </span>
-          ) : (
-            <span className="text-[#CBD5E1] font-medium">
-              Add <strong className="text-[#F5BD48]">₹{(999 - subtotal).toLocaleString('en-IN')}</strong> more for complimentary delivery!
-            </span>
-          )}
+          <span className="flex items-center gap-1.5 text-[#CBD5E1] font-medium">
+            <Truck className="w-4 h-4 text-[#F5BD48] shrink-0" />
+            <span><strong>Hyderabad Express Hub:</strong> Delivery charge will be confirmed by SNAPPY GIFTZ.</span>
+          </span>
         </div>
 
         {/* Cart Items List */}
@@ -187,6 +183,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <span className="truncate">"{item.customization.engravedText}"</span>
                     </div>
                   )}
+
+                  {/* Gift Wrap Toggle Button */}
+                  <div className="mt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleItemGiftWrap(item.id)}
+                      className={`flex items-center gap-1 text-[10.5px] px-2.5 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                        Boolean(item.isGiftWrapped || item.customization?.giftWrap)
+                          ? 'bg-[#D5A34A]/25 border-[#D5A34A] text-[#F5BD48] font-bold'
+                          : 'bg-[#17181C] border-[#D5A34A]/20 text-[#CBD5E1] hover:border-[#D5A34A]/40'
+                      }`}
+                      aria-label="Toggle gift wrapping for this item"
+                    >
+                      <Gift className="w-3 h-3 text-[#F5BD48]" />
+                      <span>{Boolean(item.isGiftWrapped || item.customization?.giftWrap) ? 'Gift Wrapped (₹20/order)' : '+ Add Gift Wrap (₹20)'}</span>
+                    </button>
+                  </div>
 
                   {/* Multi-recipient badge if bulk */}
                   {item.recipientList && item.recipientList.length > 0 && (
@@ -286,6 +299,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <span className="font-semibold text-white font-mono">₹{subtotal.toLocaleString('en-IN')}</span>
               </div>
 
+              {giftWrapFee > 0 && (
+                <div className="flex justify-between text-[#F5BD48] font-semibold">
+                  <span>Signature Gift Wrapping (Order Flat Fee)</span>
+                  <span className="font-mono">+₹{giftWrapFee}</span>
+                </div>
+              )}
+
               {finalDiscount > 0 && (
                 <div className="flex justify-between text-emerald-400 font-semibold">
                   <span>Royal Privilege Discount</span>
@@ -293,15 +313,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               )}
 
-              <div className="flex justify-between">
-                <span>Insured Express Delivery</span>
-                <span>
-                  {shippingCost === 0 ? (
-                    <span className="text-emerald-400 font-semibold uppercase text-[11px]">Free</span>
-                  ) : (
-                    `₹${shippingCost}`
-                  )}
-                </span>
+              <div className="flex justify-between text-[#CBD5E1]">
+                <span>Delivery Charge</span>
+                <span className="text-[#F5BD48] font-semibold text-[11px]">To be confirmed by SNAPPY GIFTZ</span>
               </div>
 
               <div className="flex justify-between text-[#94A3B8] text-[11px]">
@@ -310,9 +324,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
 
               <div className="pt-2 border-t border-[#D5A34A]/20 flex justify-between items-baseline font-bold">
-                <span className="text-white text-sm">Grand Total (All Taxes Included)</span>
+                <div>
+                  <span className="text-white text-sm">Estimated Total</span>
+                  <div className="text-[10px] text-[#94A3B8] font-normal">(Excludes manual delivery charge)</div>
+                </div>
                 <span className="font-serif text-xl text-[#F5BD48]">
-                  ₹{Math.round(grandTotal).toLocaleString('en-IN')}
+                  ₹{Math.round(totalExclDelivery).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>

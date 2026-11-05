@@ -1,3 +1,7 @@
+if (!process.env.CI && process.env.NODE_ENV !== 'production') {
+  process.env.DATABASE_URL = 'mysql://127.0.0.1:3306/dev_fallback';
+}
+
 import assert from 'node:assert/strict';
 import crypto from 'crypto';
 import { privateStorageService } from '../services/storage/private-storage.service';
@@ -545,7 +549,7 @@ export async function runPersonalizationTestSuite() {
           street: '101 Heritage Boulevard',
           city: 'Jaipur',
           state: 'Rajasthan',
-          pincode: '302001',
+          pincode: '500062',
         },
         items: [
           {
@@ -680,7 +684,7 @@ export async function runPersonalizationTestSuite() {
         street: '101 Heritage Boulevard',
         city: 'Jaipur',
         state: 'Rajasthan',
-        pincode: '302001',
+        pincode: '500062',
       },
       items: [
         {
@@ -957,7 +961,7 @@ export async function runPersonalizationTestSuite() {
               street: 'Bypass Lane',
               city: 'Jaipur',
               state: 'Rajasthan',
-              pincode: '302001',
+              pincode: '500062',
             },
             items: [
               {
@@ -1152,7 +1156,7 @@ export async function runPersonalizationTestSuite() {
           customerEmail: 'bypass.tester@example.com',
           customerName: 'Bypass Tester',
           customerPhone: '9876543210',
-          shippingAddress: { name: 'Tester', street: '1 Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+          shippingAddress: { name: 'Tester', street: '1 Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
           items: [{ productId: 'prod-1', quantity: 1, customization: { boxWrapStyle: 'Vintage Wooden Keepsake Crate (+₹150)' } }],
           paymentMethod: 'RAZORPAY',
         }),
@@ -1205,7 +1209,7 @@ export async function runPersonalizationTestSuite() {
         customerEmail: 'royal.customer@snappygifts.in',
         customerName: 'Maharani Gayatri',
         customerPhone: '9876543210',
-        shippingAddress: { name: 'Gayatri', street: 'City Palace', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+        shippingAddress: { name: 'Gayatri', street: 'City Palace', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
         items: [{
           productId: 'prod-1',
           quantity: 1,
@@ -1320,7 +1324,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'canvas.proof@snappygifts.in',
       customerName: 'Canvas Proof Customer',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Customer', street: 'Studio Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Customer', street: 'Studio Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -1430,7 +1434,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'browser.proof@snappygifts.in',
       customerName: 'Browser Proof Customer',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Customer', street: '1 Palace Road', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Customer', street: '1 Palace Road', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -1470,7 +1474,7 @@ export async function runPersonalizationTestSuite() {
           customerEmail: 'missing.proof@snappygifts.in',
           customerName: 'Missing Proof Customer',
           customerPhone: '9876543210',
-          shippingAddress: { name: 'Customer', street: '1 Studio Way', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+          shippingAddress: { name: 'Customer', street: '1 Studio Way', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
           items: [{
             productId: 'prod-1',
             quantity: 1,
@@ -1504,7 +1508,7 @@ export async function runPersonalizationTestSuite() {
         customerEmail: 'malformed@snappygifts.in',
         customerName: 'Malformed Proof',
         customerPhone: '9876543210',
-        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
         items: [{
           productId: 'prod-1',
           quantity: 1,
@@ -1528,7 +1532,7 @@ export async function runPersonalizationTestSuite() {
         customerEmail: 'malformed@snappygifts.in',
         customerName: 'Malformed Proof',
         customerPhone: '9876543210',
-        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
         items: [{
           productId: 'prod-1',
           quantity: 1,
@@ -1553,7 +1557,7 @@ export async function runPersonalizationTestSuite() {
         customerEmail: 'malformed@snappygifts.in',
         customerName: 'Malformed Proof',
         customerPhone: '9876543210',
-        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
         items: [{
           productId: 'prod-1',
           quantity: 1,
@@ -1578,7 +1582,7 @@ export async function runPersonalizationTestSuite() {
         customerEmail: 'malformed@snappygifts.in',
         customerName: 'Malformed Proof',
         customerPhone: '9876543210',
-        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
         items: [{
           productId: 'prod-1',
           quantity: 1,
@@ -1616,7 +1620,7 @@ export async function runPersonalizationTestSuite() {
         customerEmail: 'oversized@snappygifts.in',
         customerName: 'Oversized Proof',
         customerPhone: '9876543210',
-        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
         items: [{
           productId: 'prod-1',
           quantity: 1,
@@ -1643,7 +1647,7 @@ export async function runPersonalizationTestSuite() {
         customerEmail: 'oversized@snappygifts.in',
         customerName: 'Oversized Proof',
         customerPhone: '9876543210',
-        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+        shippingAddress: { name: 'Test', street: 'Test Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
         items: [{
           productId: 'prod-1',
           quantity: 1,
@@ -1679,7 +1683,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'art.customer@snappygifts.in',
       customerName: 'Art Customer',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Art Customer', street: 'Art Way', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Art Customer', street: 'Art Way', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -1746,7 +1750,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'fallback.tester@snappygifts.in',
       customerName: 'Fallback Tester',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Fallback', street: 'Bypass St', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Fallback', street: 'Bypass St', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -1828,7 +1832,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'rework.tester@snappygifts.in',
       customerName: 'Rework Tester',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Customer', street: '1 Palace Road', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Customer', street: '1 Palace Road', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -1880,7 +1884,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'standard.buyer@snappygifts.in',
       customerName: 'Standard Buyer',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Customer', street: '1 Standard Way', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Customer', street: '1 Standard Way', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -1971,7 +1975,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'guest.owner@snappygifts.in',
       customerName: 'Guest Owner',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Guest', street: '1 Guest Road', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Guest', street: '1 Guest Road', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2025,7 +2029,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'target.guest@snappygifts.in',
       customerName: 'Target Guest',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Target', street: '1 Target Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Target', street: '1 Target Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2094,7 +2098,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'race.tester@snappygifts.in',
       customerName: 'Race Tester',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Customer', street: '1 Race Track', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Customer', street: '1 Race Track', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2155,7 +2159,7 @@ export async function runPersonalizationTestSuite() {
           customerEmail: 'cleanup.tester@snappygifts.in',
           customerName: 'Cleanup Tester',
           customerPhone: '9876543210',
-          shippingAddress: { name: 'Customer', street: '1 Cleanup Way', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+          shippingAddress: { name: 'Customer', street: '1 Cleanup Way', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
           items: [{
             productId: 'prod-1',
             quantity: 1,
@@ -2199,7 +2203,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'auth.customer@snappygifts.in',
       customerName: 'Auth Customer',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Customer', street: '1 Jaipur Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Customer', street: '1 Jaipur Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2250,7 +2254,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'guest.shopper@snappygifts.in',
       customerName: 'Guest Shopper',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Guest', street: '2 Ajmer Rd', city: 'Ajmer', state: 'Rajasthan', pincode: '305001' },
+      shippingAddress: { name: 'Guest', street: '2 Ajmer Rd', city: 'Ajmer', state: 'Rajasthan', pincode: '500081' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2313,7 +2317,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'victim@snappygifts.in',
       customerName: 'Victim Customer',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Victim', street: '3 Market St', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Victim', street: '3 Market St', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2366,7 +2370,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'guest.tokenguard@snappygifts.in',
       customerName: 'Token Guard',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Guest', street: '4 Guard St', city: 'Ajmer', state: 'Rajasthan', pincode: '305001' },
+      shippingAddress: { name: 'Guest', street: '4 Guard St', city: 'Ajmer', state: 'Rajasthan', pincode: '500081' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2436,7 +2440,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'mismatch.a@snappygifts.in',
       customerName: 'Mismatch A',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'A', street: 'Street A', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'A', street: 'Street A', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2488,7 +2492,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'stale.test@snappygifts.in',
       customerName: 'Stale Tester',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Tester', street: '5 Version Way', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Tester', street: '5 Version Way', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2545,7 +2549,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'idempotent@snappygifts.in',
       customerName: 'Idempotent User',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'User', street: '6 Repeat Way', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'User', street: '6 Repeat Way', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2605,7 +2609,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'consent.guard@snappygifts.in',
       customerName: 'Consent User',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'User', street: '7 Consent Ave', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'User', street: '7 Consent Ave', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2659,7 +2663,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'staff.boundary@snappygifts.in',
       customerName: 'Boundary User',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'User', street: '8 Secure St', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'User', street: '8 Secure St', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2724,7 +2728,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'lifecycle.gate@snappygifts.in',
       customerName: 'Gate User',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'User', street: '9 Progression Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'User', street: '9 Progression Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2836,7 +2840,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'guest.preview@snappygifts.in',
       customerName: 'Guest Previewer',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Guest', street: '1 Palace Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Guest', street: '1 Palace Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2884,7 +2888,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'guest.invalid@snappygifts.in',
       customerName: 'Guest Invalid',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Guest', street: '1 Palace Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Guest', street: '1 Palace Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2933,7 +2937,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'guest.queryreject@snappygifts.in',
       customerName: 'Guest Query Reject',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Guest', street: '1 Palace Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Guest', street: '1 Palace Rd', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,
@@ -2994,7 +2998,7 @@ export async function runPersonalizationTestSuite() {
       customerEmail: 'owner@customer.in',
       customerName: 'Owner Customer',
       customerPhone: '9876543210',
-      shippingAddress: { name: 'Owner', street: '5 Customer Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '302001' },
+      shippingAddress: { name: 'Owner', street: '5 Customer Lane', city: 'Jaipur', state: 'Rajasthan', pincode: '500062' },
       items: [{
         productId: 'prod-1',
         quantity: 1,

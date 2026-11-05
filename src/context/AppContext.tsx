@@ -38,10 +38,11 @@ interface AppContextType {
   
   // Cart & Wishlist
   cart: CartItem[];
-  addToCart: (product: Product, quantity?: number, customization?: CustomizationOption, isCorporateBulk?: boolean, bulkRecipients?: BulkRecipient[]) => void;
+  addToCart: (product: Product, quantity?: number, customization?: CustomizationOption, isCorporateBulk?: boolean, bulkRecipients?: BulkRecipient[], isGiftWrapped?: boolean) => void;
   updateCartQuantity: (cartItemId: string, quantity: number) => void;
   removeFromCart: (cartItemId: string) => void;
   clearCart: () => void;
+  toggleItemGiftWrap: (cartItemId: string) => void;
   updateCartItemCustomization: (cartItemId: string, customization: CustomizationOption) => void;
   setBulkRecipientsForCartItem: (cartItemId: string, recipients: BulkRecipient[]) => void;
   
@@ -174,7 +175,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponDiscount, setCouponDiscount] = useState<number>(0);
-  const [currentPincode, setCurrentPincode] = useState<string>('305001');
+  const [currentPincode, setCurrentPincode] = useState<string>('500062');
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -288,15 +289,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     quantity: number = 1, 
     customization?: CustomizationOption, 
     isCorporateBulk: boolean = false,
-    bulkRecipients?: BulkRecipient[]
+    bulkRecipients?: BulkRecipient[],
+    isGiftWrapped?: boolean
   ) => {
+    const finalGiftWrap = Boolean(isGiftWrapped || customization?.giftWrap);
     setCart(prev => {
       const unitPrice = calculateUnitPrice(product, quantity, isCorporateBulk);
       // Check if identical item already in cart
       const existingIndex = prev.findIndex(item => 
         item.productId === product.id && 
         JSON.stringify(item.customization) === JSON.stringify(customization) &&
-        item.isCorporateBulk === isCorporateBulk
+        item.isCorporateBulk === isCorporateBulk &&
+        Boolean(item.isGiftWrapped || item.customization?.giftWrap) === finalGiftWrap
       );
 
       if (existingIndex > -1) {
@@ -316,6 +320,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           quantity,
           unitPrice,
           customization,
+          isGiftWrapped: finalGiftWrap,
           isCorporateBulk,
           recipientList: bulkRecipients
         };
@@ -323,6 +328,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
     showToast(`Added ${product.name} to cart!`);
+  };
+
+  const toggleItemGiftWrap = (cartItemId: string) => {
+    setCart(prev => prev.map(item => {
+      if (item.id === cartItemId) {
+        const currentWrapped = Boolean(item.isGiftWrapped || item.customization?.giftWrap);
+        const newWrapped = !currentWrapped;
+        return {
+          ...item,
+          isGiftWrapped: newWrapped,
+          customization: item.customization ? { ...item.customization, giftWrap: newWrapped } : undefined,
+        };
+      }
+      return item;
+    }));
   };
 
   const updateCartQuantity = (cartItemId: string, quantity: number) => {
@@ -600,6 +620,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateCartQuantity,
         removeFromCart,
         clearCart,
+        toggleItemGiftWrap,
         updateCartItemCustomization,
         setBulkRecipientsForCartItem,
         wishlist,

@@ -3,11 +3,11 @@ import './globals.css';
 import { AppProvider } from '@/context/AppContext';
 
 export const metadata: Metadata = {
-  title: 'SNAPPY GIFTZ | Premier B2C & B2B Corporate Gifting Platform',
-  description: 'Premier B2C and B2B gift e-commerce platform with personalized laser-engraved gifts, corporate bulk gifting, RFQ workflow, inventory, GST invoicing, and recipient distribution.',
+  title: 'SNAPPY GIFTZ | Turning Moments Into Memories — Luxury Gifting Studio',
+  description: 'Hyderabad’s premier personalized luxury gifting atelier. Handcrafted bespoke gifts, custom laser engraving, signature keepsake packaging, and direct express delivery across Hyderabad.',
   openGraph: {
-    title: 'SNAPPY GIFTZ | Premier B2C & B2B Corporate Gifting Platform',
-    description: 'Premier B2C and B2B gift e-commerce platform with personalized gifts, corporate bulk gifting, RFQ workflow, inventory, GST invoicing, and recipient distribution.',
+    title: 'SNAPPY GIFTZ | Turning Moments Into Memories — Luxury Gifting Studio',
+    description: 'Hyderabad’s premier personalized luxury gifting atelier. Handcrafted bespoke gifts, custom laser engraving, signature keepsake packaging, and direct express delivery across Hyderabad.',
     type: 'website',
   },
   twitter: {

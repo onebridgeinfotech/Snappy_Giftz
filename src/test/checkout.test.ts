@@ -305,6 +305,122 @@ export async function runCheckoutTestSuite() {
   });
 
   // ------------------------------------------------------------------
+  // 4.5. Authoritative Hyderabad-Only Delivery Enforcement (DEF-01)
+  // ------------------------------------------------------------------
+  console.log('\n--- 4.5. Authoritative Hyderabad Delivery Enforcement (DEF-01) ---');
+
+  await test('Accepts serviceable Hyderabad PIN code (500062) for order creation', async () => {
+    const order = await createOrder({
+      customerName: 'Aarav Malhotra',
+      customerEmail: 'aarav.malhotra@example.com',
+      customerPhone: '9829012345',
+      shippingAddress: {
+        name: 'Aarav Malhotra',
+        street: 'ECIL Cross Roads, Kushaiguda',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        pincode: '500062',
+      },
+      items: [{ productId: 'prod-1', quantity: 1 }],
+      paymentMethod: 'UPI',
+    });
+    assert.ok(order.orderNumber.startsWith('SG-'));
+    assert.equal(order.shippingPincode, '500062');
+  });
+
+  await test('Strictly rejects unserviceable Delhi PIN code (110001) with OrderValidationError', async () => {
+    await assert.rejects(
+      async () => {
+        await createOrder({
+          customerName: 'Pooja Sharma',
+          customerEmail: 'pooja.sharma@example.com',
+          customerPhone: '9820011223',
+          shippingAddress: {
+            name: 'Pooja Sharma',
+            street: 'Connaught Place',
+            city: 'New Delhi',
+            state: 'Delhi',
+            pincode: '110001',
+          },
+          items: [{ productId: 'prod-1', quantity: 1 }],
+          paymentMethod: 'UPI',
+        });
+      },
+      (err: any) => err instanceof OrderValidationError && err.message.includes('Hyderabad')
+    );
+  });
+
+  await test('Strictly rejects unserviceable Ajmer PIN code (305001) with OrderValidationError', async () => {
+    await assert.rejects(
+      async () => {
+        await createOrder({
+          customerName: 'Aarav Malhotra',
+          customerEmail: 'aarav.malhotra@example.com',
+          customerPhone: '9829012345',
+          shippingAddress: {
+            name: 'Aarav Malhotra',
+            street: 'Ana Sagar',
+            city: 'Ajmer',
+            state: 'Rajasthan',
+            pincode: '305001',
+          },
+          items: [{ productId: 'prod-1', quantity: 1 }],
+          paymentMethod: 'UPI',
+        });
+      },
+      (err: any) => err instanceof OrderValidationError && err.message.includes('Hyderabad')
+    );
+  });
+
+  await test('Strictly rejects malformed or invalid PIN codes with OrderValidationError', async () => {
+    await assert.rejects(
+      async () => {
+        await createOrder({
+          customerName: 'Aarav Malhotra',
+          customerEmail: 'aarav.malhotra@example.com',
+          customerPhone: '9829012345',
+          shippingAddress: {
+            name: 'Aarav Malhotra',
+            street: 'Banjara Hills',
+            city: 'Hyderabad',
+            state: 'Telangana',
+            pincode: '12345',
+          },
+          items: [{ productId: 'prod-1', quantity: 1 }],
+          paymentMethod: 'UPI',
+        });
+      },
+      (err: any) => err instanceof OrderValidationError
+    );
+  });
+
+  await test('Preserves gift wrapping selection and applies flat ₹20 fee through createOrder (DEF-02)', async () => {
+    const order = await createOrder({
+      customerName: 'Aarav Malhotra',
+      customerEmail: 'aarav.malhotra@example.com',
+      customerPhone: '9829012345',
+      shippingAddress: {
+        name: 'Aarav Malhotra',
+        street: 'Jubilee Hills Road 36',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        pincode: '500033',
+      },
+      items: [
+        {
+          productId: 'prod-1',
+          quantity: 2,
+          isGiftWrapped: true,
+        },
+      ],
+      paymentMethod: 'UPI',
+    });
+
+    assert.equal(order.items[0].isGiftWrapped, true, 'Item must have isGiftWrapped = true');
+    assert.equal(order.customizationTotalPaise, 2000, 'Customization total must include exactly 2000 paise (₹20)');
+  });
+
+  // ------------------------------------------------------------------
   // 5. Order Creation, Status Isolation & 15-Minute Reservation
   // ------------------------------------------------------------------
   console.log('\n--- 5. Order Creation, Separate Statuses & 15-Minute Hold ---');
@@ -316,10 +432,10 @@ export async function runCheckoutTestSuite() {
       customerPhone: '9829012345',
       shippingAddress: {
         name: 'Aarav Malhotra',
-        street: '14, Ana Sagar Circular Road',
-        city: 'Ajmer',
-        state: 'Rajasthan',
-        pincode: '305001',
+        street: 'Road No. 12, Banjara Hills',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        pincode: '500034',
       },
       items: [{ productId: 'prod-1', quantity: 1 }],
       paymentMethod: 'UPI',
@@ -392,10 +508,10 @@ export async function runCheckoutTestSuite() {
             customerPhone: '9829012345',
             shippingAddress: {
               name: 'Aarav Malhotra',
-              street: '14, Ana Sagar Circular Road',
-              city: 'Ajmer',
-              state: 'Rajasthan',
-              pincode: '305001',
+              street: 'Road No. 12, Banjara Hills',
+              city: 'Hyderabad',
+              state: 'Telangana',
+              pincode: '500034',
             },
             items: [{ productId: 'prod-1', quantity: 1 }],
             paymentMethod: 'UPI',
@@ -422,10 +538,10 @@ export async function runCheckoutTestSuite() {
       customerPhone: '9820011223',
       shippingAddress: {
         name: 'Pooja Sharma',
-        street: 'Connaught Place',
-        city: 'New Delhi',
-        state: 'Delhi',
-        pincode: '110001',
+        street: 'Hitech City, Madhapur',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        pincode: '500081',
       },
       items: [{ productId: 'prod-1', quantity: 2 }],
       paymentMethod: 'Razorpay',
@@ -438,10 +554,10 @@ export async function runCheckoutTestSuite() {
       customerPhone: '9820011223',
       shippingAddress: {
         name: 'Pooja Sharma',
-        street: 'Connaught Place',
-        city: 'New Delhi',
-        state: 'Delhi',
-        pincode: '110001',
+        street: 'Hitech City, Madhapur',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        pincode: '500081',
       },
       items: [{ productId: 'prod-1', quantity: 2 }],
       paymentMethod: 'Razorpay',

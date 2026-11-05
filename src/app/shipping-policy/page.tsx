@@ -6,7 +6,7 @@ import { BUSINESS_CONFIG } from '@/config/business';
 
 export const metadata: Metadata = {
   title: `Shipping Policy | ${BUSINESS_CONFIG.brandName}`,
-  description: `Pan-India shipping rates, timelines, and logistics guidelines for ${BUSINESS_CONFIG.brandName}.`,
+  description: `Hyderabad express shipping rates, timelines, and logistics guidelines for ${BUSINESS_CONFIG.brandName}.`,
 };
 
 export default function ShippingPolicyPage() {
@@ -29,7 +29,7 @@ export default function ShippingPolicyPage() {
         <div className="space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#17181C] border border-[#D5A34A]/30 text-[#D5A34A] text-xs font-mono uppercase tracking-wider">
             <Truck className="w-3.5 h-3.5 text-[#F5BD48]" />
-            <span>Pan-India Distribution</span>
+            <span>Hyderabad Express Delivery</span>
           </div>
           <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-white">
             Shipping Policy
@@ -39,25 +39,27 @@ export default function ShippingPolicyPage() {
 
         <div className="bg-[#17181C] rounded-3xl border border-[#D5A34A]/25 p-6 sm:p-10 space-y-8 text-xs sm:text-sm text-[#CBD5E1] leading-relaxed shadow-xl">
           <section className="space-y-3">
-            <h2 className="font-serif font-bold text-base sm:text-lg text-white">1. Service Coverage</h2>
+            <h2 className="font-serif font-bold text-base sm:text-lg text-white">1. Service Coverage &amp; Delivery Area</h2>
             <p>
-              <strong>{BUSINESS_CONFIG.brandName}</strong> ships across India to over 24,000 postal PIN codes through premier logistics providers (BlueDart Air Express, Delhivery, and express ground couriers).
+              <strong>{BUSINESS_CONFIG.brandName}</strong> exclusively operates within verified Hyderabad express logistics hubs covering approximately a 20 km delivery radius from our registered store origin in <strong>A S Rao Nagar / ECIL / Kapra (PIN 500062)</strong>.
+            </p>
+            <p className="text-xs text-[#94A3B8]">
+              Serviceable locations include ECIL, Sainikpuri, Malkajgiri, Secunderabad, Tarnaka, Begumpet, Banjara Hills, Jubilee Hills, Madhapur, Hitech City, Kondapur, Gachibowli, and surrounding verified Hyderabad postal codes. PIN code eligibility is authoritatively verified prior to order checkout.
             </p>
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif font-bold text-base sm:text-lg text-white">2. Processing &amp; Production Timelines</h2>
-            <ul className="list-disc pl-5 space-y-1 text-xs text-[#CBD5E1]/90">
-              <li><strong>Standard Curations:</strong> Dispatched within 24–48 hours from order confirmation.</li>
-              <li><strong>Personalized Laser Keepsakes:</strong> Dispatched within 2–3 business days following artisan proof approval and laser engraving.</li>
-              <li><strong>Corporate Bulk Orders:</strong> Dispatched according to agreed procurement timelines and schedules.</li>
+            <h2 className="font-serif font-bold text-base sm:text-lg text-white">2. Preparation &amp; Production Timelines</h2>
+            <ul className="list-disc pl-5 space-y-1.5 text-xs text-[#CBD5E1]/90">
+              <li><strong>Minimum Preparation Time:</strong> Handcrafted and personalized items require a minimum of <strong>2 business days</strong> for laser engraving, proof verification, and artisan packaging prior to courier handover.</li>
+              <li><strong>Standard Delivery:</strong> Dispatched and delivered directly to your doorstep via dedicated local courier and express delivery partners once prepared.</li>
             </ul>
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif font-bold text-base sm:text-lg text-white">3. Shipping Charges</h2>
+            <h2 className="font-serif font-bold text-base sm:text-lg text-white">3. Delivery Charges</h2>
             <p>
-              Standard courier delivery is ₹99 for orders below ₹999. Orders of ₹999 or above qualify for complimentary standard shipping across India. Optional Air Express priority dispatch is available at checkout for ₹199.
+              Delivery charges are not based on automated slabs; they are manually entered and confirmed by the store owner for each individual order based on exact distance and delivery requirements. Customers approve the final authoritative amount before completing payment.
             </p>
           </section>
 
@@ -71,7 +73,7 @@ export default function ShippingPolicyPage() {
           <section className="space-y-4 pt-4 border-t border-[#D5A34A]/20">
             <h2 className="font-serif font-bold text-base sm:text-lg text-white">5. Shipping Inquiries &amp; Tracking Support</h2>
             <p>
-              For shipping updates, delayed packages, or address adjustments, please contact:
+              For delivery updates, address adjustments, or order coordination, please contact:
             </p>
             <div className="bg-[#08090B]/60 p-5 rounded-2xl border border-[#D5A34A]/20 space-y-2.5 text-xs">
               <div className="font-bold text-white text-sm">{BUSINESS_CONFIG.brandName}</div>

@@ -87,14 +87,23 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
   const [activeTab, setActiveTab] = useState<'engrave' | 'artwork' | 'giftnote' | 'packaging'>('engrave');
 
   // Batch 7: Artwork Upload, Crop & Placement State
+  const initialArtworks = (initialCustomization?.artworkUploads && initialCustomization.artworkUploads.length > 0)
+    ? initialCustomization.artworkUploads.map(a => ({ id: a.id, filename: a.originalFilename, previewUrl: a.previewUrl || '' }))
+    : initialCustomization?.artworkUploadId
+    ? [{ id: initialCustomization.artworkUploadId, filename: initialCustomization.artworkFilename || 'Custom Artwork', previewUrl: initialCustomization.artworkPreviewUrl || '' }]
+    : [];
+
+  const [uploadedArtworks, setUploadedArtworks] = useState<Array<{ id: string; filename: string; previewUrl: string }>>(
+    initialArtworks
+  );
   const [artworkUploadId, setArtworkUploadId] = useState<string | null>(
-    initialCustomization?.artworkUploadId || null
+    initialArtworks[0]?.id || null
   );
   const [artworkPreviewUrl, setArtworkPreviewUrl] = useState<string | null>(
-    initialCustomization?.artworkPreviewUrl || null
+    initialArtworks[0]?.previewUrl || null
   );
   const [artworkFilename, setArtworkFilename] = useState<string | null>(
-    initialCustomization?.artworkFilename || null
+    initialArtworks[0]?.filename || null
   );
   const [artworkScale, setArtworkScale] = useState<number>(
     initialCustomization?.placementSettings?.scale || 1.0
@@ -184,8 +193,13 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
     if (!file) return;
     setUploadError(null);
 
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError('File size exceeds the 5 MB limit.');
+    if (uploadedArtworks.length >= 3) {
+      setUploadError('Maximum 3 photos allowed per customized item.');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('File size exceeds the 10 MB limit.');
       return;
     }
 
@@ -210,14 +224,42 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
         throw new Error(data.error || 'Artwork upload failed.');
       }
 
-      setArtworkUploadId(data.data.id);
-      setArtworkFilename(data.data.originalFilename);
-      setArtworkPreviewUrl(URL.createObjectURL(file));
+      const previewUrl = URL.createObjectURL(file);
+      const newArtwork = {
+        id: data.data.id,
+        filename: data.data.originalFilename,
+        previewUrl,
+      };
+
+      setUploadedArtworks((prev) => {
+        const next = [...prev, newArtwork];
+        setArtworkUploadId(next[0].id);
+        setArtworkFilename(next[0].filename);
+        setArtworkPreviewUrl(next[0].previewUrl);
+        return next;
+      });
     } catch (err: any) {
       setUploadError(err.message || 'Network error during artwork upload.');
     } finally {
       setIsUploading(false);
+      e.target.value = '';
     }
+  };
+
+  const handleRemoveArtwork = (idToRemove: string) => {
+    setUploadedArtworks((prev) => {
+      const next = prev.filter((a) => a.id !== idToRemove);
+      if (next.length > 0) {
+        setArtworkUploadId(next[0].id);
+        setArtworkFilename(next[0].filename);
+        setArtworkPreviewUrl(next[0].previewUrl);
+      } else {
+        setArtworkUploadId(null);
+        setArtworkFilename(null);
+        setArtworkPreviewUrl(null);
+      }
+      return next;
+    });
   };
 
   /**
@@ -365,7 +407,7 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
     const clientProofDataUrl = await generateCanvasPreviewProof();
 
     onSave({
-      personalizationType: artworkUploadId
+      personalizationType: uploadedArtworks.length > 0
         ? (engravedText ? 'BESPOKE_COMBO' : 'PHOTO_PRINT')
         : 'TEXT_ENGRAVING',
       engravedText,
@@ -375,9 +417,15 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
       boxWrapStyle: finalBoxWrap,
       waxSealColor,
       giftWrap,
-      artworkUploadId: artworkUploadId || undefined,
-      artworkPreviewUrl: artworkPreviewUrl || undefined,
-      artworkFilename: artworkFilename || undefined,
+      artworkUploadId: uploadedArtworks[0]?.id || undefined,
+      artworkUploadIds: uploadedArtworks.map(a => a.id),
+      artworkUploads: uploadedArtworks.map(a => ({
+        id: a.id,
+        originalFilename: a.filename,
+        previewUrl: a.previewUrl,
+      })),
+      artworkPreviewUrl: uploadedArtworks[0]?.previewUrl || undefined,
+      artworkFilename: uploadedArtworks[0]?.filename || undefined,
       clientProofDataUrl: clientProofDataUrl || undefined,
       cropSettings: artworkUploadId ? {
         x: 0,
@@ -659,11 +707,16 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
               {activeTab === 'artwork' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-[#CBD5E1] uppercase tracking-wider mb-1.5">
-                      Upload Logo or Vector Artwork
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-bold text-[#CBD5E1] uppercase tracking-wider">
+                        Upload Photos or Custom Artwork
+                      </label>
+                      <span className="text-[11px] font-semibold text-[#F5BD48]">
+                        {uploadedArtworks.length}/3 Photos
+                      </span>
+                    </div>
                     <p className="text-[11px] text-[#94A3B8] mb-2">
-                      Upload company logo, couple crest, or custom motif. Accepted: PNG, JPEG, WebP (Max 5 MB).
+                      Upload up to 3 photographs, couple crests, or custom motifs. Accepted: JPEG, PNG, WebP (Max 10 MB each).
                     </p>
 
                     {uploadError && (
@@ -673,8 +726,43 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                       </div>
                     )}
 
-                    {!artworkUploadId ? (
-                      <label className="border-2 border-dashed border-[#24252A] hover:border-[#D5A34A]/60 rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer bg-[#17181C]/50 hover:bg-[#24252A]/50 transition-all text-center">
+                    {/* Uploaded Photos List */}
+                    {uploadedArtworks.length > 0 && (
+                      <div className="space-y-2 mb-3">
+                        {uploadedArtworks.map((art, idx) => (
+                          <div
+                            key={art.id}
+                            className="p-2.5 rounded-xl bg-[#17181C] border border-[#24252A] flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-7 h-7 rounded-lg bg-[#24252A] border border-[#D5A34A]/30 flex items-center justify-center text-[#F5BD48] text-xs font-bold shrink-0">
+                                #{idx + 1}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-[#F1F5F9] truncate">
+                                  {art.filename}
+                                </div>
+                                <div className="text-[10px] text-[#94A3B8] font-mono">
+                                  ID: {art.id}
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveArtwork(art.id)}
+                              className="p-1.5 text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                              title="Remove photo"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Upload button if less than 3 */}
+                    {uploadedArtworks.length < 3 && (
+                      <label className="border-2 border-dashed border-[#24252A] hover:border-[#D5A34A]/60 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer bg-[#17181C]/50 hover:bg-[#24252A]/50 transition-all text-center">
                         <input
                           type="file"
                           accept="image/png,image/jpeg,image/webp"
@@ -689,38 +777,14 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-1.5 text-[#94A3B8]">
-                            <Upload className="w-6 h-6 text-[#D5A34A]" />
-                            <span className="text-xs font-bold text-[#F1F5F9]">Click to Upload Artwork</span>
-                            <span className="text-[10px] text-[#64748B]">PNG with transparency recommended</span>
+                            <Upload className="w-5 h-5 text-[#D5A34A]" />
+                            <span className="text-xs font-bold text-[#F1F5F9]">
+                              {uploadedArtworks.length === 0 ? 'Click to Upload Photo / Artwork' : `Add Another Photo (${3 - uploadedArtworks.length} remaining)`}
+                            </span>
+                            <span className="text-[10px] text-[#64748B]">JPEG, PNG, or WebP up to 10 MB</span>
                           </div>
                         )}
                       </label>
-                    ) : (
-                      <div className="p-3 rounded-2xl bg-[#17181C] border border-[#24252A] flex items-center justify-between">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <ImageIcon className="w-4 h-4 text-[#F5BD48] shrink-0" />
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-[#F1F5F9] truncate">
-                              {artworkFilename || 'Custom Artwork Attached'}
-                            </div>
-                            <div className="text-[10px] text-[#94A3B8] font-mono">
-                              ID: {artworkUploadId}
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setArtworkUploadId(null);
-                            setArtworkPreviewUrl(null);
-                            setArtworkFilename(null);
-                          }}
-                          className="p-1.5 text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
-                          title="Remove artwork"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
                     )}
                   </div>
 

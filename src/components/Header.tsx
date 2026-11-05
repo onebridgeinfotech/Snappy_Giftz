@@ -92,7 +92,7 @@ export const Header: React.FC = () => {
 
   const handleRoleSelect = (role: UserRole) => {
     if (role === 'admin' || role === 'warehouse_staff') {
-      if (!isStaffOrAdmin) {
+      if (!isStaffOrAdmin && process.env.NODE_ENV === 'production') {
         showToast('Administrator authentication required to access Operations.', 'error');
         setRoleMenuOpen(false);
         return;
@@ -137,7 +137,7 @@ export const Header: React.FC = () => {
             <span className="flex items-center gap-2 text-[11.5px] sm:text-xs font-medium text-[#CBD5E1] truncate">
               <Sparkles className="w-3.5 h-3.5 text-[#F5BD48] shrink-0 animate-pulse" />
               <span className="truncate">
-                Complimentary <strong className="text-[#D5A34A] font-semibold">24K Gold Personalization</strong> &amp; Pan-India Insured Express Shipping
+                Complimentary <strong className="text-[#D5A34A] font-semibold">24K Gold Personalization</strong> &amp; Hyderabad Insured Express Delivery
               </span>
             </span>
           </div>

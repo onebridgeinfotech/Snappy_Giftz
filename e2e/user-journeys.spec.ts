@@ -16,7 +16,7 @@ test.describe('1. Customer Gifting & Order Lifecycle Journeys', () => {
     await expect(page).toHaveTitle(/SNAPPY GIFTZ|Snappy Gifts/i);
 
     // 2. Browse curated products section
-    const catalogHeading = page.locator('text=CURATED RAJASTHAN CATALOG');
+    const catalogHeading = page.locator('text=THE SNAPPY COLLECTION');
     await expect(catalogHeading).toBeVisible();
 
     // 3. Search and filter
@@ -48,7 +48,7 @@ test.describe('1. Customer Gifting & Order Lifecycle Journeys', () => {
     const authButton = page.locator('button[aria-label*="Manage user account"]');
     if (await authButton.isVisible()) {
       await authButton.click();
-      const authModal = page.locator('role=dialog[aria-labelledby="auth-modal-title"]');
+      const authModal = page.locator('[role="dialog"][aria-labelledby="auth-modal-title"]');
       await expect(authModal).toBeVisible();
 
       // Check registration tab
@@ -68,10 +68,10 @@ test.describe('1. Customer Gifting & Order Lifecycle Journeys', () => {
     const trackOrderBtn = page.locator('button:has-text("Track Order")').first();
     if (await trackOrderBtn.isVisible()) {
       await trackOrderBtn.click();
-      const trackingModal = page.locator('role=dialog[aria-labelledby="tracking-modal-title"]');
+      const trackingModal = page.locator('[role="dialog"][aria-labelledby="tracking-modal-title"]');
       await expect(trackingModal).toBeVisible();
       const closeTrack = page.locator('button[aria-label="Close tracking modal"]');
-      await closeTrack.click();
+      await closeTrack.click({ force: true });
       await expect(trackingModal).not.toBeVisible();
     }
   });
@@ -89,15 +89,18 @@ test.describe('2. Admin Operations & Governance Journeys', () => {
 
       // Verify Admin navigation tabs exist
       const adminTabs = [
-        'Overview',
-        'Orders',
-        'Inventory',
-        'Corporate B2B',
-        'Users & Access',
-        'Reports',
-        'Store Settings',
+        'Overview & KPIs',
+        'Orders & Fulfillment',
+        'Catalogue & Stock',
+        'COD & Hyderabad Delivery',
+        'Customers & Staff',
+        'Reports & CSV Export',
+        'Business Settings',
+        'GST & Seller Setup',
+        'Emails',
         'Audit Trail',
-        'Operations',
+        'System Health & Ops',
+        'Support',
       ];
 
       for (const tabName of adminTabs) {
@@ -110,21 +113,40 @@ test.describe('2. Admin Operations & Governance Journeys', () => {
   });
 });
 
-test.describe('3. Corporate B2B Procurement Journeys', () => {
-  test('Corporate Journey: B2B Portal & RFQ Flow', async ({ page }) => {
+test.describe('3. Corporate B2B Decommissioning Verification', () => {
+  test('Consumer-Only Enforcement: Confirm B2B Portal & Corporate RFQ are Decommissioned', async ({ page, request }) => {
     await page.goto('/');
 
-    // Switch to B2B Portal
+    // 1. Confirm B2B Portal and Quote Inquiry buttons are absent from storefront navigation and DOM
     const b2bButton = page.locator('button:has-text("B2B Portal")');
-    if (await b2bButton.isVisible()) {
-      await b2bButton.click();
-      await page.waitForTimeout(500);
+    await expect(b2bButton).not.toBeVisible();
 
-      // Verify B2B portal options
-      const b2bHeader = page.locator('text=Corporate Gifting & Bulk Procurement');
-      if (await b2bHeader.isVisible()) {
-        expect(await b2bHeader.isVisible()).toBe(true);
-      }
-    }
+    const quoteButton = page.locator('button:has-text("Request Corporate Quote")');
+    await expect(quoteButton).not.toBeVisible();
+
+    const bulkButton = page.locator('button:has-text("Bulk Order Inquiry")');
+    await expect(bulkButton).not.toBeVisible();
+
+    // 2. Confirm Corporate Gifting & Bulk Procurement marketing headers are absent
+    const b2bHeader = page.locator('text=Corporate Gifting & Bulk Procurement');
+    await expect(b2bHeader).not.toBeVisible();
+
+    // 3. Confirm consumer bespoke collection heading is present and visible
+    const consumerHeading = page.locator('text=THE SNAPPY COLLECTION');
+    await expect(consumerHeading).toBeVisible();
+
+    // 4. Confirm corporate B2B and RFQ page routes return 404 Not Found
+    const b2bPageRoute = await request.get('/b2b');
+    expect(b2bPageRoute.status()).toBe(404);
+
+    const corporatePageRoute = await request.get('/corporate');
+    expect(corporatePageRoute.status()).toBe(404);
+
+    // 5. Confirm corporate B2B and RFQ API endpoints are decommissioned and return 404
+    const b2bApiResponse = await request.get('/api/b2b/rfq');
+    expect([404, 405]).toContain(b2bApiResponse.status());
+
+    const corporateApiResponse = await request.get('/api/corporate/rfq');
+    expect([404, 405]).toContain(corporateApiResponse.status());
   });
 });

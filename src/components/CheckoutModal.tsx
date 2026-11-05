@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Order, Address } from '../types';
+import { checkPincodeServiceability } from '../lib/shipping/pincode.service';
 import confetti from 'canvas-confetti';
 import {
   X,
@@ -84,18 +85,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Totals
   const subtotal = cart.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-  const isFreeShipping = subtotal >= 999;
-  const shippingTotal = isFreeShipping ? 0 : 99;
+  const hasGiftWrap = cart.some((item) => Boolean(item.isGiftWrapped || item.customization?.giftWrap));
+  const giftWrapFee = hasGiftWrap ? 20 : 0;
   const discountTotal = couponDiscount;
-  const taxableAmount = Math.max(0, subtotal - discountTotal);
-  const taxTotal = Math.round(taxableAmount * 0.18);
-  const grandTotal = taxableAmount + taxTotal + shippingTotal;
+  const grandTotal = Math.max(0, subtotal + giftWrapFee - discountTotal);
 
   // Handle address submit
   const handleProceedToPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pincode || pincode.length !== 6) {
-      alert('Please enter a valid 6-digit Indian PIN Code');
+    setCheckoutError(null);
+    const cleanPin = pincode ? pincode.trim() : '';
+    if (!cleanPin || cleanPin.length !== 6) {
+      setCheckoutError('Please enter a valid 6-digit Indian PIN Code');
+      return;
+    }
+    const serviceability = checkPincodeServiceability(cleanPin);
+    if (!serviceability.valid || !serviceability.serviceable) {
+      setCheckoutError(serviceability.message || `PIN ${cleanPin} is not eligible for delivery. We currently deliver exclusively within Hyderabad.`);
       return;
     }
     setStep('payment');
@@ -142,9 +148,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             productId: i.productId,
             variantId: i.variant?.id,
             quantity: i.quantity,
+            isGiftWrapped: Boolean(i.isGiftWrapped || i.customization?.giftWrap),
             customization: i.customization ? {
               note: i.customization.engravedText || i.customization.specialInstructions || i.customization.giftNote || undefined,
-            } : undefined,
+              giftWrap: Boolean(i.isGiftWrapped || i.customization?.giftWrap),
+              artworkUploadId: i.customization.artworkUploadId,
+              artworkUploadIds: i.customization.artworkUploadIds || (i.customization.artworkUploadId ? [i.customization.artworkUploadId] : undefined),
+            } : (i.isGiftWrapped ? { giftWrap: true } : undefined),
           })),
           paymentMethod,
           idempotencyKey,
@@ -497,16 +507,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-[#CBD5E1] mb-1">
-                    6-Digit PIN Code *
+                    6-Digit PIN Code * (Hyderabad Hub Only)
                   </label>
                   <input
                     type="text"
                     required
                     maxLength={6}
                     value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
+                    onChange={(e) => {
+                      setPincode(e.target.value);
+                      setCheckoutError(null);
+                    }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#D5A34A]/25 bg-[#24252A] text-xs sm:text-sm font-mono text-[#F1F5F9] focus:border-[#D5A34A] focus:ring-1 focus:ring-[#D5A34A] outline-hidden"
                   />
+                  {pincode.trim().length === 6 && (() => {
+                    const pinRes = checkPincodeServiceability(pincode.trim());
+                    return pinRes.serviceable ? (
+                      <p className="text-[11px] text-emerald-400 mt-1 font-medium">
+                        ✓ Serviceable in Hyderabad ({pinRes.city || 'Telangana'})
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-rose-400 mt-1 font-medium">
+                        ✕ {pinRes.message || 'Outside Hyderabad delivery zone'}
+                      </p>
+                    );
+                  })()}
                 </div>
 
                 <div>
@@ -526,12 +551,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               {/* Order summary small row */}
               <div className="p-3 rounded-xl bg-[#17181C] border border-[#D5A34A]/20 flex items-center justify-between text-xs">
                 <div>
-                  <span className="text-[#94A3B8]">Total Payable: </span>
+                  <span className="text-[#94A3B8]">Items Total: </span>
                   <strong className="text-[#F5BD48] text-sm font-serif">₹{grandTotal.toLocaleString('en-IN')}</strong>
-                  <span className="text-[#94A3B8] text-[11px] ml-1">({cart.length} items)</span>
+                  <span className="text-[#94A3B8] text-[11px] ml-1">({cart.length} item{cart.length > 1 ? 's' : ''}{hasGiftWrap ? ' + Gift Wrap' : ''})</span>
                 </div>
-                <span className="text-emerald-400 font-semibold text-[11px]">Free Insurance Included</span>
+                <span className="text-[#CBD5E1] text-[11px]">Delivery charge confirmed by SNAPPY GIFTZ</span>
               </div>
+
+              {checkoutError && (
+                <div role="alert" className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{checkoutError}</span>
+                </div>
+              )}
 
               <div className="pt-2 flex justify-between items-center">
                 <button
@@ -686,22 +718,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span>Subtotal ({cart.length} items)</span>
                   <span className="font-mono text-white">₹{subtotal.toLocaleString('en-IN')}</span>
                 </div>
+                {giftWrapFee > 0 && (
+                  <div className="flex justify-between text-[#F5BD48]">
+                    <span>Signature Luxury Gift Wrapping</span>
+                    <span className="font-mono">+₹{giftWrapFee}</span>
+                  </div>
+                )}
                 {discountTotal > 0 && (
                   <div className="flex justify-between text-emerald-400 font-semibold">
                     <span>Discount</span>
                     <span>-₹{discountTotal.toLocaleString('en-IN')}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-[#CBD5E1]">
-                  <span>GST (18% Intra/Inter State)</span>
-                  <span className="font-mono text-white">₹{taxTotal.toLocaleString('en-IN')}</span>
+                <div className="flex justify-between text-[#CBD5E1] pt-1">
+                  <span>Delivery Charge</span>
+                  <span className="text-[#F5BD48] font-medium text-[11px]">To be confirmed by SNAPPY GIFTZ</span>
                 </div>
-                <div className="flex justify-between text-[#CBD5E1]">
-                  <span>Delivery</span>
-                  <span>{shippingTotal === 0 ? <strong className="text-emerald-400 uppercase text-[11px]">FREE</strong> : `₹${shippingTotal}`}</span>
-                </div>
+                <p className="text-[10px] text-[#94A3B8] italic pt-0.5">
+                  Delivery charge is calculated based on your exact Hyderabad address and confirmed by the store owner.
+                </p>
                 <div className="pt-2 border-t border-[#D5A34A]/20 flex justify-between items-baseline font-bold text-sm">
-                  <span className="text-white">Grand Total Payable</span>
+                  <span className="text-white">Estimated Items Total</span>
                   <span className="font-serif text-xl text-[#F5BD48]">₹{grandTotal.toLocaleString('en-IN')}</span>
                 </div>
               </div>

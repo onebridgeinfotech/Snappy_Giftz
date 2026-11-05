@@ -4,6 +4,9 @@ import { hashPassword, validatePasswordStrength } from '@/lib/auth/password';
 import { createSession, getSessionCookieOptions } from '@/lib/auth/session';
 import { Role } from '@prisma/client';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
+import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
+import { renderCustomerRegistrationTemplate } from '@/lib/email/email-templates';
+import { getSellerConfig } from '@/lib/invoices/seller-config.service';
 
 export async function POST(req: Request) {
   try {
@@ -81,6 +84,26 @@ export async function POST(req: Request) {
     const { sessionToken, expiresAt } = await createSession(user.id);
     const cookieOptions = getSessionCookieOptions(expiresAt);
 
+    // 7. Enqueue Welcome Transactional Email
+    try {
+      const seller = await getSellerConfig();
+      const emailContent = renderCustomerRegistrationTemplate(seller, {
+        customerName: user.name,
+        customerEmail: user.email,
+      });
+      await enqueueTransactionalEmail({
+        idempotencyKey: `email:welcome:${user.id}`,
+        eventType: 'CUSTOMER_REGISTRATION',
+        recipientEmail: user.email,
+        recipientName: user.name,
+        subject: emailContent.subject,
+        htmlBody: emailContent.html,
+        textBody: emailContent.text,
+      });
+    } catch (emailErr) {
+      console.warn('[AUTH_REGISTER] Non-fatal welcome email enqueue failure:', emailErr);
+    }
+
     const response = NextResponse.json({
       success: true,
       user: {
@@ -94,8 +117,21 @@ export async function POST(req: Request) {
 
     response.cookies.set(cookieOptions.name, sessionToken, cookieOptions);
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('[API_AUTH_REGISTER] Error:', error);
+    if (
+      error?.code === 'P1001' ||
+      error?.name === 'PrismaClientInitializationError' ||
+      /reach database|connection|ECONNREFUSED|ETIMEDOUT|PrismaClientInitializationError/i.test(error?.message || '')
+    ) {
+      return NextResponse.json(
+        {
+          error: 'Authentication database is temporarily unreachable. Please try again in a few moments or contact support.',
+          code: 'DATABASE_UNAVAILABLE',
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ error: 'An unexpected error occurred during registration. Please try again.' }, { status: 500 });
   }
 }
