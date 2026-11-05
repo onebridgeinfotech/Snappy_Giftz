@@ -775,6 +775,8 @@ export const AdminDashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!isAdminAuthenticated) return;
+
     if (activeAdminTab === 'overview') {
       fetchOverviewMetrics();
     } else if (activeAdminTab === 'quotations') {
@@ -796,6 +798,7 @@ export const AdminDashboard: React.FC = () => {
       fetchSystemHealth();
     }
   }, [
+    isAdminAuthenticated,
     activeAdminTab,
     fetchOverviewMetrics,
     fetchCorporateAdminData,
@@ -3897,7 +3900,7 @@ export const AdminDashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleValidateGDriveFolders}
-                    disabled={isValidatingGDriveFolders || !gdriveStatus?.isConnected}
+                    disabled={isValidatingGDriveFolders}
                     className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 disabled:opacity-50"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isValidatingGDriveFolders ? 'animate-spin' : ''}`} />
@@ -3907,7 +3910,7 @@ export const AdminDashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleOpenGooglePicker}
-                    disabled={isValidatingGDriveFolders || !gdriveStatus?.isConnected}
+                    disabled={isValidatingGDriveFolders}
                     className="px-3 py-1.5 rounded-xl bg-[#D5A34A]/20 hover:bg-[#D5A34A]/30 text-[#D5A34A] text-xs font-semibold border border-[#D5A34A]/30 flex items-center gap-1.5 disabled:opacity-50"
                   >
                     <Folder className="w-3.5 h-3.5" />
@@ -3917,7 +3920,7 @@ export const AdminDashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleAuthorizePickerFolders()}
-                    disabled={isValidatingGDriveFolders || !gdriveStatus?.isConnected}
+                    disabled={isValidatingGDriveFolders}
                     className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold border border-amber-500/20 flex items-center gap-1.5 disabled:opacity-50"
                     title="Validate and authorize the 5 pre-configured folders directly on the server"
                   >
