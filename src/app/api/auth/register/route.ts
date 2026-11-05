@@ -37,8 +37,16 @@ export async function POST(req: Request) {
     // Corporate client onboarding requires organization profile submission and staff verification.
     const assignedRole: Role = Role.CUSTOMER;
 
-    // Security Rule: Protected Admin Account Reservation
-    if (cleanEmail === 'phoenixnot13@gmail.com') {
+    const protectedAdminEmails = new Set(
+      [
+        process.env.ADMIN_EMAIL,
+        'phoenixnot13@gmail.com',
+        'onebridgeinfotech@gmail.com',
+      ]
+        .filter(Boolean)
+        .map((e) => String(e).trim().toLowerCase())
+    );
+    if (protectedAdminEmails.has(cleanEmail)) {
       return NextResponse.json(
         { error: 'This administrative account is protected and cannot be registered via public customer signup.' },
         { status: 403 }
