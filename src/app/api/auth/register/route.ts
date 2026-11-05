@@ -4,26 +4,13 @@ import { hashPassword, validatePasswordStrength } from '@/lib/auth/password';
 import { createSession, getSessionCookieOptions } from '@/lib/auth/session';
 import { Role } from '@prisma/client';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
+import { getClientIp } from '@/lib/security/client-ip';
 import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
 import { renderCustomerRegistrationTemplate } from '@/lib/email/email-templates';
 import { getSellerConfig } from '@/lib/invoices/seller-config.service';
 
 export async function POST(req: Request) {
   try {
-    const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
-
-    // Rate Limiting Guard: Prevent mass account creation spam
-    const rateLimit = await enforceRateLimit('AUTH_REGISTER', ipAddress);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: 'Too many registration requests. Please try again after one minute.' },
-        {
-          status: 429,
-          headers: { 'Retry-After': String(rateLimit.retryAfterSeconds || 60) },
-        }
-      );
-    }
-
     const body = await req.json();
     const { name, email, password, phone } = body;
 
@@ -65,6 +52,22 @@ export async function POST(req: Request) {
 
     if (existing) {
       return NextResponse.json({ error: 'An account with this email address already exists.' }, { status: 409 });
+    }
+
+    const ipAddress = getClientIp(req);
+    const rateLimit = await enforceRateLimit('AUTH_REGISTER', `${ipAddress}:${cleanEmail}`);
+    if (!rateLimit.allowed) {
+      const retrySec = rateLimit.retryAfterSeconds || 60;
+      const retryMin = Math.max(1, Math.ceil(retrySec / 60));
+      return NextResponse.json(
+        {
+          error: `Too many registration attempts for this email. Please wait about ${retryMin} minute(s) and try again.`,
+        },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(retrySec) },
+        }
+      );
     }
 
     // 5. Hash password using bcrypt with salt

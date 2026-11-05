@@ -55,7 +55,8 @@ export interface RateLimitAdapter {
 export const RATE_LIMIT_PRESETS: Record<string, RateLimitConfig> = {
   // Authentication & Credentials
   AUTH_LOGIN: { limit: 5, windowSeconds: 60, failClosedInProduction: true },
-  AUTH_REGISTER: { limit: 3, windowSeconds: 60, failClosedInProduction: true },
+  // Per IP+email after input validation — allows legitimate retries without sharing one global bucket
+  AUTH_REGISTER: { limit: 10, windowSeconds: 600, failClosedInProduction: false },
   AUTH_OTP_SEND: { limit: 3, windowSeconds: 60, failClosedInProduction: true },
   AUTH_OTP_VERIFY: { limit: 5, windowSeconds: 60, failClosedInProduction: true },
 
@@ -185,11 +186,20 @@ export function getRateLimitAdapter(): { adapter: RateLimitAdapter; backend: 'up
   const isProd = process.env.NODE_ENV === 'production';
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const backendPref = (process.env.RATE_LIMIT_BACKEND || '').trim().toLowerCase();
 
   if (upstashUrl && upstashToken) {
     return {
       adapter: new UpstashRedisRateLimitAdapter(upstashUrl, upstashToken),
       backend: 'upstash-redis',
+    };
+  }
+
+  // Single-node hosting (e.g. Hostinger) may use in-memory limits when Redis is not provisioned
+  if (backendPref === 'memory') {
+    return {
+      adapter: DEV_RATE_LIMITER_STORE,
+      backend: 'memory',
     };
   }
 

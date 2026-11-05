@@ -257,8 +257,8 @@ export async function runSecurityTestSuite(): Promise<{ passed: number; failed: 
     resetRateLimitDevStore();
     const id = 'user_same_ip';
 
-    // Exhaust AUTH_REGISTER (limit = 3)
-    for (let i = 0; i < 3; i++) {
+    // Exhaust AUTH_REGISTER (limit = 10)
+    for (let i = 0; i < 10; i++) {
       await enforceRateLimit('AUTH_REGISTER', id);
     }
     const regRes = await enforceRateLimit('AUTH_REGISTER', id);
