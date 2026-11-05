@@ -74,6 +74,8 @@ export const AdminDashboard: React.FC = () => {
       .then((data) => {
         if (data.authenticated && data.user && (data.user.role === 'ADMIN' || data.user.role === 'STAFF')) {
           setIsAdminAuthenticated(true);
+        } else if (data.authenticated && data.user && data.user.role === 'CUSTOMER') {
+          setIsAdminAuthenticated(false);
         } else if (currentRole === 'admin' || currentRole === 'warehouse_staff') {
           setIsAdminAuthenticated(true);
         } else {

@@ -15,6 +15,8 @@ import { runCorporateTestSuite } from './corporate.test';
 import { runAdminTestSuite } from './admin.test';
 import { runSecurityTestSuite } from './security.test';
 import { runE2EJourneysTestSuite } from './e2e-journeys.test';
+import { runLoginPageTests } from './login-page.test';
+import { runPasswordResetTestSuite } from './password-reset.test';
 
 async function main() {
   console.log('====================================================');
@@ -57,6 +59,12 @@ async function main() {
   // Run E2E User Journeys Suite (Batch 11)
   const e2eResults = await runE2EJourneysTestSuite();
 
+  // Run Customer Login Page & OAuth Architecture Suite
+  const loginResults = await runLoginPageTests();
+
+  // Run Forgot Password & Password Reset Suite (Batch 14)
+  const passwordResetResults = await runPasswordResetTestSuite();
+
   const totalPassed =
     authResults.passed +
     catalogResults.passed +
@@ -69,7 +77,10 @@ async function main() {
     corporateResults.passed +
     adminResults.passed +
     securityResults.passed +
-    e2eResults.passed;
+    e2eResults.passed +
+    loginResults.passed +
+    passwordResetResults.passed;
+
   const totalFailed =
     authResults.failed +
     catalogResults.failed +
@@ -82,7 +93,9 @@ async function main() {
     corporateResults.failed +
     adminResults.failed +
     securityResults.failed +
-    e2eResults.failed;
+    e2eResults.failed +
+    loginResults.failed +
+    passwordResetResults.failed;
 
   console.log('====================================================');
   console.log('            MASTER TEST EXECUTION SUMMARY           ');
@@ -99,6 +112,8 @@ async function main() {
   console.log(` 10. Admin & Business Ops (10): ${adminResults.passed} passed, ${adminResults.failed} failed`);
   console.log(` 11. Security Audit & QA (11):  ${securityResults.passed} passed, ${securityResults.failed} failed`);
   console.log(` 12. E2E User Journeys (11):   ${e2eResults.passed} passed, ${e2eResults.failed} failed`);
+  console.log(` 13. Customer Login & OAuth:    ${loginResults.passed} passed, ${loginResults.failed} failed`);
+  console.log(` 14. Password Reset & OTP (14): ${passwordResetResults.passed} passed, ${passwordResetResults.failed} failed`);
   console.log('----------------------------------------------------');
   console.log(`  TOTAL VERIFIED TESTS:         ${totalPassed} passed, ${totalFailed} failed`);
   console.log('====================================================\n');
@@ -114,4 +129,3 @@ main().catch((err) => {
   console.error('\n❌ Test suite failed:', err.message);
   process.exit(1);
 });
-

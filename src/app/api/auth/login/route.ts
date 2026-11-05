@@ -11,7 +11,7 @@ const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZd
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, password } = body;
+    const { email, password, rememberMe = true } = body;
 
     if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
       return NextResponse.json({ error: 'Please enter both email and password.' }, { status: 400 });
@@ -58,8 +58,8 @@ export async function POST(req: Request) {
     const userAgent = req.headers.get('user-agent') || undefined;
 
     // 5. Create database session (storing SHA-256 hash) and set HTTP-only cookie
-    const { sessionToken, expiresAt } = await createSession(user.id, { userAgent, ipAddress });
-    const cookieOptions = getSessionCookieOptions(expiresAt);
+    const { sessionToken, expiresAt } = await createSession(user.id, { userAgent, ipAddress, rememberMe: Boolean(rememberMe) });
+    const cookieOptions = getSessionCookieOptions(expiresAt, Boolean(rememberMe));
 
     const response = NextResponse.json({
       success: true,

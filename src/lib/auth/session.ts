@@ -4,13 +4,15 @@ import { User, Session } from '@prisma/client';
 
 export const SESSION_COOKIE_NAME = 'snappy_session_token';
 export const SESSION_TTL_DAYS = 30;
+export const SESSION_TRANSIENT_DAYS = 1;
 
 export interface SessionWithUser {
   session: Session;
   user: User;
 }
 
-export function getSessionCookieOptions(expiresAt: Date) {
+export function getSessionCookieOptions(expiresAt: Date, rememberMe: boolean = true) {
+  const maxAgeSeconds = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
   const isProd = process.env.NODE_ENV === 'production';
   return {
     name: SESSION_COOKIE_NAME,
@@ -19,6 +21,7 @@ export function getSessionCookieOptions(expiresAt: Date) {
     sameSite: 'lax' as const,
     path: '/',
     expires: expiresAt,
+    maxAge: maxAgeSeconds,
   };
 }
 
@@ -48,11 +51,12 @@ export const DEV_SESSIONS_STORE = new Map<string, SessionWithUser>();
  */
 export async function createSession(
   userId: string,
-  meta?: { ipAddress?: string; userAgent?: string; role?: any; email?: string }
+  meta?: { ipAddress?: string; userAgent?: string; role?: any; email?: string; rememberMe?: boolean }
 ): Promise<{ sessionToken: string; expiresAt: Date }> {
   const rawSessionToken = generateSessionToken();
   const tokenHash = hashSessionToken(rawSessionToken);
-  const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
+  const ttlDays = meta?.rememberMe === false ? SESSION_TRANSIENT_DAYS : SESSION_TTL_DAYS;
+  const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
 
   try {
     await prisma.session.create({
