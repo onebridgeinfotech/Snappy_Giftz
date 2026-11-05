@@ -11,7 +11,10 @@ export class SmtpEmailService implements EmailAdapter {
   private pass: string;
   private fromEmail: string;
   private fromName: string;
-  private isProduction: boolean;
+
+  private get isProduction(): boolean {
+    return process.env.NODE_ENV === 'production';
+  }
 
   constructor() {
     this.host = process.env.SMTP_HOST || 'localhost';
@@ -21,7 +24,6 @@ export class SmtpEmailService implements EmailAdapter {
     this.pass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS || '';
     this.fromEmail = process.env.SMTP_FROM_EMAIL || process.env.EMAIL_FROM || 'orders@snappygiftz.com';
     this.fromName = process.env.SMTP_FROM_NAME || 'SNAPPY GIFTZ';
-    this.isProduction = process.env.NODE_ENV === 'production';
 
     this.initTransporter();
   }

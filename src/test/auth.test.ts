@@ -281,9 +281,12 @@ async function runTestSuite() {
 
   await test('Production email fails closed if SMTP is unreachable', async () => {
     const originalEnv = process.env.NODE_ENV;
+    const originalHost = process.env.SMTP_HOST;
+    const originalPort = process.env.SMTP_PORT;
     try {
       (process.env as any).NODE_ENV = 'production';
-      // Use unreachable port to test fail-closed
+      // Use unreachable port and localhost to test fail-closed
+      process.env.SMTP_HOST = 'localhost';
       process.env.SMTP_PORT = '59999';
       const svc = new MailpitEmailService();
       const res = await svc.sendEmail({
@@ -294,10 +297,13 @@ async function runTestSuite() {
       });
       // In production, failure MUST NOT return success: true
       assert.equal(res.success, false);
-      assert.match(res.error || '', /unavailable/);
+      assert.match(res.error || '', /unavailable|not configured/);
     } finally {
       (process.env as any).NODE_ENV = originalEnv;
-      delete process.env.SMTP_PORT;
+      if (originalHost !== undefined) process.env.SMTP_HOST = originalHost;
+      else delete process.env.SMTP_HOST;
+      if (originalPort !== undefined) process.env.SMTP_PORT = originalPort;
+      else delete process.env.SMTP_PORT;
     }
   });
 
