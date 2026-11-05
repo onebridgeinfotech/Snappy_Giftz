@@ -17,6 +17,7 @@ export interface GoogleDriveConfigStatus {
   connectedAt?: string | null;
   lastSyncedAt?: string | null;
   lastError?: string | null;
+  zeroSilentReplacementsEnforced?: boolean;
 }
 
 export interface GoogleDriveUploadInput {
@@ -32,8 +33,74 @@ export interface GoogleDriveUploadResult {
   mimeType: string;
   sizeBytes: number;
   folderId: string;
+  parents?: string[];
   webViewLink?: string;
   webContentLink?: string;
+}
+
+export interface BusinessDriveFolderConfig {
+  id: string;
+  name: string;
+  description: string;
+  mimeType: string;
+}
+
+/**
+ * Pre-existing 5 Google Drive folders supplied by the business owner.
+ * The application MUST reliably use these exact folder IDs without creating parallel or replacement folders.
+ */
+export const BUSINESS_DRIVE_FOLDERS: Record<
+  'root' | 'productImages' | 'customerPhotos' | 'orderAttachments' | 'invoices',
+  BusinessDriveFolderConfig
+> = {
+  root: {
+    id: '1tyIZoYxyduRYjEmJARsCc_d4LfAYyFQ8',
+    name: 'SNAPPY_GIFTZ_STORAGE',
+    description: 'Root storage folder in Google Drive',
+    mimeType: 'application/vnd.google-apps.folder',
+  },
+  productImages: {
+    id: '1auWYCCQJWgn28rk3JEexW8aKzZI5NhxL',
+    name: 'Product_Images',
+    description: 'Public catalog product photography and media assets',
+    mimeType: 'application/vnd.google-apps.folder',
+  },
+  customerPhotos: {
+    id: '1yJnAAnmaAKWcbg1DvvTbtf3KZ8LmOtr0',
+    name: 'Customer_Personalization_Photos',
+    description: 'Private customer artwork, photo prints, and personalization uploads',
+    mimeType: 'application/vnd.google-apps.folder',
+  },
+  orderAttachments: {
+    id: '1526s264h3zrZSaF_rG5Cgmfm7WirSQLL',
+    name: 'Order_Attachments',
+    description: 'Customer order attachments and damage claim evidence photos',
+    mimeType: 'application/vnd.google-apps.folder',
+  },
+  invoices: {
+    id: '1MBF1cmNf2-P6OcWxBAVP1S2qVPb0vX4s',
+    name: 'Invoices',
+    description: 'Audited GST tax invoice PDF documents',
+    mimeType: 'application/vnd.google-apps.folder',
+  },
+};
+
+/**
+ * Thrown when one or more pre-configured Google Drive folders cannot be accessed under the drive.file scope.
+ * The system enforces zero silent replacements: it throws loudly rather than creating duplicate folders.
+ */
+export class GoogleDriveFolderInaccessibleError extends Error {
+  public folderKey: string;
+  public folderId: string;
+  public originalError?: any;
+
+  constructor(folderKey: string, folderId: string, message: string, originalError?: any) {
+    super(message);
+    this.name = 'GoogleDriveFolderInaccessibleError';
+    this.folderKey = folderKey;
+    this.folderId = folderId;
+    this.originalError = originalError;
+  }
 }
 
 // In-memory fallback state for when database is offline or unmigrated in dev/test
@@ -84,18 +151,64 @@ export class GoogleDriveService {
    * Resolves the configured OAuth2 credentials.
    * Prioritizes GOOGLE_DRIVE_* specific variables, cleanly falling back to general GOOGLE_* variables.
    */
-  private getCredentials() {
+  getCredentials() {
     const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '';
     const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || '';
     const redirectUri =
       process.env.GOOGLE_DRIVE_REDIRECT_URI ||
       `${process.env.NEXT_PUBLIC_APP_URL || 'https://snappygiftz.com'}/api/integrations/google-drive/callback`;
+    const developerKey = process.env.GOOGLE_PICKER_API_KEY || process.env.GOOGLE_API_KEY || '';
 
     return {
       clientId: clientId.trim(),
       clientSecret: clientSecret.trim(),
       redirectUri: redirectUri.trim(),
+      developerKey: developerKey.trim(),
       isConfigured: Boolean(clientId.trim() && clientSecret.trim()),
+    };
+  }
+
+  /**
+   * Resolves the 5 target Google Drive folder IDs.
+   * Prioritizes explicit environment variable overrides, then persisted integration record,
+   * cleanly defaulting to the 5 folders supplied by the business owner.
+   */
+  getConfiguredFolderIds(cachedFolders?: Partial<DriveIntegrationRecord>): {
+    rootFolderId: string;
+    productImagesFolderId: string;
+    customerPhotosFolderId: string;
+    orderAttachmentsFolderId: string;
+    invoicesFolderId: string;
+  } {
+    return {
+      rootFolderId: (
+        process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID ||
+        process.env.GOOGLE_DRIVE_FOLDER_ID ||
+        cachedFolders?.rootFolderId ||
+        BUSINESS_DRIVE_FOLDERS.root.id
+      ).trim(),
+      productImagesFolderId: (
+        process.env.GOOGLE_DRIVE_PRODUCT_IMAGES_FOLDER_ID ||
+        process.env.GOOGLE_DRIVE_PRODUCT_FOLDER_ID ||
+        cachedFolders?.productImagesFolderId ||
+        BUSINESS_DRIVE_FOLDERS.productImages.id
+      ).trim(),
+      customerPhotosFolderId: (
+        process.env.GOOGLE_DRIVE_CUSTOMER_PHOTOS_FOLDER_ID ||
+        process.env.GOOGLE_DRIVE_CUSTOMER_FOLDER_ID ||
+        cachedFolders?.customerPhotosFolderId ||
+        BUSINESS_DRIVE_FOLDERS.customerPhotos.id
+      ).trim(),
+      orderAttachmentsFolderId: (
+        process.env.GOOGLE_DRIVE_ORDER_ATTACHMENTS_FOLDER_ID ||
+        cachedFolders?.orderAttachmentsFolderId ||
+        BUSINESS_DRIVE_FOLDERS.orderAttachments.id
+      ).trim(),
+      invoicesFolderId: (
+        process.env.GOOGLE_DRIVE_INVOICES_FOLDER_ID ||
+        cachedFolders?.invoicesFolderId ||
+        BUSINESS_DRIVE_FOLDERS.invoices.id
+      ).trim(),
     };
   }
 
@@ -290,7 +403,29 @@ export class GoogleDriveService {
 
     // 4. Initialize and verify folder hierarchy in Google Drive
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
-    const folders = await this.ensureFolderHierarchy(drive, existing);
+    const configuredIds = this.getConfiguredFolderIds(existing);
+    let lastError: string | null = null;
+    let rootFolderId = configuredIds.rootFolderId;
+    let productImagesFolderId = configuredIds.productImagesFolderId;
+    let customerPhotosFolderId = configuredIds.customerPhotosFolderId;
+    let orderAttachmentsFolderId = configuredIds.orderAttachmentsFolderId;
+    let invoicesFolderId = configuredIds.invoicesFolderId;
+
+    try {
+      const folders = await this.ensureFolderHierarchy(drive, existing);
+      rootFolderId = folders.rootFolderId;
+      productImagesFolderId = folders.productImagesFolderId;
+      customerPhotosFolderId = folders.customerPhotosFolderId;
+      orderAttachmentsFolderId = folders.orderAttachmentsFolderId;
+      invoicesFolderId = folders.invoicesFolderId;
+    } catch (folderErr: any) {
+      if (folderErr instanceof GoogleDriveFolderInaccessibleError) {
+        lastError = `Google Drive connected, but pre-existing folders require Google Picker authorization: ${folderErr.message}`;
+        console.warn('[GoogleDriveService] Folders require Picker authorization:', lastError);
+      } else {
+        lastError = `Folder verification failed: ${folderErr.message}`;
+      }
+    }
 
     // 5. Persist connection and encrypted credentials
     const updated = await this.saveIntegrationRecord({
@@ -299,23 +434,101 @@ export class GoogleDriveService {
       encryptedRefreshToken,
       encryptedAccessToken,
       accessTokenExpiresAt,
-      rootFolderId: folders.rootFolderId,
-      productImagesFolderId: folders.productImagesFolderId,
-      customerPhotosFolderId: folders.customerPhotosFolderId,
-      orderAttachmentsFolderId: folders.orderAttachmentsFolderId,
-      invoicesFolderId: folders.invoicesFolderId,
+      rootFolderId,
+      productImagesFolderId,
+      customerPhotosFolderId,
+      orderAttachmentsFolderId,
+      invoicesFolderId,
       connectedBy: adminUserId,
       connectedAt: new Date(),
       lastSyncedAt: new Date(),
-      lastError: null,
+      lastError,
     });
 
     return updated;
   }
 
   /**
-   * Ensures the required 4-subfolder hierarchy exists within SNAPPY_GIFTZ_STORAGE on Google Drive.
-   * Prioritizes explicit environment variable overrides (GOOGLE_DRIVE_*_FOLDER_ID) and cached IDs.
+   * Validates access to the 5 configured Google Drive folders without creating parallel or duplicate folders.
+   * Tests each folder ID directly using drive.files.get under the drive.file scope.
+   */
+  async validateFolderAccess(
+    drive: drive_v3.Drive,
+    cachedFolders?: Partial<DriveIntegrationRecord>
+  ): Promise<{
+    allAccessible: boolean;
+    folders: {
+      root: { id: string; name: string; accessible: boolean; error?: string };
+      productImages: { id: string; name: string; accessible: boolean; error?: string };
+      customerPhotos: { id: string; name: string; accessible: boolean; error?: string };
+      orderAttachments: { id: string; name: string; accessible: boolean; error?: string };
+      invoices: { id: string; name: string; accessible: boolean; error?: string };
+    };
+  }> {
+    const ids = this.getConfiguredFolderIds(cachedFolders);
+    const targets = [
+      { key: 'root' as const, id: ids.rootFolderId, expectedName: BUSINESS_DRIVE_FOLDERS.root.name },
+      { key: 'productImages' as const, id: ids.productImagesFolderId, expectedName: BUSINESS_DRIVE_FOLDERS.productImages.name },
+      { key: 'customerPhotos' as const, id: ids.customerPhotosFolderId, expectedName: BUSINESS_DRIVE_FOLDERS.customerPhotos.name },
+      { key: 'orderAttachments' as const, id: ids.orderAttachmentsFolderId, expectedName: BUSINESS_DRIVE_FOLDERS.orderAttachments.name },
+      { key: 'invoices' as const, id: ids.invoicesFolderId, expectedName: BUSINESS_DRIVE_FOLDERS.invoices.name },
+    ];
+
+    const results: any = {};
+    let allAccessible = true;
+
+    for (const target of targets) {
+      try {
+        const res = await drive.files.get({
+          fileId: target.id,
+          fields: 'id, name, mimeType, trashed, capabilities(canAddChildren)',
+        });
+
+        if (!res.data.id || res.data.trashed) {
+          allAccessible = false;
+          results[target.key] = {
+            id: target.id,
+            name: target.expectedName,
+            accessible: false,
+            error: res.data.trashed ? 'Folder is in Google Drive trash' : 'Folder not found',
+          };
+        } else if (res.data.mimeType !== 'application/vnd.google-apps.folder') {
+          allAccessible = false;
+          results[target.key] = {
+            id: target.id,
+            name: target.expectedName,
+            accessible: false,
+            error: `Item is not a folder (MIME type: ${res.data.mimeType})`,
+          };
+        } else {
+          results[target.key] = {
+            id: res.data.id,
+            name: res.data.name || target.expectedName,
+            accessible: true,
+          };
+        }
+      } catch (err: any) {
+        allAccessible = false;
+        const status = err.response?.status || err.code || (err.status ? parseInt(err.status, 10) : 500);
+        results[target.key] = {
+          id: target.id,
+          name: target.expectedName,
+          accessible: false,
+          error: status === 404
+            ? `Not found or not authorized under drive.file scope (HTTP 404). Authorize via Google Picker.`
+            : status === 403
+            ? `Insufficient permissions under drive.file scope (HTTP 403). Authorize via Google Picker.`
+            : (err.message || 'Error checking folder access'),
+        };
+      }
+    }
+
+    return { allAccessible, folders: results };
+  }
+
+  /**
+   * Strictly verifies the configured 5-folder hierarchy without creating parallel or replacement folders.
+   * Throws GoogleDriveFolderInaccessibleError if any folder is missing or inaccessible.
    */
   async ensureFolderHierarchy(
     drive: drive_v3.Drive,
@@ -327,123 +540,136 @@ export class GoogleDriveService {
     orderAttachmentsFolderId: string;
     invoicesFolderId: string;
   }> {
-    // 1. Ensure Root Folder: SNAPPY_GIFTZ_STORAGE
-    let rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || cachedFolders?.rootFolderId;
-    if (rootFolderId) {
-      const exists = await this.checkFileExists(drive, rootFolderId);
-      if (!exists) rootFolderId = undefined;
-    }
-    if (!rootFolderId) {
-      rootFolderId = await this.findOrCreateFolder(drive, this.ROOT_FOLDER_NAME);
-    }
+    const check = await this.validateFolderAccess(drive, cachedFolders);
+    const ids = this.getConfiguredFolderIds(cachedFolders);
 
-    // 2. Ensure Subfolder: Product_Images
-    let productImagesFolderId = process.env.GOOGLE_DRIVE_PRODUCT_IMAGES_FOLDER_ID || cachedFolders?.productImagesFolderId;
-    if (productImagesFolderId) {
-      const exists = await this.checkFileExists(drive, productImagesFolderId);
-      if (!exists) productImagesFolderId = undefined;
-    }
-    if (!productImagesFolderId) {
-      productImagesFolderId = await this.findOrCreateFolder(drive, this.FOLDER_PRODUCT_IMAGES, rootFolderId);
-    }
-
-    // 3. Ensure Subfolder: Customer_Personalization_Photos
-    let customerPhotosFolderId = process.env.GOOGLE_DRIVE_CUSTOMER_PHOTOS_FOLDER_ID || cachedFolders?.customerPhotosFolderId;
-    if (customerPhotosFolderId) {
-      const exists = await this.checkFileExists(drive, customerPhotosFolderId);
-      if (!exists) customerPhotosFolderId = undefined;
-    }
-    if (!customerPhotosFolderId) {
-      customerPhotosFolderId = await this.findOrCreateFolder(drive, this.FOLDER_CUSTOMER_PHOTOS, rootFolderId);
-    }
-
-    // 4. Ensure Subfolder: Order_Attachments
-    let orderAttachmentsFolderId = process.env.GOOGLE_DRIVE_ORDER_ATTACHMENTS_FOLDER_ID || cachedFolders?.orderAttachmentsFolderId;
-    if (orderAttachmentsFolderId) {
-      const exists = await this.checkFileExists(drive, orderAttachmentsFolderId);
-      if (!exists) orderAttachmentsFolderId = undefined;
-    }
-    if (!orderAttachmentsFolderId) {
-      orderAttachmentsFolderId = await this.findOrCreateFolder(drive, this.FOLDER_ORDER_ATTACHMENTS, rootFolderId);
-    }
-
-    // 5. Ensure Subfolder: Invoices
-    let invoicesFolderId = process.env.GOOGLE_DRIVE_INVOICES_FOLDER_ID || cachedFolders?.invoicesFolderId;
-    if (invoicesFolderId) {
-      const exists = await this.checkFileExists(drive, invoicesFolderId);
-      if (!exists) invoicesFolderId = undefined;
-    }
-    if (!invoicesFolderId) {
-      invoicesFolderId = await this.findOrCreateFolder(drive, this.FOLDER_INVOICES, rootFolderId);
+    if (!check.allAccessible) {
+      const inaccessible = Object.entries(check.folders).find(([_, f]) => !f.accessible);
+      const [key, details] = inaccessible || ['unknown', { id: 'unknown', name: 'unknown', error: 'Inaccessible' }];
+      throw new GoogleDriveFolderInaccessibleError(
+        key,
+        details.id,
+        `Google Drive folder "${details.name}" (ID: ${details.id}) is inaccessible: ${details.error}. The system strictly enforces the business owner's pre-configured folders and will NOT create duplicate or replacement folders. Please authorize this folder via Google Picker in the Admin Settings tab.`
+      );
     }
 
     return {
-      rootFolderId,
-      productImagesFolderId,
-      customerPhotosFolderId,
-      orderAttachmentsFolderId,
-      invoicesFolderId,
+      rootFolderId: ids.rootFolderId,
+      productImagesFolderId: ids.productImagesFolderId,
+      customerPhotosFolderId: ids.customerPhotosFolderId,
+      orderAttachmentsFolderId: ids.orderAttachmentsFolderId,
+      invoicesFolderId: ids.invoicesFolderId,
     };
   }
 
   /**
-   * Helper to verify if a file/folder ID exists in Google Drive and is not trashed.
+   * Validates and records folders explicitly selected and authorized by an administrator via Google Picker.
+   * Verifies each folder ID and MIME type on the server using drive.files.get.
    */
-  private async checkFileExists(drive: drive_v3.Drive, fileId: string): Promise<boolean> {
-    try {
-      const res = await drive.files.get({ fileId, fields: 'id, trashed' });
-      return Boolean(res.data.id && !res.data.trashed);
-    } catch {
-      return false;
+  async authorizeFoldersViaPicker(
+    folders: Array<{ id: string; name?: string; type?: string }>
+  ): Promise<{
+    verifiedCount: number;
+    folders: Record<string, { id: string; name: string; verified: boolean }>;
+  }> {
+    if (!folders || !Array.isArray(folders) || folders.length === 0) {
+      throw new Error('No folders provided for authorization.');
     }
-  }
 
-  /**
-   * Finds an existing non-trashed folder by name and parent, or creates it.
-   */
-  private async findOrCreateFolder(
-    drive: drive_v3.Drive,
-    folderName: string,
-    parentId?: string
-  ): Promise<string> {
-    const parentQuery = parentId ? `'${parentId}' in parents and ` : `'root' in parents and `;
-    const q = `${parentQuery}mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' and trashed = false`;
+    const { drive } = await this.getAuthenticatedDriveClient(false);
+    const record = await this.getIntegrationRecord();
 
-    try {
-      const listRes = await drive.files.list({
-        q,
-        fields: 'files(id, name)',
-        spaces: 'drive',
-      });
+    const verifiedMap: Record<string, { id: string; name: string; verified: boolean }> = {};
+    const updates: Partial<DriveIntegrationRecord> = {};
 
-      if (listRes.data.files && listRes.data.files.length > 0 && listRes.data.files[0].id) {
-        return listRes.data.files[0].id;
+    for (const item of folders) {
+      if (!item.id || typeof item.id !== 'string') continue;
+      try {
+        const res = await drive.files.get({
+          fileId: item.id,
+          fields: 'id, name, mimeType, trashed, capabilities(canAddChildren), parents',
+        });
+
+        if (!res.data.id || res.data.trashed) {
+          throw new Error(`Folder "${item.name || item.id}" was not found or is in trash.`);
+        }
+        if (res.data.mimeType !== 'application/vnd.google-apps.folder') {
+          throw new Error(`Item "${res.data.name || item.id}" is not a folder (MIME type: ${res.data.mimeType}).`);
+        }
+
+        const folderName = res.data.name || item.name || '';
+        const folderId = res.data.id;
+        const parents = (res.data.parents as string[]) || [];
+        const expectedRootId = updates.rootFolderId || record.rootFolderId || BUSINESS_DRIVE_FOLDERS.root.id;
+
+        // Map to appropriate role by type, name, or configured ID with strict validation
+        if (
+          item.type === 'root' ||
+          folderId === BUSINESS_DRIVE_FOLDERS.root.id ||
+          folderName === BUSINESS_DRIVE_FOLDERS.root.name
+        ) {
+          updates.rootFolderId = folderId;
+          verifiedMap.root = { id: folderId, name: folderName, verified: true };
+        } else if (
+          item.type === 'productImages' ||
+          folderId === BUSINESS_DRIVE_FOLDERS.productImages.id ||
+          folderName === BUSINESS_DRIVE_FOLDERS.productImages.name
+        ) {
+          updates.productImagesFolderId = folderId;
+          verifiedMap.productImages = { id: folderId, name: folderName, verified: true };
+        } else if (
+          item.type === 'customerPhotos' ||
+          folderId === BUSINESS_DRIVE_FOLDERS.customerPhotos.id ||
+          folderName === BUSINESS_DRIVE_FOLDERS.customerPhotos.name
+        ) {
+          updates.customerPhotosFolderId = folderId;
+          verifiedMap.customerPhotos = { id: folderId, name: folderName, verified: true };
+        } else if (
+          item.type === 'orderAttachments' ||
+          folderId === BUSINESS_DRIVE_FOLDERS.orderAttachments.id ||
+          folderName === BUSINESS_DRIVE_FOLDERS.orderAttachments.name
+        ) {
+          updates.orderAttachmentsFolderId = folderId;
+          verifiedMap.orderAttachments = { id: folderId, name: folderName, verified: true };
+        } else if (
+          item.type === 'invoices' ||
+          folderId === BUSINESS_DRIVE_FOLDERS.invoices.id ||
+          folderName === BUSINESS_DRIVE_FOLDERS.invoices.name
+        ) {
+          updates.invoicesFolderId = folderId;
+          verifiedMap.invoices = { id: folderId, name: folderName, verified: true };
+        } else {
+          // Untyped and unmatched arbitrary folder ID rejected for security
+          throw new Error(
+            `Folder "${folderName}" (${folderId}) does not match any of the 5 pre-configured business storage folders.`
+          );
+        }
+      } catch (err: any) {
+        throw new Error(`Failed to verify Google Drive folder "${item.name || item.id}": ${err.message}`);
       }
-    } catch (err) {
-      console.warn(`[GoogleDriveService] files.list query for folder "${folderName}" failed, attempting creation:`, err);
     }
 
-    // Create folder
-    const createRes = await drive.files.create({
-      requestBody: {
-        name: folderName,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: parentId ? [parentId] : undefined,
-      },
-      fields: 'id',
-    });
+    updates.lastSyncedAt = new Date();
+    await this.saveIntegrationRecord(updates);
 
-    if (!createRes.data.id) {
-      throw new Error(`Failed to create Google Drive folder "${folderName}".`);
+    // Re-check overall access
+    const updatedRecord = await this.getIntegrationRecord();
+    const validation = await this.validateFolderAccess(drive, updatedRecord);
+    if (validation.allAccessible) {
+      await this.saveIntegrationRecord({ lastError: null });
     }
 
-    return createRes.data.id;
+    return {
+      verifiedCount: Object.keys(verifiedMap).length,
+      folders: verifiedMap,
+    };
   }
 
   /**
    * Retrieves an authenticated Google Drive client with automatic token refresh.
+   * If enforceHierarchy is true, strictly validates folder access and throws if inaccessible.
    */
-  async getAuthenticatedDriveClient(): Promise<{
+  async getAuthenticatedDriveClient(enforceHierarchy: boolean = true): Promise<{
     drive: drive_v3.Drive;
     folders: {
       rootFolderId: string;
@@ -499,29 +725,16 @@ export class GoogleDriveService {
     }
 
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
+    const configuredFolders = this.getConfiguredFolderIds(record);
 
-    // Validate folder IDs
-    if (
-      !record.rootFolderId ||
-      !record.productImagesFolderId ||
-      !record.customerPhotosFolderId ||
-      !record.orderAttachmentsFolderId ||
-      !record.invoicesFolderId
-    ) {
-      const folders = await this.ensureFolderHierarchy(drive, record);
-      await this.saveIntegrationRecord(folders);
-      return { drive, folders };
+    if (enforceHierarchy) {
+      const validatedFolders = await this.ensureFolderHierarchy(drive, record);
+      return { drive, folders: validatedFolders };
     }
 
     return {
       drive,
-      folders: {
-        rootFolderId: record.rootFolderId,
-        productImagesFolderId: record.productImagesFolderId,
-        customerPhotosFolderId: record.customerPhotosFolderId,
-        orderAttachmentsFolderId: record.orderAttachmentsFolderId,
-        invoicesFolderId: record.invoicesFolderId,
-      },
+      folders: configuredFolders,
     };
   }
 
@@ -594,7 +807,7 @@ export class GoogleDriveService {
         mimeType,
         body: readable,
       },
-      fields: 'id, name, mimeType, size, webViewLink, webContentLink',
+      fields: 'id, name, mimeType, size, webViewLink, webContentLink, parents',
     });
 
     if (!res.data.id) {
@@ -607,6 +820,7 @@ export class GoogleDriveService {
       mimeType: res.data.mimeType || mimeType,
       sizeBytes: res.data.size ? parseInt(res.data.size, 10) : fileBuffer.length,
       folderId: targetFolderId,
+      parents: (res.data.parents as string[]) || [targetFolderId],
       webViewLink: res.data.webViewLink || undefined,
       webContentLink: res.data.webContentLink || undefined,
     };
@@ -679,19 +893,21 @@ export class GoogleDriveService {
   async getConnectionStatus(): Promise<GoogleDriveConfigStatus> {
     const creds = this.getCredentials();
     const record = await this.getIntegrationRecord();
+    const ids = this.getConfiguredFolderIds(record);
 
     return {
       isConfigured: creds.isConfigured,
       isConnected: Boolean(record.isConnected && record.encryptedRefreshToken),
       accountEmail: record.accountEmail,
-      rootFolderId: record.rootFolderId,
-      productImagesFolderId: record.productImagesFolderId,
-      customerPhotosFolderId: record.customerPhotosFolderId,
-      orderAttachmentsFolderId: record.orderAttachmentsFolderId,
-      invoicesFolderId: record.invoicesFolderId,
+      rootFolderId: record.rootFolderId || ids.rootFolderId,
+      productImagesFolderId: record.productImagesFolderId || ids.productImagesFolderId,
+      customerPhotosFolderId: record.customerPhotosFolderId || ids.customerPhotosFolderId,
+      orderAttachmentsFolderId: record.orderAttachmentsFolderId || ids.orderAttachmentsFolderId,
+      invoicesFolderId: record.invoicesFolderId || ids.invoicesFolderId,
       connectedAt: record.connectedAt ? record.connectedAt.toISOString() : null,
       lastSyncedAt: record.lastSyncedAt ? record.lastSyncedAt.toISOString() : null,
       lastError: record.lastError,
+      zeroSilentReplacementsEnforced: true,
     };
   }
 }

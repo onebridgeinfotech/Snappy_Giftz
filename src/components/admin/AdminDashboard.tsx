@@ -41,7 +41,8 @@ import {
   Server,
   Database,
   Cloud,
-  HardDrive
+  HardDrive,
+  Folder
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -217,9 +218,12 @@ export const AdminDashboard: React.FC = () => {
     connectedAt?: string | null;
     lastSyncedAt?: string | null;
     lastError?: string | null;
+    zeroSilentReplacementsEnforced?: boolean;
   } | null>(null);
   const [isLoadingGDrive, setIsLoadingGDrive] = useState(false);
   const [isDisconnectingGDrive, setIsDisconnectingGDrive] = useState(false);
+  const [isValidatingGDriveFolders, setIsValidatingGDriveFolders] = useState(false);
+  const [gdriveValidationResults, setGdriveValidationResults] = useState<any | null>(null);
   const [gdriveBanner, setGdriveBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Batch 10: Audit Log State
@@ -518,6 +522,149 @@ export const AdminDashboard: React.FC = () => {
       setGdriveBanner({ type: 'error', message: err.message });
     } finally {
       setIsDisconnectingGDrive(false);
+    }
+  };
+
+  const handleValidateGDriveFolders = async () => {
+    setIsValidatingGDriveFolders(true);
+    try {
+      const res = await fetch('/api/integrations/google-drive/validate-folders', { method: 'POST' });
+      const data = await res.json();
+      setGdriveValidationResults(data);
+      if (data.allAccessible) {
+        setGdriveBanner({ type: 'success', message: 'All 5 Google Drive folders verified accessible under drive.file scope!' });
+      } else {
+        setGdriveBanner({
+          type: 'error',
+          message: data.error || 'One or more folders are not accessible under drive.file. Authorization via Google Picker is required.',
+        });
+      }
+      fetchGDriveStatus();
+    } catch (err: any) {
+      setGdriveBanner({ type: 'error', message: err.message || 'Validation request failed.' });
+    } finally {
+      setIsValidatingGDriveFolders(false);
+    }
+  };
+
+  const handleAuthorizePickerFolders = async (foldersToAuthorize?: any[]) => {
+    setIsValidatingGDriveFolders(true);
+    try {
+      // Default to the 5 business folders supplied by owner
+      const payload = foldersToAuthorize || [
+        { id: '1tyIZoYxyduRYjEmJARsCc_d4LfAYyFQ8', name: 'SNAPPY_GIFTZ_STORAGE', type: 'root' },
+        { id: '1auWYCCQJWgn28rk3JEexW8aKzZI5NhxL', name: 'Product_Images', type: 'productImages' },
+        { id: '1yJnAAnmaAKWcbg1DvvTbtf3KZ8LmOtr0', name: 'Customer_Personalization_Photos', type: 'customerPhotos' },
+        { id: '1526s264h3zrZSaF_rG5Cgmfm7WirSQLL', name: 'Order_Attachments', type: 'orderAttachments' },
+        { id: '1MBF1cmNf2-P6OcWxBAVP1S2qVPb0vX4s', name: 'Invoices', type: 'invoices' },
+      ];
+
+      const res = await fetch('/api/integrations/google-drive/picker-authorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folders: payload }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setGdriveBanner({ type: 'success', message: data.message || 'Folders verified and authorized successfully!' });
+        handleValidateGDriveFolders();
+      } else {
+        throw new Error(data.error || 'Failed to authorize folders.');
+      }
+    } catch (err: any) {
+      setGdriveBanner({ type: 'error', message: err.message });
+    } finally {
+      setIsValidatingGDriveFolders(false);
+    }
+  };
+
+  const handleOpenGooglePicker = async () => {
+    try {
+      const cfgRes = await fetch('/api/integrations/google-drive/picker-config');
+      const cfg = await cfgRes.json();
+      if (!cfg.pickerEnabled || !cfg.developerKey) {
+        setGdriveBanner({
+          type: 'error',
+          message: 'Google Picker Developer Key not configured in GOOGLE_PICKER_API_KEY. Click "Verify Configured 5 Folders" to test server-side access directly.',
+        });
+        return;
+      }
+
+      // If developer key is present, load Google Picker script dynamically
+      if (typeof window !== 'undefined') {
+        const loadScript = (src: string) =>
+          new Promise((resolve, reject) => {
+            if (document.querySelector(`script[src="${src}"]`)) return resolve(true);
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => resolve(true);
+            script.onerror = reject;
+            document.body.appendChild(script);
+          });
+
+        await loadScript('https://apis.google.com/js/api.js');
+        await loadScript('https://accounts.google.com/gsi/client');
+
+        const gapi = (window as any).gapi;
+        const googleObj = (window as any).google;
+
+        if (!gapi || !googleObj) {
+          throw new Error('Google Picker API libraries could not be loaded.');
+        }
+
+        gapi.load('picker', () => {
+          const tokenClient = googleObj.accounts.oauth2.initTokenClient({
+            client_id: cfg.clientId,
+            scope: 'https://www.googleapis.com/auth/drive.file',
+            callback: (tokenResponse: any) => {
+              if (tokenResponse && tokenResponse.access_token) {
+                const rootFolderId = cfg.requiredFolders?.root?.id || '1tyIZoYxyduRYjEmJARsCc_d4LfAYyFQ8';
+
+                // View 1: Pre-navigated inside SNAPPY_GIFTZ_STORAGE to select the 4 subfolders
+                const subfoldersView = new googleObj.picker.DocsView(googleObj.picker.ViewId.FOLDERS)
+                  .setIncludeFolders(true)
+                  .setSelectFolderEnabled(true)
+                  .setMimeTypes('application/vnd.google-apps.folder')
+                  .setParent(rootFolderId);
+
+                // View 2: All folders view to select root folder or alternate locations
+                const allFoldersView = new googleObj.picker.DocsView(googleObj.picker.ViewId.FOLDERS)
+                  .setIncludeFolders(true)
+                  .setSelectFolderEnabled(true)
+                  .setMimeTypes('application/vnd.google-apps.folder');
+
+                const pickerBuilder = new googleObj.picker.PickerBuilder()
+                  .setTitle('Select SNAPPY GIFTZ Storage Folders')
+                  .addView(subfoldersView)
+                  .addView(allFoldersView)
+                  .setOAuthToken(tokenResponse.access_token)
+                  .setDeveloperKey(cfg.developerKey)
+                  .enableFeature(googleObj.picker.Feature.MULTISELECT_ENABLED)
+                  .setCallback(async (data: any) => {
+                    if (data.action === googleObj.picker.Action.PICKED) {
+                      const docs = (data.docs || []).map((doc: any) => ({
+                        id: doc.id,
+                        name: doc.name,
+                      }));
+                      await handleAuthorizePickerFolders(docs);
+                    }
+                  });
+
+                if (cfg.clientId) {
+                  const projectNum = cfg.clientId.split('-')[0];
+                  if (projectNum) pickerBuilder.setAppId(projectNum);
+                }
+
+                const picker = pickerBuilder.build();
+                picker.setVisible(true);
+              }
+            },
+          });
+          tokenClient.requestAccessToken({ prompt: '' });
+        });
+      }
+    } catch (err: any) {
+      setGdriveBanner({ type: 'error', message: err.message || 'Google Picker initialization failed.' });
     }
   };
 
@@ -3742,6 +3889,96 @@ export const AdminDashboard: React.FC = () => {
                 <span className="font-mono text-[10px] text-slate-400">ID: {gdriveStatus.rootFolderId}</span>
               </div>
             )}
+
+            {/* Folder Access Verification & Google Picker Authorization Panel */}
+            <div className="p-4 rounded-2xl bg-slate-900 border border-amber-500/20 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-[#D5A34A]" />
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      Folder Permissions & Google Picker Authorization
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Under Google's least-privilege <code className="text-[#D5A34A] font-mono text-[10px]">drive.file</code> scope, pre-existing folders require explicit administrator authorization.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleValidateGDriveFolders}
+                    disabled={isValidatingGDriveFolders || !gdriveStatus?.isConnected}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isValidatingGDriveFolders ? 'animate-spin' : ''}`} />
+                    <span>Verify Folder Permissions</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenGooglePicker}
+                    disabled={isValidatingGDriveFolders || !gdriveStatus?.isConnected}
+                    className="px-3 py-1.5 rounded-xl bg-[#D5A34A]/20 hover:bg-[#D5A34A]/30 text-[#D5A34A] text-xs font-semibold border border-[#D5A34A]/30 flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Folder className="w-3.5 h-3.5" />
+                    <span>Authorize via Google Picker</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAuthorizePickerFolders()}
+                    disabled={isValidatingGDriveFolders || !gdriveStatus?.isConnected}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold border border-amber-500/20 flex items-center gap-1.5 disabled:opacity-50"
+                    title="Validate and authorize the 5 pre-configured folders directly on the server"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Authorize Configured 5 Folders</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Granular Diagnostic Folder Results */}
+              {gdriveValidationResults?.folders && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 pt-1">
+                  {Object.entries(gdriveValidationResults.folders).map(([key, folder]: [string, any]) => (
+                    <div
+                      key={key}
+                      className={`p-2.5 rounded-xl border text-[11px] space-y-1 ${
+                        folder.accessible
+                          ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'
+                          : 'bg-red-950/20 border-red-500/30 text-red-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold truncate">{folder.name}</span>
+                        {folder.accessible ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        )}
+                      </div>
+                      <div className="font-mono text-[9px] text-slate-400 truncate">ID: {folder.id}</div>
+                      {folder.error && (
+                        <p className="text-[10px] text-red-300 line-clamp-2">{folder.error}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Zero Silent Replacement Guarantee Badge */}
+              <div className="px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#D5A34A] shrink-0" />
+                  <span><strong>Zero Silent Replacements Guaranteed:</strong> The system strictly targets the 5 business folder IDs. If access is lost, it reports a clear integration error and preserves local storage rather than creating rogue replacement folders.</span>
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-900/30 text-emerald-300 border border-emerald-700/30 shrink-0">
+                  Enforced
+                </span>
+              </div>
+            </div>
 
             {/* Connection Metadata Footer */}
             <div className="p-3 rounded-xl bg-slate-100/70 border border-slate-200/80 text-[11px] text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
