@@ -24,6 +24,8 @@ yarn-error.log*
 # Local deploy artifacts (never commit)
 .deploy-secrets.local.json
 .hostinger-req.json
+.hostinger-upload-creds.json
+snappy-hostinger-deploy.zip
 
 # Environment & Secrets (Never commit secrets)
 .env*
