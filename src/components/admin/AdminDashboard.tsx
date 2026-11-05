@@ -1169,6 +1169,37 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleSetDeliveryCharge = async (orderId: string, currentShippingPaise: number) => {
+    const currentRupees = (currentShippingPaise / 100).toFixed(2);
+    const input = window.prompt(`Enter delivery charge for this order (in ₹):`, currentRupees || '100');
+    if (input === null) return;
+    const amountRupees = parseFloat(input);
+    if (isNaN(amountRupees) || amountRupees < 0) {
+      showToast('Please enter a valid non-negative delivery amount.', 'error');
+      return;
+    }
+    setAdminOrderError(null);
+    setActionInProgressId(orderId);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/delivery-charge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryChargePaise: Math.round(amountRupees * 100) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update delivery charge.');
+      }
+      showToast(data.message || `Delivery charge set to ₹${amountRupees.toFixed(2)}.`);
+      fetchAdminOrders(adminPagination.page);
+    } catch (err: any) {
+      setAdminOrderError(err.message);
+      showToast(err.message, 'error');
+    } finally {
+      setActionInProgressId(null);
+    }
+  };
+
   const handleViewOrderDetails = async (orderId: string) => {
     setLoadingDetailsId(orderId);
     setAdminOrderError(null);
@@ -2028,6 +2059,19 @@ export const AdminDashboard: React.FC = () => {
                         </td>
 
                         <td className="p-3 text-right whitespace-nowrap space-x-1">
+                          {/* Set Delivery Charge Action */}
+                          {!isTerminal && (
+                            <button
+                              onClick={() => handleSetDeliveryCharge(ord.id, ord.shippingTotalPaise || 0)}
+                              disabled={actionInProgressId === ord.id}
+                              className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-50 inline-flex items-center gap-1 font-semibold"
+                              title="Set / Update Owner Delivery Charge"
+                            >
+                              <DollarSign className="w-3.5 h-3.5" />
+                              <span>Delivery Fee</span>
+                            </button>
+                          )}
+
                           {/* Inspect Details & Audit */}
                           <button
                             onClick={() => handleViewOrderDetails(ord.id)}

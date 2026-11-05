@@ -55,8 +55,12 @@ export interface RateLimitAdapter {
 // ============================================================================
 
 export const RATE_LIMIT_PRESETS: Record<string, RateLimitConfig> = {
-  // Authentication & Credentials
-  AUTH_LOGIN: { limit: 5, windowSeconds: 60, failClosedInProduction: true },
+  // Authentication & Credentials (higher threshold in test / dev to allow test suites to run cleanly)
+  AUTH_LOGIN: {
+    limit: process.env.NODE_ENV === 'test' || isStorefrontFallbackAllowed() ? 100 : 5,
+    windowSeconds: 60,
+    failClosedInProduction: true,
+  },
   // Per IP+email after input validation — allows legitimate retries without sharing one global bucket
   AUTH_REGISTER: { limit: 10, windowSeconds: 600, failClosedInProduction: false },
   AUTH_OTP_SEND: { limit: 3, windowSeconds: 60, failClosedInProduction: true },

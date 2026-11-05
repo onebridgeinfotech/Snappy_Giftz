@@ -8,6 +8,8 @@ import {
 } from '@/lib/orders/order-lifecycle.service';
 import { CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -20,35 +22,23 @@ export async function POST(
     try {
       body = await req.json();
     } catch {
-      body = {};
+      // Empty body is allowed
     }
 
-    if ('paymentStatus' in body || 'payment_status' in body) {
-      return NextResponse.json(
-        {
-          error: 'Payment status cannot be modified via delivery endpoint.',
-          code: 'PAYMENT_STATE_IMMUTABLE',
-        },
-        { status: 400 }
-      );
-    }
-
-    const { deliveredAt, notes } = body;
     const actor = user.name || user.email || 'STAFF';
-
-    const updated = await confirmOrderDelivery(
+    const result = await confirmOrderDelivery(
       id,
       {
-        deliveredAt,
-        notes,
+        deliveredAt: body.deliveredAt,
+        notes: body.notes || 'Confirmed delivery by staff in operations portal.',
       },
       actor
     );
 
     return NextResponse.json({
       success: true,
-      data: updated,
-      message: 'Order delivery confirmed successfully.',
+      message: 'Order delivery confirmed and inventory updated successfully.',
+      data: result,
     });
   } catch (error: any) {
     if (error instanceof AuthError) {
