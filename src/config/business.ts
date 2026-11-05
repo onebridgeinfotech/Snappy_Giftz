@@ -11,8 +11,8 @@ export const BUSINESS_CONFIG = {
   adminEmail: 'phoenixnot13@gmail.com',
   /** Operations inboxes that receive new-order and signup alerts */
   adminEmails: ['phoenixnot13@gmail.com', 'onebridgeinfotech@gmail.com'] as const,
-  whatsappPhone: '8309600721',
-  whatsappFormatted: '+91 83096 00721',
+  whatsappPhone: '9494800862',
+  whatsappFormatted: '+91 94948 00862',
   website: 'https://snappygiftz.com',
   operatingHours: 'Mon-Sat 9:30 AM - 6:30 PM IST',
   minPreparationDays: 2,

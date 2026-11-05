@@ -1,7 +1,8 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AppProvider } from '@/context/AppContext';
 import { BUSINESS_CONFIG } from '@/config/business';
+import { PwaRootClients } from '@/components/pwa/PwaRootClients';
 
 const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || BUSINESS_CONFIG.website).replace(/\/$/, '');
 
@@ -26,6 +27,16 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     images: ['/assets/snappy-gifts-trimmed.png'],
   },
+  appleWebApp: {
+    capable: true,
+    title: BUSINESS_CONFIG.brandName,
+    statusBarStyle: 'black-translucent',
+  },
+  applicationName: BUSINESS_CONFIG.brandName,
+};
+
+export const viewport: Viewport = {
+  themeColor: '#08090B',
 };
 
 export default function RootLayout({
@@ -46,6 +57,7 @@ export default function RootLayout({
       <body className="bg-[#08090B] text-[#F1F5F9] antialiased selection:bg-[#D5A34A]/30 selection:text-[#F5BD48] font-sans">
         <AppProvider>
           {children}
+          <PwaRootClients />
         </AppProvider>
       </body>
     </html>

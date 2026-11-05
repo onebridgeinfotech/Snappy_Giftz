@@ -189,7 +189,7 @@ export const Footer: React.FC = () => {
             <span className="text-[#D5A34A]/40">•</span>
             <a href="/about" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">About Us</a>
             <span className="text-[#D5A34A]/40">•</span>
-            <a href="https://wa.me/918309600721" target="_blank" rel="noopener noreferrer" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">WhatsApp: 8309600721</a>
+            <a href={`https://wa.me/91${BUSINESS_CONFIG.whatsappPhone}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">WhatsApp: {BUSINESS_CONFIG.whatsappFormatted.replace('+91 ', '')}</a>
           </div>
         </div>
 

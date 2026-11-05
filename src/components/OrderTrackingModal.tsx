@@ -17,6 +17,7 @@ import {
   Loader2,
   Crown
 } from 'lucide-react';
+import { BUSINESS_CONFIG } from '@/config/business';
 
 interface OrderTrackingModalProps {
   onClose: () => void;
@@ -800,7 +801,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                 </p>
               </div>
               <a
-                href={`https://wa.me/918309600721?text=${encodeURIComponent(`Hi SNAPPY GIFTZ, I need to report transit damage for Order #${displayOrder?.orderNumber}`)}`}
+                href={`https://wa.me/91${BUSINESS_CONFIG.whatsappPhone}?text=${encodeURIComponent(`Hi SNAPPY GIFTZ, I need to report transit damage for Order #${displayOrder?.orderNumber}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3.5 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs shrink-0 flex items-center gap-1.5 transition-colors cursor-pointer"
