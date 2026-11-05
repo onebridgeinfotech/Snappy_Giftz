@@ -13,6 +13,8 @@
  * - Atomic window tracking prevents race conditions across multi-instance deployments.
  */
 
+import { isStorefrontFallbackAllowed } from '../catalog/public-catalog.service';
+
 export class RateLimiterError extends Error {
   constructor(message: string, public code: string = 'RATE_LIMITER_ERROR') {
     super(message);
@@ -203,8 +205,8 @@ export function getRateLimitAdapter(): { adapter: RateLimitAdapter; backend: 'up
     };
   }
 
-  // Explicit development or test environment
-  if (!isProd) {
+  // Explicit development or test environment, or when demo fallback is allowed
+  if (!isProd || isStorefrontFallbackAllowed()) {
     return {
       adapter: DEV_RATE_LIMITER_STORE,
       backend: 'memory',

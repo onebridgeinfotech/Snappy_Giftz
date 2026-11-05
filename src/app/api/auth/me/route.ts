@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { SESSION_COOKIE_NAME, validateSessionToken } from '@/lib/auth/session';
+import { getSessionTokenFromContext } from '@/lib/auth/rbac';
+import { validateSessionToken } from '@/lib/auth/session';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
+    const token = await getSessionTokenFromContext(req);
 
-    if (!sessionCookie || !sessionCookie.value) {
+    if (!token) {
       return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
     }
 
-    const sessionData = await validateSessionToken(sessionCookie.value);
+    const sessionData = await validateSessionToken(token);
     if (!sessionData || !sessionData.user) {
       return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
     }

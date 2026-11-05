@@ -11,13 +11,32 @@ export interface SessionWithUser {
   user: User;
 }
 
-export function getSessionCookieOptions(expiresAt: Date, rememberMe: boolean = true) {
+export function isRequestHttps(req?: Request): boolean {
+  if (!req) return false;
+  try {
+    const proto = req.headers.get('x-forwarded-proto') || (req.url && req.url.startsWith('https://') ? 'https' : 'http');
+    return proto === 'https';
+  } catch {
+    return false;
+  }
+}
+
+export function getSessionCookieOptions(
+  expiresAt: Date,
+  rememberMe: boolean = true,
+  isHttpsOrReq?: boolean | Request
+) {
   const maxAgeSeconds = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
+  const isHttps = typeof isHttpsOrReq === 'boolean' ? isHttpsOrReq : isRequestHttps(isHttpsOrReq);
   const isProd = process.env.NODE_ENV === 'production';
+  // Use Secure cookie only in production over HTTPS.
+  // When testing on plain HTTP localhost (or when accessed via non-https protocol), do not enforce Secure flag.
+  const secure = isProd && isHttps;
+
   return {
     name: SESSION_COOKIE_NAME,
     httpOnly: true,
-    secure: isProd,
+    secure,
     sameSite: 'lax' as const,
     path: '/',
     expires: expiresAt,
@@ -42,7 +61,16 @@ export function hashSessionToken(token: string): string {
 
 import { isStorefrontFallbackAllowed } from '../catalog/public-catalog.service';
 
-export const DEV_SESSIONS_STORE = new Map<string, SessionWithUser>();
+const globalForAuth = globalThis as unknown as {
+  devSessionsStore: Map<string, SessionWithUser> | undefined;
+};
+
+export const DEV_SESSIONS_STORE =
+  globalForAuth.devSessionsStore ?? new Map<string, SessionWithUser>();
+
+if (process.env.NODE_ENV !== 'production' || isStorefrontFallbackAllowed()) {
+  globalForAuth.devSessionsStore = DEV_SESSIONS_STORE;
+}
 
 /**
  * Persists a new user session in the PostgreSQL database using a cryptographic hash,
@@ -51,7 +79,7 @@ export const DEV_SESSIONS_STORE = new Map<string, SessionWithUser>();
  */
 export async function createSession(
   userId: string,
-  meta?: { ipAddress?: string; userAgent?: string; role?: any; email?: string; rememberMe?: boolean }
+  meta?: { ipAddress?: string; userAgent?: string; role?: any; email?: string; name?: string; rememberMe?: boolean }
 ): Promise<{ sessionToken: string; expiresAt: Date }> {
   const rawSessionToken = generateSessionToken();
   const tokenHash = hashSessionToken(rawSessionToken);
@@ -70,7 +98,7 @@ export async function createSession(
     });
     return { sessionToken: rawSessionToken, expiresAt };
   } catch (err) {
-    if (process.env.NODE_ENV !== 'production' && isStorefrontFallbackAllowed()) {
+    if (isStorefrontFallbackAllowed()) {
       DEV_SESSIONS_STORE.set(rawSessionToken, {
         session: {
           id: `sess-${Date.now()}`,
@@ -85,7 +113,7 @@ export async function createSession(
           id: userId,
           email: meta?.email || `${userId}@example.com`,
           passwordHash: 'dev-hash',
-          name: 'Test Customer',
+          name: meta?.name || (meta?.role === 'ADMIN' ? 'Snappy Administrator' : 'Test Customer'),
           phone: '9876543210',
           role: meta?.role || 'CUSTOMER',
           isEmailVerified: true,
@@ -118,7 +146,7 @@ export async function validateSessionToken(rawToken: string): Promise<SessionWit
     });
 
     if (!session || !session.user) {
-      if (process.env.NODE_ENV !== 'production' && isStorefrontFallbackAllowed() && DEV_SESSIONS_STORE.has(rawToken)) {
+      if (isStorefrontFallbackAllowed() && DEV_SESSIONS_STORE.has(rawToken)) {
         const dev = DEV_SESSIONS_STORE.get(rawToken)!;
         if (Date.now() <= dev.session.expiresAt.getTime() && dev.user.isActive) {
           return dev;
@@ -141,7 +169,7 @@ export async function validateSessionToken(rawToken: string): Promise<SessionWit
 
     return { session, user: session.user };
   } catch {
-    if (process.env.NODE_ENV !== 'production' && isStorefrontFallbackAllowed() && DEV_SESSIONS_STORE.has(rawToken)) {
+    if (isStorefrontFallbackAllowed() && DEV_SESSIONS_STORE.has(rawToken)) {
       const dev = DEV_SESSIONS_STORE.get(rawToken)!;
       if (Date.now() <= dev.session.expiresAt.getTime() && dev.user.isActive) {
         return dev;

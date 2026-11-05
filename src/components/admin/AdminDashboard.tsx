@@ -72,27 +72,19 @@ export const AdminDashboard: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
-    fetch('/api/auth/me')
+    fetch('/api/auth/me', { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
         if (data.authenticated && data.user && (data.user.role === 'ADMIN' || data.user.role === 'STAFF')) {
-          setIsAdminAuthenticated(true);
-        } else if (data.authenticated && data.user && data.user.role === 'CUSTOMER') {
-          setIsAdminAuthenticated(false);
-        } else if (currentRole === 'admin' || currentRole === 'warehouse_staff') {
           setIsAdminAuthenticated(true);
         } else {
           setIsAdminAuthenticated(false);
         }
       })
       .catch(() => {
-        if (currentRole === 'admin' || currentRole === 'warehouse_staff') {
-          setIsAdminAuthenticated(true);
-        } else {
-          setIsAdminAuthenticated(false);
-        }
+        setIsAdminAuthenticated(false);
       });
-  }, [currentRole]);
+  }, []);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +94,7 @@ export const AdminDashboard: React.FC = () => {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email: adminEmail, password: adminPassword }),
       });
       const data = await res.json();
@@ -114,13 +107,7 @@ export const AdminDashboard: React.FC = () => {
       setIsAdminAuthenticated(true);
       showToast('Authenticated as Administrator.');
     } catch (err: any) {
-      const lower = adminEmail.trim().toLowerCase();
-      if (lower === 'phoenixnot13@gmail.com' || lower === 'admin@snappygiftz.com') {
-        setIsAdminAuthenticated(true);
-        showToast('Administrator workspace unlocked.');
-        return;
-      }
-      setAuthError(err.message);
+      setAuthError(err.message || 'Login failed. Please verify credentials.');
     } finally {
       setIsLoggingIn(false);
     }
@@ -486,7 +473,7 @@ export const AdminDashboard: React.FC = () => {
   const fetchGDriveStatus = useCallback(async () => {
     setIsLoadingGDrive(true);
     try {
-      const res = await fetch('/api/integrations/google-drive/status');
+      const res = await fetch('/api/integrations/google-drive/status', { credentials: 'include' });
       const data = await res.json();
       if (res.ok && data.data) {
         setGdriveStatus(data.data);
@@ -508,7 +495,7 @@ export const AdminDashboard: React.FC = () => {
     }
     setIsDisconnectingGDrive(true);
     try {
-      const res = await fetch('/api/integrations/google-drive/disconnect', { method: 'POST' });
+      const res = await fetch('/api/integrations/google-drive/disconnect', { method: 'POST', credentials: 'include' });
       const data = await res.json();
       if (res.ok) {
         showToast('Google Drive disconnected.');
@@ -528,7 +515,7 @@ export const AdminDashboard: React.FC = () => {
   const handleValidateGDriveFolders = async () => {
     setIsValidatingGDriveFolders(true);
     try {
-      const res = await fetch('/api/integrations/google-drive/validate-folders', { method: 'POST' });
+      const res = await fetch('/api/integrations/google-drive/validate-folders', { method: 'POST', credentials: 'include' });
       const data = await res.json();
       setGdriveValidationResults(data);
       if (data.allAccessible) {
@@ -562,6 +549,7 @@ export const AdminDashboard: React.FC = () => {
       const res = await fetch('/api/integrations/google-drive/picker-authorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ folders: payload }),
       });
       const data = await res.json();
@@ -580,7 +568,7 @@ export const AdminDashboard: React.FC = () => {
 
   const handleOpenGooglePicker = async () => {
     try {
-      const cfgRes = await fetch('/api/integrations/google-drive/picker-config');
+      const cfgRes = await fetch('/api/integrations/google-drive/picker-config', { credentials: 'include' });
       const cfg = await cfgRes.json();
       if (!cfg.pickerEnabled || !cfg.developerKey) {
         setGdriveBanner({
