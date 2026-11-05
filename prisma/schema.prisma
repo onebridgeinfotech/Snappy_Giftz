@@ -907,3 +907,26 @@ model StoreConfig {
   updatedAt                  DateTime @updatedAt
   updatedBy                  String?
 }
+
+// =============================================================
+// GOOGLE DRIVE CLOUD STORAGE INTEGRATION
+// =============================================================
+
+model GoogleDriveIntegration {
+  id                       String    @id @default("default")
+  isConnected              Boolean   @default(false)
+  accountEmail             String?
+  encryptedRefreshToken    String?   @db.Text
+  encryptedAccessToken     String?   @db.Text
+  accessTokenExpiresAt     DateTime?
+  rootFolderId             String?   // SNAPPY_GIFTZ_STORAGE
+  productImagesFolderId    String?   // Product_Images
+  customerPhotosFolderId   String?   // Customer_Personalization_Photos
+  orderAttachmentsFolderId String?   // Order_Attachments
+  connectedBy              String?   // Admin User ID
+  connectedAt              DateTime?
+  lastSyncedAt             DateTime?
+  lastError                String?   @db.Text
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+}

@@ -39,7 +39,9 @@ import {
   ShieldCheck,
   Lock,
   Server,
-  Database
+  Database,
+  Cloud,
+  HardDrive
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -201,6 +203,23 @@ export const AdminDashboard: React.FC = () => {
     maxArtworkUploadBytes: 5242880,
     woodenCrateSurchargeRupees: 150,
   });
+
+  // Google Drive Cloud Storage Integration State
+  const [gdriveStatus, setGdriveStatus] = useState<{
+    isConfigured: boolean;
+    isConnected: boolean;
+    accountEmail?: string | null;
+    rootFolderId?: string | null;
+    productImagesFolderId?: string | null;
+    customerPhotosFolderId?: string | null;
+    orderAttachmentsFolderId?: string | null;
+    connectedAt?: string | null;
+    lastSyncedAt?: string | null;
+    lastError?: string | null;
+  } | null>(null);
+  const [isLoadingGDrive, setIsLoadingGDrive] = useState(false);
+  const [isDisconnectingGDrive, setIsDisconnectingGDrive] = useState(false);
+  const [gdriveBanner, setGdriveBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Batch 10: Audit Log State
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -459,6 +478,48 @@ export const AdminDashboard: React.FC = () => {
     }
   }, []);
 
+  const fetchGDriveStatus = useCallback(async () => {
+    setIsLoadingGDrive(true);
+    try {
+      const res = await fetch('/api/integrations/google-drive/status');
+      const data = await res.json();
+      if (res.ok && data.data) {
+        setGdriveStatus(data.data);
+      }
+    } catch (err: any) {
+      console.warn('Could not fetch Google Drive status:', err.message);
+    } finally {
+      setIsLoadingGDrive(false);
+    }
+  }, []);
+
+  const handleConnectGDrive = () => {
+    window.location.href = '/api/integrations/google-drive/authorize';
+  };
+
+  const handleDisconnectGDrive = async () => {
+    if (!confirm('Are you sure you want to disconnect Google Drive? Cloud backup will be paused and local storage will be used.')) {
+      return;
+    }
+    setIsDisconnectingGDrive(true);
+    try {
+      const res = await fetch('/api/integrations/google-drive/disconnect', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Google Drive disconnected.');
+        setGdriveBanner({ type: 'success', message: 'Google Drive disconnected successfully and credentials removed.' });
+        fetchGDriveStatus();
+      } else {
+        throw new Error(data.error || 'Failed to disconnect Google Drive.');
+      }
+    } catch (err: any) {
+      showToast(err.message);
+      setGdriveBanner({ type: 'error', message: err.message });
+    } finally {
+      setIsDisconnectingGDrive(false);
+    }
+  };
+
   const handleSaveStoreConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingConfig(true);
@@ -592,6 +653,7 @@ export const AdminDashboard: React.FC = () => {
       fetchReports();
     } else if (activeAdminTab === 'settings') {
       fetchStoreConfig();
+      fetchGDriveStatus();
     } else if (activeAdminTab === 'audit') {
       fetchAuditLogs(1);
     } else if (activeAdminTab === 'operations') {
@@ -606,9 +668,29 @@ export const AdminDashboard: React.FC = () => {
     fetchUsers,
     fetchReports,
     fetchStoreConfig,
+    fetchGDriveStatus,
     fetchAuditLogs,
     fetchSystemHealth,
   ]);
+
+  // Handle URL query feedback from Google OAuth redirect
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('gdrive') === 'connected') {
+        setActiveAdminTab('settings');
+        setGdriveBanner({ type: 'success', message: 'Google Drive connected successfully! Cloud folders initialized.' });
+        showToast('Google Drive connected.');
+        fetchGDriveStatus();
+      } else if (params.get('gdrive_error')) {
+        setActiveAdminTab('settings');
+        const err = params.get('gdrive_error') || 'Unknown error';
+        setGdriveBanner({ type: 'error', message: `Google Drive connection error: ${err}` });
+        showToast(`Google Drive connection error: ${err}`);
+        fetchGDriveStatus();
+      }
+    }
+  }, [fetchGDriveStatus, showToast]);
 
   const handleReviewCorporateAccount = async (orgId: string, action: 'APPROVE' | 'REJECT' | 'SUSPEND' | 'REACTIVATE', reason?: string) => {
     try {
@@ -3488,6 +3570,167 @@ export const AdminDashboard: React.FC = () => {
               </button>
             </div>
           </form>
+
+          {/* GOOGLE DRIVE CLOUD STORAGE INTEGRATION */}
+          <div className="pt-6 border-t border-slate-200 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900 text-white shadow-md">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[#D5A34A] shrink-0">
+                  <Cloud className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-serif text-lg font-bold text-white tracking-wide">
+                      Google Drive Cloud Storage
+                    </h3>
+                    {gdriveStatus?.isConnected ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Connected</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>Not Connected</span>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Automated cloud folder hierarchy for catalog images, private customer personalization artwork, and tax invoice archives.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {gdriveStatus?.isConnected ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => fetchGDriveStatus()}
+                      disabled={isLoadingGDrive}
+                      className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-semibold hover:bg-slate-700 border border-slate-700 flex items-center gap-1.5"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isLoadingGDrive ? 'animate-spin' : ''}`} />
+                      <span>Sync Status</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDisconnectGDrive}
+                      disabled={isDisconnectingGDrive}
+                      className="px-3.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 text-xs font-semibold flex items-center gap-1.5"
+                    >
+                      {isDisconnectingGDrive ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                      <span>Disconnect</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleConnectGDrive}
+                    disabled={isLoadingGDrive}
+                    className="px-4 py-2 rounded-xl bg-[#D5A34A] hover:bg-[#C49239] text-slate-950 font-bold text-xs flex items-center gap-2 shadow-md shadow-amber-900/20 transition-all"
+                  >
+                    <HardDrive className="w-4 h-4" />
+                    <span>Connect Google Drive</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Notification Banner */}
+            {gdriveBanner && (
+              <div
+                className={`p-3.5 rounded-xl text-xs flex items-center justify-between gap-3 ${
+                  gdriveBanner.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {gdriveBanner.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                  )}
+                  <span>{gdriveBanner.message}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setGdriveBanner(null)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Storage Details & Folder Hierarchy */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <Package className="w-4 h-4 text-violet-600" />
+                  <span>Product_Images</span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Public catalog assets, variant photography, and gallery media.
+                </p>
+                <div className="font-mono text-[10px] text-slate-400 truncate pt-1">
+                  ID: {gdriveStatus?.productImagesFolderId || 'Pending connection'}
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900 flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Customer_Photos</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
+                    Private
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Custom photo prints, monogram engravings, and customer artwork.
+                </p>
+                <div className="font-mono text-[10px] text-slate-400 truncate pt-1">
+                  ID: {gdriveStatus?.customerPhotosFolderId || 'Pending connection'}
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900 flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    <span>Order_Attachments</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold">
+                    Secure
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Audited PDF tax invoices, packing slips, and delivery proof archives.
+                </p>
+                <div className="font-mono text-[10px] text-slate-400 truncate pt-1">
+                  ID: {gdriveStatus?.orderAttachmentsFolderId || 'Pending connection'}
+                </div>
+              </div>
+            </div>
+
+            {/* Connection Metadata Footer */}
+            <div className="p-3 rounded-xl bg-slate-100/70 border border-slate-200/80 text-[11px] text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span>
+                  <strong>Privacy & Security Policy:</strong> Access restricted to application scope (<code className="font-mono text-[10px] bg-slate-200 px-1 py-0.5 rounded">drive.file</code>). Tokens stored with AES-256-GCM encryption.
+                </span>
+              </div>
+              {gdriveStatus?.accountEmail && (
+                <div className="text-slate-500 shrink-0">
+                  Connected Account: <strong className="text-slate-800">{gdriveStatus.accountEmail}</strong>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
