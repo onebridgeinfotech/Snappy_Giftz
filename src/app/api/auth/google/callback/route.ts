@@ -20,11 +20,23 @@ import { getSellerConfig } from '@/lib/invoices/seller-config.service';
  * 6. Redirects customer to /account dashboard.
  */
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+  const reqUrl = new URL(req.url);
+  const { searchParams } = reqUrl;
   const code = searchParams.get('code');
   const state = searchParams.get('state');
   const error = searchParams.get('error');
-  const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+  let appUrl: string;
+  if (reqUrl.hostname === 'localhost' || reqUrl.hostname === '127.0.0.1') {
+    const port = reqUrl.port ? `:${reqUrl.port}` : '';
+    appUrl = `http://localhost${port}`;
+  } else if (process.env.APP_URL) {
+    appUrl = process.env.APP_URL.replace(/\/$/, '');
+  } else if (process.env.NEXT_PUBLIC_APP_URL) {
+    appUrl = process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  } else {
+    appUrl = 'https://snappygiftz.com';
+  }
 
   if (error || !code) {
     const errorUrl = new URL('/login', appUrl);
@@ -71,8 +83,8 @@ export async function GET(req: Request) {
     return NextResponse.redirect(errorUrl.toString());
   }
 
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     const errorUrl = new URL('/login', appUrl);
@@ -183,7 +195,7 @@ export async function GET(req: Request) {
       rememberMe: true,
     });
 
-    const cookieOptions = getSessionCookieOptions(expiresAt, true);
+    const cookieOptions = getSessionCookieOptions(expiresAt, true, req);
 
     // 6. Redirect to customer dashboard
     const targetUrl = new URL('/account', appUrl);

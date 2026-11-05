@@ -2,13 +2,27 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE_NAME, invalidateSession } from '@/lib/auth/session';
 
-export async function POST() {
+export async function POST(req?: Request) {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
+    let sessionToken: string | undefined;
 
-    if (sessionCookie && sessionCookie.value) {
-      await invalidateSession(sessionCookie.value);
+    if (req) {
+      const cookieHeader = req.headers.get('cookie') || '';
+      const match = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
+      if (match) sessionToken = match[1].trim();
+    }
+
+    if (!sessionToken) {
+      try {
+        const cookieStore = await cookies();
+        sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+      } catch {
+        // Safe fallback when executed outside Next.js request store
+      }
+    }
+
+    if (sessionToken) {
+      await invalidateSession(sessionToken);
     }
 
     const response = NextResponse.json({ success: true, message: 'Logged out successfully.' });

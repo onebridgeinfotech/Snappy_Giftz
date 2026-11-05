@@ -9,9 +9,21 @@ import crypto from 'node:crypto';
  * When unconfigured, safely returns a 501 status or redirects to login with informative status.
  */
 export async function GET(req: Request) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
+
+  const reqUrl = new URL(req.url);
+  let appUrl: string;
+  if (reqUrl.hostname === 'localhost' || reqUrl.hostname === '127.0.0.1') {
+    const port = reqUrl.port ? `:${reqUrl.port}` : '';
+    appUrl = `http://localhost${port}`;
+  } else if (process.env.APP_URL) {
+    appUrl = process.env.APP_URL.replace(/\/$/, '');
+  } else if (process.env.NEXT_PUBLIC_APP_URL) {
+    appUrl = process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  } else {
+    appUrl = 'https://snappygiftz.com';
+  }
 
   const acceptsJson = req.headers.get('accept')?.includes('application/json');
 
@@ -55,10 +67,28 @@ export async function GET(req: Request) {
   googleAuthUrl.searchParams.set('state', state);
   googleAuthUrl.searchParams.set('prompt', 'select_account');
 
+  const cookieSecure = reqUrl.protocol === 'https:' && process.env.NODE_ENV === 'production';
+
+  if (acceptsJson) {
+    const jsonRes = NextResponse.json({
+      configured: true,
+      provider: 'google',
+      url: googleAuthUrl.toString(),
+    });
+    jsonRes.cookies.set('snappy_customer_oauth_state', state, {
+      httpOnly: true,
+      secure: cookieSecure,
+      sameSite: 'lax',
+      maxAge: 15 * 60, // 15 minutes
+      path: '/',
+    });
+    return jsonRes;
+  }
+
   const response = NextResponse.redirect(googleAuthUrl.toString());
   response.cookies.set('snappy_customer_oauth_state', state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSecure,
     sameSite: 'lax',
     maxAge: 15 * 60, // 15 minutes
     path: '/',
