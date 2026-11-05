@@ -7,7 +7,7 @@ export const BUSINESS_CONFIG = {
   brandName: 'SNAPPY GIFTZ',
   legalName: 'SNAPPY GIFTZ',
   tradeName: 'SNAPPY GIFTZ',
-  officialEmail: 'ezonetechnologies2124@gmail.com',
+  officialEmail: 'info@snappygiftz.com',
   adminEmail: 'phoenixnot13@gmail.com',
   /** Operations inboxes that receive new-order and signup alerts */
   adminEmails: ['phoenixnot13@gmail.com', 'onebridgeinfotech@gmail.com'] as const,
