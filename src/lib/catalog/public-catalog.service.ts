@@ -245,6 +245,7 @@ export async function getPublicProducts(
     // Query succeeded against real database!
     const sanitized: PublicProduct[] = dbProducts.map((p) => ({
       ...p,
+      isB2BRecommended: false,
       occasions: Array.isArray(p.occasions) ? (p.occasions as string[]) : [],
       recipients: Array.isArray(p.recipients) ? (p.recipients as string[]) : [],
       images: Array.isArray(p.images) ? (p.images as string[]) : [],
@@ -428,6 +429,7 @@ export async function getPublicProductBySlug(slugOrId: string): Promise<PublicPr
     if (p) {
       return {
         ...p,
+        isB2BRecommended: false,
         occasions: Array.isArray(p.occasions) ? (p.occasions as string[]) : [],
         recipients: Array.isArray(p.recipients) ? (p.recipients as string[]) : [],
         images: Array.isArray(p.images) ? (p.images as string[]) : [],
