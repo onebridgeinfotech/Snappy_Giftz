@@ -37,6 +37,14 @@ const DEV_FALLBACK_USERS: Record<string, FallbackUserRecord> = {
     isActive: true,
     isEmailVerified: true,
   },
+  'ezonetechnologies2124@gmail.com': {
+    id: 'usr-admin-ezone',
+    name: 'Snappy Admin',
+    email: 'ezonetechnologies2124@gmail.com',
+    role: Role.ADMIN,
+    isActive: true,
+    isEmailVerified: true,
+  },
   'staff@snappygiftz.com': {
     id: 'usr-staff-default',
     name: 'Warehouse Staff',

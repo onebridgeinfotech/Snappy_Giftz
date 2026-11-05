@@ -4,11 +4,12 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, Mail, User, Phone, ArrowRight, AlertCircle, Eye, EyeOff, Sparkles, CheckCircle2 } from 'lucide-react';
+import { getSafeRedirectUrl } from '@/lib/auth/redirect';
 
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/account';
+  const redirectUrl = getSafeRedirectUrl(searchParams.get('redirect'), '/');
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -24,7 +25,7 @@ function RegisterForm() {
       .then((res) => res.json())
       .then((data) => {
         if (data.authenticated && data.user) {
-          router.push(redirectUrl);
+          window.location.href = redirectUrl;
         }
       })
       .catch(() => {});
@@ -52,7 +53,7 @@ function RegisterForm() {
         throw new Error(data.error || 'Registration failed. Please review your information.');
       }
 
-      router.push(redirectUrl);
+      window.location.href = redirectUrl;
     } catch (err: any) {
       setErrorMsg(err.message || 'An unexpected error occurred.');
     } finally {
@@ -183,7 +184,7 @@ function RegisterForm() {
           <div className="mt-6 pt-6 border-t border-[#D5A34A]/15 text-center text-xs text-[#94A3B8]">
             Already have an account?{' '}
             <Link
-              href={`/login${redirectUrl !== '/account' ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
+              href={`/login${redirectUrl !== '/' ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
               className="text-[#F5BD48] font-semibold hover:underline"
             >
               Sign In

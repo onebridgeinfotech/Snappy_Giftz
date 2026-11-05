@@ -22,6 +22,7 @@ import {
   Crown
 } from 'lucide-react';
 import { BUSINESS_CONFIG } from '@/config/business';
+import { getSafeRedirectUrl } from '@/lib/auth/redirect';
 
 function GoogleIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
@@ -49,7 +50,7 @@ function GoogleIcon({ className = 'w-5 h-5' }: { className?: string }) {
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/account';
+  const redirectUrl = getSafeRedirectUrl(searchParams.get('redirect'), '/');
   const oauthError = searchParams.get('oauth_error');
 
   const [email, setEmail] = useState('');
@@ -184,11 +185,11 @@ function LoginFormContent() {
         throw new Error(data.error || 'Invalid email or password. Please verify your credentials.');
       }
 
-      // Role-based routing verified by server
+      // Role-based routing verified by server: full navigation ensures fresh session state & proxy validation
       if (data.user?.role === 'ADMIN' || data.user?.role === 'STAFF') {
-        router.push('/admin');
+        window.location.href = '/admin';
       } else {
-        router.push(redirectUrl);
+        window.location.href = redirectUrl;
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'An unexpected error occurred during sign in.');
@@ -200,7 +201,8 @@ function LoginFormContent() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try {
-      const res = await fetch('/api/auth/google', {
+      const googleAuthEndpoint = `/api/auth/google${redirectUrl !== '/' ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`;
+      const res = await fetch(googleAuthEndpoint, {
         headers: { Accept: 'application/json' },
       });
       const data = await res.json();
@@ -213,7 +215,7 @@ function LoginFormContent() {
         setShowGoogleModal(true);
       } else {
         // When real Google credentials exist, redirect to OAuth provider
-        window.location.href = '/api/auth/google';
+        window.location.href = data.url || googleAuthEndpoint;
       }
     } catch {
       setGoogleStatusMsg(
@@ -675,7 +677,7 @@ function LoginFormContent() {
                 <div className="text-xs text-[#94A3B8]">
                   Don't have an account?{' '}
                   <Link
-                    href={`/register${redirectUrl !== '/account' ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
+                    href={`/register${redirectUrl !== '/' ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
                     className="text-[#F5BD48] font-semibold hover:underline inline-flex items-center gap-1 transition-colors"
                   >
                     <span>Create Account</span>

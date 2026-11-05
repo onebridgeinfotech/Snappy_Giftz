@@ -8,6 +8,7 @@ import { isStorefrontFallbackAllowed } from '@/lib/catalog/public-catalog.servic
 import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
 import { renderCustomerRegistrationTemplate } from '@/lib/email/email-templates';
 import { getSellerConfig } from '@/lib/invoices/seller-config.service';
+import { getSafeRedirectUrl } from '@/lib/auth/redirect';
 
 /**
  * Customer Google OAuth Callback Handler
@@ -55,10 +56,12 @@ export async function GET(req: Request) {
     return NextResponse.redirect(errorUrl.toString());
   }
 
+  let redirectTarget = '/';
+
   // Validate state expiration and HMAC signature
   try {
     const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
-    const { nonce, timestamp, signature } = decoded;
+    const { nonce, timestamp, signature, redirect } = decoded;
     const now = Date.now();
     if (!nonce || !timestamp || now - timestamp > 15 * 60 * 1000) {
       const errorUrl = new URL('/login', appUrl);
@@ -66,13 +69,19 @@ export async function GET(req: Request) {
       return NextResponse.redirect(errorUrl.toString());
     }
 
+    redirectTarget = getSafeRedirectUrl(redirect, '/');
+
     const secretKey = process.env.SESSION_SECRET || 'snappy-oauth-secret-fallback';
-    const expectedSignature = crypto
+    const expectedSigWithRedirect = crypto
+      .createHmac('sha256', secretKey)
+      .update(`${nonce}:${timestamp}:${redirectTarget}`)
+      .digest('hex');
+    const expectedSigLegacy = crypto
       .createHmac('sha256', secretKey)
       .update(`${nonce}:${timestamp}`)
       .digest('hex');
 
-    if (signature !== expectedSignature) {
+    if (signature !== expectedSigWithRedirect && signature !== expectedSigLegacy) {
       const errorUrl = new URL('/login', appUrl);
       errorUrl.searchParams.set('oauth_error', 'tampered_oauth_state');
       return NextResponse.redirect(errorUrl.toString());
@@ -197,8 +206,8 @@ export async function GET(req: Request) {
 
     const cookieOptions = getSessionCookieOptions(expiresAt, true, req);
 
-    // 6. Redirect to customer dashboard
-    const targetUrl = new URL('/account', appUrl);
+    // 6. Redirect to requested storefront destination or root
+    const targetUrl = new URL(redirectTarget, appUrl);
     if (isNewUser) {
       targetUrl.searchParams.set('welcome', 'google');
     }

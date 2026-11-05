@@ -76,6 +76,34 @@ async function runTestSuite() {
     assert.equal(parsedUrl.searchParams.get('redirect_uri'), 'https://snappygiftz.com/api/auth/google/callback');
   });
 
+  await test('Preserves requested storefront redirect path in signed Google OAuth state', async () => {
+    const req = new Request('http://localhost:3000/api/auth/google?redirect=%2Fproducts%2Fcrystal-rose', {
+      headers: { accept: 'application/json' },
+    });
+    const res = await googleAuthHandler(req);
+    const data = await res.json();
+    const parsedUrl = new URL(data.url);
+    const stateParam = parsedUrl.searchParams.get('state');
+    assert.ok(stateParam, 'OAuth state parameter must be present');
+
+    const decoded = JSON.parse(Buffer.from(stateParam, 'base64url').toString('utf8'));
+    assert.equal(decoded.redirect, '/products/crystal-rose');
+    assert.ok(decoded.signature, 'Must include HMAC signature');
+  });
+
+  await test('Sanitizes open-redirect attempts in Google OAuth state to safe root destination', async () => {
+    const req = new Request('http://localhost:3000/api/auth/google?redirect=https%3A%2F%2Fevil.com', {
+      headers: { accept: 'application/json' },
+    });
+    const res = await googleAuthHandler(req);
+    const data = await res.json();
+    const parsedUrl = new URL(data.url);
+    const stateParam = parsedUrl.searchParams.get('state');
+
+    const decoded = JSON.parse(Buffer.from(stateParam!, 'base64url').toString('utf8'));
+    assert.equal(decoded.redirect, '/');
+  });
+
   console.log('\n--- 2. CSRF Protection & State Parameter Validation ---');
 
   await test('Rejects callback when error parameter is returned by Google (cancelled flow)', async () => {
@@ -204,7 +232,7 @@ async function runTestSuite() {
       method: 'POST',
       headers: { cookie: `${SESSION_COOKIE_NAME}=${activeCustomerToken}` },
     });
-    const res = await logoutHandler(req);
+    const res = await logoutHandler();
     assert.equal(res.status, 200);
 
     // Invalidate the session
@@ -276,4 +304,3 @@ runTestSuite().catch((e) => {
   console.error('Fatal Test Suite Error:', e);
   process.exit(1);
 });
-

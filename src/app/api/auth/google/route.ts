@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'node:crypto';
+import { getSafeRedirectUrl } from '@/lib/auth/redirect';
 
 /**
  * Google Customer OAuth Entrypoint Handler
@@ -46,16 +47,22 @@ export async function GET(req: Request) {
     return NextResponse.redirect(loginUrl.toString());
   }
 
+  // Extract optional safe redirect target
+  const rawRedirect = reqUrl.searchParams.get('redirect');
+  const safeRedirect = getSafeRedirectUrl(rawRedirect, '/');
+
   // Generate cryptographically secure CSRF state token
   const stateNonce = crypto.randomBytes(24).toString('hex');
   const timestamp = Date.now();
   const secretKey = process.env.SESSION_SECRET || 'snappy-oauth-secret-fallback';
   const signature = crypto
     .createHmac('sha256', secretKey)
-    .update(`${stateNonce}:${timestamp}`)
+    .update(`${stateNonce}:${timestamp}:${safeRedirect}`)
     .digest('hex');
 
-  const state = Buffer.from(JSON.stringify({ nonce: stateNonce, timestamp, signature })).toString('base64url');
+  const state = Buffer.from(
+    JSON.stringify({ nonce: stateNonce, timestamp, redirect: safeRedirect, signature })
+  ).toString('base64url');
 
   // When credentials exist, redirect to Google OAuth 2.0 consent screen
   const redirectUri = `${appUrl}/api/auth/google/callback`;
