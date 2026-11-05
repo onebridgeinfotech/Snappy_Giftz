@@ -21,6 +21,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Local deploy artifacts (never commit)
+.deploy-secrets.local.json
+.hostinger-req.json
+
 # Environment & Secrets (Never commit secrets)
 .env*
 !.env.example
