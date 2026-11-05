@@ -186,7 +186,7 @@ export async function getPublicProducts(
       ];
     }
 
-    let orderBy: any = [{ isB2BRecommended: 'desc' }, { createdAt: 'desc' }];
+    let orderBy: any = { createdAt: 'desc' };
     if (sort === 'price_asc') orderBy = { basePricePaise: 'asc' };
     if (sort === 'price_desc') orderBy = { basePricePaise: 'desc' };
     if (sort === 'newest') orderBy = { createdAt: 'desc' };
@@ -208,7 +208,6 @@ export async function getPublicProducts(
           isCustomizable: true,
           customizationType: true,
           customizationFeePaise: true,
-          isB2BRecommended: true,
           minOrderQty: true,
           images: true,
           occasions: true,
@@ -347,7 +346,7 @@ function getFallbackPublicProducts(params: {
     isCustomizable: p.isCustomizable,
     customizationType: p.customizationType || null,
     customizationFeePaise: 0,
-    isB2BRecommended: !!p.isB2BRecommended,
+    isB2BRecommended: false,
     minOrderQty: p.minOrderQty || 1,
     images: p.images,
     rating: p.rating || 4.9,
@@ -395,7 +394,6 @@ export async function getPublicProductBySlug(slugOrId: string): Promise<PublicPr
         isCustomizable: true,
         customizationType: true,
         customizationFeePaise: true,
-        isB2BRecommended: true,
         minOrderQty: true,
         images: true,
         occasions: true,
