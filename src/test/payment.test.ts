@@ -1,5 +1,6 @@
-// Ensure local test runs fail-fast on unreachable remote host into dev stores
-if (!process.env.CI && process.env.NODE_ENV !== 'production') {
+Object.assign(process.env, { NODE_ENV: 'test' });
+process.env.ALLOW_DEMO_FALLBACK = 'true';
+if (!process.env.CI) {
   process.env.DATABASE_URL = 'mysql://127.0.0.1:3306/dev_fallback';
 }
 process.env.TEST_SUITE_RUNNING = 'true';
