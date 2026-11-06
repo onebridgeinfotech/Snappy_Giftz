@@ -19,7 +19,8 @@ import {
   Clock,
   Package,
   User,
-  Home
+  Home,
+  ShieldCheck
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { AuthModal } from './AuthModal';
@@ -91,7 +92,14 @@ export const Header: React.FC = () => {
 
   const totalCartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  const isStaffOrAdmin = Boolean(authenticatedUser && (authenticatedUser.role === 'ADMIN' || authenticatedUser.role === 'STAFF'));
+  // Server-verified administrator roles (ADMIN or SUPER_ADMIN or STAFF)
+  const isAdminUser = Boolean(
+    authenticatedUser &&
+      (authenticatedUser.role === 'ADMIN' ||
+       authenticatedUser.role === 'SUPER_ADMIN' ||
+       authenticatedUser.role === 'STAFF')
+  );
+  const isStaffOrAdmin = isAdminUser;
 
   const handleRoleSelect = (role: UserRole) => {
     if (role === 'admin' || role === 'warehouse_staff') {
@@ -260,6 +268,8 @@ export const Header: React.FC = () => {
           <div className="flex items-center shrink-0">
             <Link
               href="/"
+              id="nav-home-logo"
+              data-testid="nav-home-logo"
               onClick={() => {
                 setMode('b2c');
                 setActiveCategory('All');
@@ -367,6 +377,8 @@ export const Header: React.FC = () => {
             {/* Direct Home Navigation Button */}
             <Link
               href="/"
+              id="nav-home-desktop"
+              data-testid="nav-home-desktop"
               onClick={() => {
                 setMode('b2c');
                 setActiveCategory('All');
@@ -380,6 +392,21 @@ export const Header: React.FC = () => {
               <Home className="w-3.5 h-3.5 text-[#F5BD48] group-hover:scale-110 transition-transform" />
               <span>Home</span>
             </Link>
+
+            {/* Role-Based Admin Portal Navigation (ADMIN & SUPER_ADMIN) */}
+            {isAdminUser && (
+              <Link
+                href="/admin"
+                id="nav-admin-portal-desktop"
+                data-testid="nav-admin-portal-desktop"
+                className="flex items-center gap-1.5 h-10 sm:h-11 px-3.5 sm:px-4 rounded-full border border-[#D5A34A] bg-gradient-to-r from-[#D5A34A]/25 via-[#F5BD48]/20 to-[#D5A34A]/25 hover:bg-[#D5A34A]/35 text-[#F5BD48] hover:text-white text-xs font-bold transition-all shadow-md cursor-pointer group animate-in fade-in duration-200"
+                title="Open Admin Operations Portal"
+                aria-label="Admin Portal"
+              >
+                <ShieldCheck className="w-4 h-4 text-[#F5BD48] group-hover:scale-110 transition-transform" />
+                <span>Admin Portal</span>
+              </Link>
+            )}
 
             {/* Track Order Direct Action */}
             <button
@@ -495,6 +522,8 @@ export const Header: React.FC = () => {
           <div className="flex items-center gap-4 sm:gap-6 text-[#CBD5E1] font-medium whitespace-nowrap text-[12px]">
             <Link
               href="/"
+              id="nav-home-strip"
+              data-testid="nav-home-strip"
               onClick={() => {
                 setMode('b2c');
                 setActiveCategory('All');
@@ -511,6 +540,18 @@ export const Header: React.FC = () => {
               <Home className="w-3.5 h-3.5" />
               <span>Home</span>
             </Link>
+            {isAdminUser && (
+              <Link
+                href="/admin"
+                id="nav-admin-portal-strip"
+                data-testid="nav-admin-portal-strip"
+                className="transition-all flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#D5A34A] bg-[#D5A34A]/20 text-[#F5BD48] hover:bg-[#D5A34A]/30 text-[12px] font-bold shadow-xs cursor-pointer"
+                title="Open Admin Operations Portal"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#F5BD48]" />
+                <span>Admin Portal</span>
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => navigateToCatalog({ category: 'Personalized Gifts' })}
@@ -625,6 +666,8 @@ export const Header: React.FC = () => {
           {/* Mobile Home Storefront Link */}
           <Link
             href="/"
+            id="nav-home-mobile"
+            data-testid="nav-home-mobile"
             onClick={() => {
               setMode('b2c');
               setActiveCategory('All');
@@ -640,6 +683,25 @@ export const Header: React.FC = () => {
             </span>
             <span>→</span>
           </Link>
+
+          {/* Mobile Admin Portal Link (ADMIN & SUPER_ADMIN) */}
+          {isAdminUser && (
+            <Link
+              href="/admin"
+              id="nav-admin-portal-mobile"
+              data-testid="nav-admin-portal-mobile"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#854d0e] via-[#a16207] to-[#854d0e] border border-[#D5A34A] flex items-center justify-between shadow-md cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#F5BD48]" />
+                <span>Admin Operations Portal</span>
+              </span>
+              <span className="text-[10px] font-mono bg-black/40 px-2 py-0.5 rounded text-[#F5BD48] border border-[#D5A34A]/40 uppercase tracking-wider">
+                ADMIN
+              </span>
+            </Link>
+          )}
 
           {/* Quick Category List */}
           <div className="space-y-1">

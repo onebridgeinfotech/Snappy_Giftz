@@ -73,6 +73,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Security Gate: Verify server-side administrator/staff authentication
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean | null>(null);
+  const [isForbiddenCustomer, setIsForbiddenCustomer] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -82,10 +83,18 @@ export const AdminDashboard: React.FC = () => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
-        if (data.authenticated && data.user && (data.user.role === 'ADMIN' || data.user.role === 'STAFF')) {
+        if (
+          data.authenticated &&
+          data.user &&
+          (data.user.role === 'ADMIN' || data.user.role === 'SUPER_ADMIN' || data.user.role === 'STAFF')
+        ) {
           setIsAdminAuthenticated(true);
+          setIsForbiddenCustomer(false);
         } else {
           setIsAdminAuthenticated(false);
+          if (data.authenticated && data.user?.role === 'CUSTOMER') {
+            setIsForbiddenCustomer(true);
+          }
         }
       })
       .catch(() => {
@@ -108,10 +117,15 @@ export const AdminDashboard: React.FC = () => {
       if (!res.ok) {
         throw new Error(data.error || 'Invalid administrator credentials');
       }
-      if (data.user?.role !== 'ADMIN' && data.user?.role !== 'STAFF') {
+      if (
+        data.user?.role !== 'ADMIN' &&
+        data.user?.role !== 'SUPER_ADMIN' &&
+        data.user?.role !== 'STAFF'
+      ) {
         throw new Error('Access denied. Administrator or Staff role required.');
       }
       setIsAdminAuthenticated(true);
+      setIsForbiddenCustomer(false);
       showToast('Authenticated as Administrator.');
     } catch (err: any) {
       setAuthError(err.message || 'Login failed. Please verify credentials.');
@@ -1402,6 +1416,49 @@ export const AdminDashboard: React.FC = () => {
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center bg-[#08090B]">
         <div className="w-10 h-10 border-2 border-[#D5A34A] border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-sm font-medium text-[#CBD5E1]">Verifying Administrator Privileges...</p>
+      </div>
+    );
+  }
+
+  // 403 Forbidden Screen for authenticated non-admin users (e.g. CUSTOMER)
+  if (isForbiddenCustomer) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4 py-16 bg-[#08090B]">
+        <div className="max-w-md w-full bg-[#17181C] border border-rose-500/40 rounded-3xl p-8 shadow-2xl space-y-6 text-center">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center">
+            <ShieldAlert className="w-8 h-8 text-rose-400" />
+          </div>
+          <div className="space-y-2">
+            <span className="inline-block px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 text-xs font-mono font-bold">
+              403 FORBIDDEN
+            </span>
+            <h2 className="text-2xl font-serif font-bold text-white tracking-wide">
+              Administrator Privileges Required
+            </h2>
+            <p className="text-xs text-[#94A3B8] leading-relaxed">
+              Your account is registered with the <strong>CUSTOMER</strong> role and does not have permission to access the Operations HQ.
+            </p>
+          </div>
+          <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
+            <a
+              href="/"
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold text-xs hover:brightness-110 shadow-md transition-all text-center cursor-pointer"
+            >
+              Return to Customer Storefront
+            </a>
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                setIsForbiddenCustomer(false);
+                setIsAdminAuthenticated(false);
+              }}
+              className="text-xs text-[#94A3B8] hover:text-white transition-colors cursor-pointer pt-1"
+            >
+              Switch Account (Sign in as Admin)
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

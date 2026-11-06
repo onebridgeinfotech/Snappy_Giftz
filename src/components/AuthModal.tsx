@@ -254,10 +254,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       setCurrentUser(null);
+      onAuthSuccess?.(null);
       setSuccessMsg('You have been logged out.');
       setTimeout(() => onClose(), 1000);
     } catch {
       setCurrentUser(null);
+      onAuthSuccess?.(null);
     } finally {
       setIsLoading(false);
     }
