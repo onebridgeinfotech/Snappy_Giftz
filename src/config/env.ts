@@ -46,7 +46,7 @@ export function validateEnv(): AppEnvConfig {
     SMTP_PORT: env.SMTP_PORT ? Number(env.SMTP_PORT) : 1025,
     SMTP_USER: env.SMTP_USER,
     SMTP_PASS: env.SMTP_PASS,
-    EMAIL_FROM: env.EMAIL_FROM || 'ezonetechnologies2124@gmail.com',
+    EMAIL_FROM: env.EMAIL_FROM || 'info@snappygiftz.com',
   };
 }
 

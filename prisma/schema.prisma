@@ -79,11 +79,43 @@ model User {
   inventoryAdjustments InventoryAdjustment[]
   artworkUploads       ArtworkUpload[]
   carts                Cart[]
+  webAuthnCredentials  WebAuthnCredential[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
   @@index([email])
   @@index([role])
+}
+
+/** WebAuthn passkeys — Face ID / Touch ID (iOS) and fingerprint / face unlock (Android). */
+model WebAuthnCredential {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String    @unique @db.VarChar(512)
+  publicKey    Bytes
+  counter      BigInt    @default(0)
+  deviceType   String?   @db.VarChar(32)
+  backedUp     Boolean   @default(false)
+  transports   Json      @default("[]")
+  nickname     String?   @db.VarChar(64)
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
+}
+
+model WebAuthnChallenge {
+  id        String   @id @default(uuid())
+  userId    String?
+  challenge String   @db.VarChar(512)
+  type      String   @db.VarChar(32)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([challenge])
+  @@index([expiresAt])
+  @@index([userId])
 }
 
 model Session {

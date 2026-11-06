@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Sparkles } from 'lucide-react';
+import { BUSINESS_CONFIG } from '@/config/business';
+
+const DEFAULT_WA_E164 = `91${BUSINESS_CONFIG.whatsappPhone}`;
 
 interface WhatsAppFloatingButtonProps {
   phoneNumber?: string;
@@ -7,7 +10,7 @@ interface WhatsAppFloatingButtonProps {
 }
 
 export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
-  phoneNumber = '918309600721',
+  phoneNumber = DEFAULT_WA_E164,
   defaultMessage = 'Hello SNAPPY GIFTZ! I have a question about customizing a gift or order status.'
 }) => {
   const [isOpen, setIsOpen] = useState(false);

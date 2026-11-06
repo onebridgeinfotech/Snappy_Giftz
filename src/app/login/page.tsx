@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
@@ -19,10 +19,12 @@ import {
   X,
   KeyRound,
   ExternalLink,
-  Crown
+  Crown,
+  Fingerprint,
 } from 'lucide-react';
 import { BUSINESS_CONFIG } from '@/config/business';
 import { getSafeRedirectUrl } from '@/lib/auth/redirect';
+import { isPasskeySupported, passkeyLogin } from '@/lib/auth/passkey-client';
 
 function GoogleIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
@@ -59,6 +61,8 @@ function LoginFormContent() {
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeySupported, setPasskeySupported] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<'standard' | 'db_offline' | 'rate_limit'>('standard');
 
@@ -123,6 +127,31 @@ function LoginFormContent() {
       setShowGoogleModal(true);
     }
   }, [oauthError]);
+
+  useEffect(() => {
+    setPasskeySupported(isPasskeySupported());
+  }, []);
+
+  const handlePasskeyLogin = async () => {
+    if (!email.trim()) {
+      setErrorMsg('Enter your email first, then use Face ID / fingerprint.');
+      setErrorType('standard');
+      return;
+    }
+    setPasskeyBusy(true);
+    setErrorMsg(null);
+    try {
+      const res = await passkeyLogin(email);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Biometric sign-in failed.');
+      window.location.href = redirectUrl;
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Biometric sign-in failed.');
+      setErrorType('standard');
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -620,7 +649,7 @@ function LoginFormContent() {
                 {/* Primary Gold Login Button */}
                 <button
                   type="submit"
-                  disabled={isLoading || googleLoading}
+                  disabled={isLoading || googleLoading || passkeyBusy}
                   className="w-full h-11 sm:h-12 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] transition-all duration-200 disabled:opacity-50 cursor-pointer shadow-lg shadow-[#D5A34A]/20"
                 >
                   {isLoading ? (
@@ -635,6 +664,18 @@ function LoginFormContent() {
                     </>
                   )}
                 </button>
+
+                {passkeySupported && (
+                  <button
+                    type="button"
+                    disabled={isLoading || googleLoading || passkeyBusy}
+                    onClick={() => void handlePasskeyLogin()}
+                    className="w-full h-11 sm:h-12 rounded-xl border border-[#D5A34A]/40 bg-[#08090B] text-[#F5BD48] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-[#24252A] transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    <Fingerprint className="w-4 h-4" />
+                    <span>{passkeyBusy ? 'Confirm Face ID…' : 'Sign in with Face ID / fingerprint'}</span>
+                  </button>
+                )}
               </form>
 
               {/* Elegant Divider */}
@@ -653,7 +694,7 @@ function LoginFormContent() {
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                disabled={isLoading || googleLoading}
+                disabled={isLoading || googleLoading || passkeyBusy}
                 className="w-full h-11 sm:h-12 rounded-xl bg-[#08090B] border border-[#D5A34A]/30 text-white hover:border-[#D5A34A] hover:bg-[#24252A]/40 font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all duration-200 cursor-pointer disabled:opacity-50"
               >
                 {googleLoading ? (

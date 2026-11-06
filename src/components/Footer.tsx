@@ -191,12 +191,23 @@ export const Footer: React.FC = () => {
             <span className="text-[#D5A34A]/40">•</span>
             <a href="/about" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">About Us</a>
             <span className="text-[#D5A34A]/40">•</span>
-            <a href="https://wa.me/918309600721" target="_blank" rel="noopener noreferrer" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">WhatsApp: 8309600721</a>
+            <a href={`https://wa.me/91${BUSINESS_CONFIG.whatsappPhone}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#F5BD48] transition-colors focus-visible:outline-hidden focus-visible:text-[#F5BD48]">WhatsApp: {BUSINESS_CONFIG.whatsappFormatted.replace('+91 ', '')}</a>
           </div>
         </div>
 
-        <div className="text-[11px] text-[#94A3B8]/80 pt-2 border-t border-white/5">
-          © 2026 {BUSINESS_CONFIG.brandName}. All rights reserved.
+        <div className="text-[11px] text-[#94A3B8]/80 pt-2 border-t border-white/5 space-y-1">
+          <div>© 2026 {BUSINESS_CONFIG.brandName}. All rights reserved.</div>
+          <div>
+            Developed by{' '}
+            <a
+              href="https://www.onebridgeinfotech.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#D5A34A]/90 hover:text-[#F5BD48] transition-colors underline-offset-2 hover:underline focus-visible:outline-hidden focus-visible:text-[#F5BD48]"
+            >
+              Onebridge Infotech
+            </a>
+          </div>
         </div>
       </div>
     </footer>

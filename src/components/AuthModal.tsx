@@ -18,8 +18,10 @@ import {
   EyeOff,
   Crown,
   Sparkles,
-  Package
+  Package,
+  Fingerprint,
 } from 'lucide-react';
+import { isPasskeySupported, passkeyLogin } from '@/lib/auth/passkey-client';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -41,6 +43,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const passkeySupported = mounted && isPasskeySupported();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [accountType, setAccountType] = useState<'CUSTOMER' | 'B2B_CLIENT'>('CUSTOMER');
@@ -159,6 +163,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
       setErrorMsg(err.message || 'An error occurred.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    if (!email.trim()) {
+      setErrorMsg('Enter your email, then tap Face ID / fingerprint sign-in.');
+      return;
+    }
+    setPasskeyBusy(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await passkeyLogin(email);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Biometric sign-in failed.');
+      setCurrentUser(data.user);
+      setSuccessMsg('Signed in with Face ID / fingerprint.');
+      if (onAuthSuccess) onAuthSuccess(data.user);
+      setTimeout(() => onClose(), 1200);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Biometric sign-in failed.');
+    } finally {
+      setPasskeyBusy(false);
     }
   };
 
@@ -513,7 +540,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
 
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || passkeyBusy}
                     className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-[#F5BD48] via-[#D5A34A] to-[#B88728] text-[#08090B] text-xs font-bold hover:brightness-105 shadow-[0_2px_14px_rgba(213,163,74,0.3)] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                   >
                     <span>{isLoading ? 'Authenticating...' : 'Sign In Securely'}</span>
@@ -553,6 +580,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                     </svg>
                     <span>Continue with Google</span>
                   </a>
+
+                  {passkeySupported && (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        disabled={isLoading || passkeyBusy}
+                        onClick={() => void handlePasskeyLogin()}
+                        className="w-full py-2.5 rounded-xl border border-[#D5A34A]/40 bg-[#17181C] text-[#F5BD48] text-xs font-bold hover:bg-[#24252A] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <Fingerprint className="w-4 h-4" />
+                        <span>{passkeyBusy ? 'Waiting for Face ID…' : 'Sign in with Face ID / fingerprint'}</span>
+                      </button>
+                    </div>
+                  )}
                 </form>
               )}
 

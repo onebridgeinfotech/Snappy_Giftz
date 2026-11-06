@@ -25,6 +25,7 @@ import {
   Building,
   Navigation,
 } from 'lucide-react';
+import { PasskeyManager } from '@/components/account/PasskeyManager';
 
 interface UserProfile {
   id: string;
@@ -961,6 +962,8 @@ export default function AccountPage() {
             </form>
           </div>
         )}
+
+        <PasskeyManager />
 
       </div>
     </div>

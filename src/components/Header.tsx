@@ -423,7 +423,10 @@ export const Header: React.FC = () => {
             {/* Wishlist Button */}
             <button
               type="button"
-              onClick={() => { setMode('b2c'); }}
+              onClick={() => {
+                setMode('b2c');
+                setActiveModal('wishlist');
+              }}
               className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-[#D5A34A]/25 bg-[#17181C] hover:border-[#D5A34A] hover:bg-[#24252A] flex items-center justify-center text-[#CBD5E1] hover:text-[#F5BD48] transition-all focus-gold"
               title="Saved Gifts Wishlist"
               aria-label={`View wishlist (${wishlist.length} saved gifts)`}

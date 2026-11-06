@@ -3,6 +3,7 @@ import {
   SNAPPY_EMAIL_BRAND,
   ctaButton,
   wrapSnappyTransactionalEmail,
+  renderSnappyEmailCard,
 } from './snappy-email-brand';
 
 export interface EmailOrderDetails {
@@ -66,32 +67,16 @@ function finalizeEmail(cardInnerHtml: string, preheader?: string): string {
   return wrapSnappyTransactionalEmail({ bodyHtml: cardInnerHtml, preheader });
 }
 
-/**
- * Branded card header (Snappy Giftz gold on dark — OneSocial-style layout).
- */
-function renderHeader(seller: SellerConfigData, title: string): string {
-  const brand = SNAPPY_EMAIL_BRAND;
-  return `
-    <div style="background-color: ${brand.primary}; padding: 24px 24px 20px; text-align: center; border-radius: 12px 12px 0 0;">
-      <a href="${brand.siteUrl}" style="text-decoration:none;">
-        <img src="${brand.logoUrl}" width="140" height="52" alt="${escapeHtml(brand.name)}" style="display:block;margin:0 auto 10px;border:0;height:52px;width:auto;max-width:180px;" />
-      </a>
-      <p style="color: ${brand.accent}; margin: 0 0 4px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;">${escapeHtml(title)}</p>
-      <p style="color: #94a3b8; margin: 0; font-size: 12px;">${escapeHtml(seller.legalName)}</p>
-    </div>
-  `;
+function wrapTemplateCard(eyebrow: string, bodyInnerHtml: string, seller: SellerConfigData): string {
+  return renderSnappyEmailCard({
+    eyebrow,
+    bodyHtml: bodyInnerHtml,
+    footer: { legalName: seller.legalName, gstin: seller.gstin || undefined },
+  });
 }
 
-function renderFooter(seller: SellerConfigData): string {
-  const brand = SNAPPY_EMAIL_BRAND;
-  const phonePart = seller.contactPhone ? ` · ${escapeHtml(seller.contactPhone)}` : '';
-  return `
-    <div style="background-color: #fafafa; padding: 20px; text-align: center; border-top: 1px solid ${brand.border}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; color: ${brand.muted}; border-radius: 0 0 12px 12px;">
-      <p style="margin: 0 0 6px 0; font-weight: 600; color: ${brand.primary};">${escapeHtml(seller.legalName)}</p>
-      <p style="margin: 0 0 6px 0;">${escapeHtml(seller.registeredStreet)}, ${escapeHtml(seller.city)}, ${escapeHtml(seller.state)} - ${escapeHtml(seller.pincode)}, India</p>
-      <p style="margin: 0;">GSTIN: ${escapeHtml(seller.gstin)} · <a href="mailto:${escapeHtml(seller.contactEmail)}" style="color: ${brand.accentHover}; text-decoration: none;">${escapeHtml(seller.contactEmail)}</a>${phonePart}</p>
-    </div>
-  `;
+function supportLineText(seller: SellerConfigData): string {
+  return `Support: ${SNAPPY_EMAIL_BRAND.supportEmail} | ${SNAPPY_EMAIL_BRAND.phoneDisplay}`;
 }
 
 // -------------------------------------------------------------
@@ -116,46 +101,37 @@ export function renderOrderConfirmationTemplate(
     )
     .join('');
 
-  const card = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid ${SNAPPY_EMAIL_BRAND.border}; border-radius: 12px; overflow:hidden;">
-      ${renderHeader(seller, 'Order Confirmation & Receipt')}
-      <div style="padding: 24px; background-color: #ffffff;">
-        <h2 style="font-size: 18px; color: ${SNAPPY_EMAIL_BRAND.primary}; margin-top: 0;">Hello ${escapeHtml(order.customerName)},</h2>
-        <p style="color: #334155; font-size: 14px; line-height: 1.6;">Thank you for your order! We have received your order <strong>#${escapeHtml(order.orderNumber)}</strong> placed on ${escapeHtml(order.orderDate)} and our team is preparing your package.</p>
-        
-        <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 6px; margin: 18px 0; font-size: 13px; color: #475569;">
+  const card = wrapTemplateCard(
+    'Order confirmed',
+    `
+        <h2 style="font-size: 20px; color: ${SNAPPY_EMAIL_BRAND.primary}; margin: 0 0 12px;">Hello ${escapeHtml(order.customerName)},</h2>
+        <p style="margin: 0 0 20px;">Thank you for shopping with us. Order <strong>#${escapeHtml(order.orderNumber)}</strong> (${escapeHtml(order.orderDate)}) is confirmed and being prepared.</p>
+        <div style="background:${SNAPPY_EMAIL_BRAND.accentLight};border:1px solid ${SNAPPY_EMAIL_BRAND.accent};border-radius:10px;padding:14px 16px;margin:0 0 20px;font-size:13px;">
           <strong>Deliver to:</strong> ${escapeHtml(order.shippingAddress.fullName)}, ${escapeHtml(order.shippingAddress.addressLine1)}, ${escapeHtml(order.shippingAddress.city)}, ${escapeHtml(order.shippingAddress.state)} - ${escapeHtml(order.shippingAddress.postalCode)}
         </div>
-
-        <h3 style="font-size: 15px; color: #0f172a; margin: 20px 0 10px 0;">Order Summary</h3>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+        <h3 style="font-size:14px;color:${SNAPPY_EMAIL_BRAND.primary};margin:0 0 10px;text-transform:uppercase;letter-spacing:0.06em;">Order summary</h3>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
           <thead>
-            <tr style="background-color: #f8fafc;">
-              <th style="padding: 8px 10px; text-align: left; font-size: 12px; color: #64748b; border-bottom: 2px solid #e2e8f0;">Item</th>
-              <th style="padding: 8px 10px; text-align: center; font-size: 12px; color: #64748b; border-bottom: 2px solid #e2e8f0;">Qty</th>
-              <th style="padding: 8px 10px; text-align: right; font-size: 12px; color: #64748b; border-bottom: 2px solid #e2e8f0;">Unit Rate</th>
-              <th style="padding: 8px 10px; text-align: right; font-size: 12px; color: #64748b; border-bottom: 2px solid #e2e8f0;">Total</th>
+            <tr style="background:#f8fafc;">
+              <th style="padding:8px 10px;text-align:left;font-size:11px;color:#64748b;border-bottom:2px solid #e2e8f0;">Item</th>
+              <th style="padding:8px 10px;text-align:center;font-size:11px;color:#64748b;border-bottom:2px solid #e2e8f0;">Qty</th>
+              <th style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;border-bottom:2px solid #e2e8f0;">Rate</th>
+              <th style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;border-bottom:2px solid #e2e8f0;">Total</th>
             </tr>
           </thead>
-          <tbody>
-            ${itemsRows}
-          </tbody>
+          <tbody>${itemsRows}</tbody>
         </table>
-
-        <div style="width: 250px; margin-left: auto; font-size: 13px; color: #334155; line-height: 1.8;">
-          <div style="display: flex; justify-content: space-between;"><span>Taxable Subtotal:</span><span>Rs. ${escapeHtml(order.taxableSubtotalInr)}</span></div>
-          <div style="display: flex; justify-content: space-between;"><span>Taxes (GST):</span><span>Rs. ${escapeHtml(order.taxTotalInr)}</span></div>
-          <div style="display: flex; justify-content: space-between;"><span>Shipping:</span><span>Rs. ${escapeHtml(order.shippingTotalInr)}</span></div>
-          <div style="display: flex; justify-content: space-between; border-top: 2px solid #0f172a; padding-top: 6px; font-weight: 700; font-size: 15px; color: #0f172a;">
-            <span>Grand Total:</span><span>Rs. ${escapeHtml(order.grandTotalInr)}</span>
-          </div>
-        </div>
-
-        <p style="color: #64748b; font-size: 12px; margin-top: 24px;">Your official GST tax invoice will be issued upon dispatch and sent to you automatically.</p>
-      </div>
-      ${renderFooter(seller)}
-    </div>
-  `;
+        <table role="presentation" align="right" cellpadding="0" cellspacing="0" style="font-size:13px;color:#334155;line-height:1.9;">
+          <tr><td style="padding-right:16px;">Taxable subtotal</td><td align="right">Rs. ${escapeHtml(order.taxableSubtotalInr)}</td></tr>
+          <tr><td style="padding-right:16px;">GST</td><td align="right">Rs. ${escapeHtml(order.taxTotalInr)}</td></tr>
+          <tr><td style="padding-right:16px;">Shipping</td><td align="right">Rs. ${escapeHtml(order.shippingTotalInr)}</td></tr>
+          <tr><td style="padding:8px 16px 0 0;font-weight:700;font-size:15px;color:${SNAPPY_EMAIL_BRAND.primary};border-top:2px solid ${SNAPPY_EMAIL_BRAND.primary};">Grand total</td><td align="right" style="padding-top:8px;font-weight:700;font-size:15px;border-top:2px solid ${SNAPPY_EMAIL_BRAND.primary};">Rs. ${escapeHtml(order.grandTotalInr)}</td></tr>
+        </table>
+        <p style="clear:both;color:#64748b;font-size:12px;margin-top:28px;">Your GST invoice will be emailed when your gift ships.</p>
+        ${ctaButton(`${SNAPPY_EMAIL_BRAND.siteUrl}/account/orders`, 'Track your order')}
+  `,
+    seller
+  );
 
   const html = finalizeEmail(card, `Order #${order.orderNumber} confirmed`);
 
@@ -175,7 +151,7 @@ Shipping: Rs. ${order.shippingTotalInr}
 Grand Total: Rs. ${order.grandTotalInr}
 
 Seller: ${seller.legalName} (GSTIN: ${seller.gstin})
-Support: ${seller.contactEmail} | ${seller.contactPhone}
+${supportLineText(seller)}
   `.trim();
 
   return { subject, html, text };
@@ -191,31 +167,19 @@ export function renderInvoiceAvailableTemplate(
   const subject = `Tax Invoice Available: ${invoice.invoiceNumber} (Order #${invoice.orderNumber}) - ${seller.legalName}`;
 
   const ordersUrl = `${SNAPPY_EMAIL_BRAND.siteUrl}/orders`;
-  const card = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid ${SNAPPY_EMAIL_BRAND.border}; border-radius: 12px; overflow:hidden;">
-      ${renderHeader(seller, 'Official GST Tax Invoice')}
-      <div style="padding: 24px; background-color: #ffffff;">
-        <h2 style="font-size: 18px; color: #0f172a; margin-top: 0;">Tax Invoice Generated</h2>
-        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-          Your official tax invoice <strong>${escapeHtml(invoice.invoiceNumber)}</strong> has been generated for order <strong>#${escapeHtml(invoice.orderNumber)}</strong>.
-        </p>
-        
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;">
-          <table style="width: 100%; font-size: 13px; color: #334155;">
-            <tr><td style="padding: 4px 0; color: #64748b;">Invoice Number:</td><td style="font-weight: 600;">${escapeHtml(invoice.invoiceNumber)}</td></tr>
-            <tr><td style="padding: 4px 0; color: #64748b;">Invoice Date:</td><td>${escapeHtml(invoice.invoiceDate)}</td></tr>
-            <tr><td style="padding: 4px 0; color: #64748b;">Order Number:</td><td>#${escapeHtml(invoice.orderNumber)}</td></tr>
-            <tr><td style="padding: 4px 0; color: #64748b;">Total Amount:</td><td style="font-weight: 700; color: #0f172a;">Rs. ${escapeHtml(invoice.grandTotalInr)}</td></tr>
-          </table>
-        </div>
-
-        <p style="color: #334155; font-size: 13px;">A copy of your PDF Tax Invoice is attached to this email for your accounting and tax records.</p>
-        
+  const card = wrapTemplateCard(
+    'Tax invoice',
+    `
+        <h2 style="font-size:20px;color:${SNAPPY_EMAIL_BRAND.primary};margin:0 0 12px;">Your GST invoice is ready</h2>
+        <p style="margin:0 0 20px;">Invoice <strong>${escapeHtml(invoice.invoiceNumber)}</strong> for order <strong>#${escapeHtml(invoice.orderNumber)}</strong> is attached as PDF.</p>
+        <table style="width:100%;font-size:13px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:4px 16px;">
+          <tr><td style="padding:8px 0;color:#64748b;">Invoice date</td><td style="font-weight:600;">${escapeHtml(invoice.invoiceDate)}</td></tr>
+          <tr><td style="padding:8px 0;color:#64748b;">Total</td><td style="font-weight:700;color:${SNAPPY_EMAIL_BRAND.primary};">Rs. ${escapeHtml(invoice.grandTotalInr)}</td></tr>
+        </table>
         ${ctaButton(invoice.downloadUrl || ordersUrl, 'View order in your account')}
-      </div>
-      ${renderFooter(seller)}
-    </div>
-  `;
+  `,
+    seller
+  );
 
   const html = finalizeEmail(card, `Tax invoice ${invoice.invoiceNumber}`);
 
@@ -228,7 +192,7 @@ Invoice Total: Rs. ${invoice.grandTotalInr}
 Your official GST Tax Invoice has been generated and is attached to this email.
 
 Seller: ${seller.legalName} (GSTIN: ${seller.gstin})
-Support: ${seller.contactEmail} | ${seller.contactPhone}
+${supportLineText(seller)}
   `.trim();
 
   return { subject, html, text };
@@ -247,33 +211,21 @@ export function renderShipmentDispatchedTemplate(
     ? ctaButton(shipment.trackingUrl, 'Track shipment online')
     : '';
 
-  const card = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid ${SNAPPY_EMAIL_BRAND.border}; border-radius: 12px; overflow:hidden;">
-      ${renderHeader(seller, 'Fulfillment & Dispatch Update')}
-      <div style="padding: 24px; background-color: #ffffff;">
-        <h2 style="font-size: 18px; color: #0f172a; margin-top: 0;">Good news! Your order is on the way.</h2>
-        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-          Your order <strong>#${escapeHtml(shipment.orderNumber)}</strong> has been packaged with care and handed over to our courier partner for transit.
-        </p>
-
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;">
-          <table style="width: 100%; font-size: 13px; color: #334155;">
-            <tr><td style="padding: 4px 0; color: #64748b;">Carrier Partner:</td><td style="font-weight: 600;">${escapeHtml(shipment.carrierPartner)}</td></tr>
-            <tr><td style="padding: 4px 0; color: #64748b;">AWB / Tracking Number:</td><td style="font-weight: 600; font-family: monospace;">${escapeHtml(shipment.awbNumber)}</td></tr>
-            <tr><td style="padding: 4px 0; color: #64748b;">Destination:</td><td>${escapeHtml(shipment.shippingAddress.city)}, ${escapeHtml(shipment.shippingAddress.state)} - ${escapeHtml(shipment.shippingAddress.postalCode)}</td></tr>
-            ${shipment.estimatedDeliveryDate ? `<tr><td style="padding: 4px 0; color: #64748b;">Estimated Delivery:</td><td>${escapeHtml(shipment.estimatedDeliveryDate)}</td></tr>` : ''}
-          </table>
-        </div>
-
+  const card = wrapTemplateCard(
+    'Shipped',
+    `
+        <h2 style="font-size:20px;color:${SNAPPY_EMAIL_BRAND.primary};margin:0 0 12px;">Your gift is on the way</h2>
+        <p style="margin:0 0 20px;">Order <strong>#${escapeHtml(shipment.orderNumber)}</strong> has left our atelier and is with <strong>${escapeHtml(shipment.carrierPartner)}</strong>.</p>
+        <table style="width:100%;font-size:13px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+          <tr><td style="padding:10px 16px;color:#64748b;">Tracking / AWB</td><td style="padding:10px 16px;font-weight:700;font-family:monospace;">${escapeHtml(shipment.awbNumber)}</td></tr>
+          <tr><td style="padding:10px 16px;color:#64748b;">Destination</td><td style="padding:10px 16px;">${escapeHtml(shipment.shippingAddress.city)}, ${escapeHtml(shipment.shippingAddress.state)}</td></tr>
+          ${shipment.estimatedDeliveryDate ? `<tr><td style="padding:10px 16px;color:#64748b;">Est. delivery</td><td style="padding:10px 16px;">${escapeHtml(shipment.estimatedDeliveryDate)}</td></tr>` : ''}
+        </table>
         ${trackingButton}
-
-        <p style="color: #64748b; font-size: 12px; margin-top: 24px; text-align: center;">
-          Tracking details may take 2-4 hours to reflect on the carrier's tracking system.
-        </p>
-      </div>
-      ${renderFooter(seller)}
-    </div>
-  `;
+        <p style="color:#64748b;font-size:12px;margin-top:20px;text-align:center;">Carrier tracking may take 2–4 hours to update.</p>
+  `,
+    seller
+  );
 
   const html = finalizeEmail(card, `Order #${shipment.orderNumber} dispatched`);
 
@@ -286,7 +238,7 @@ ${shipment.trackingUrl ? `Tracking Link: ${shipment.trackingUrl}` : ''}
 
 Your package is on its way!
 Seller: ${seller.legalName} (GSTIN: ${seller.gstin})
-Support: ${seller.contactEmail} | ${seller.contactPhone}
+${supportLineText(seller)}
   `.trim();
 
   return { subject, html, text };
@@ -349,70 +301,32 @@ export function renderOwnerNewOrderTemplate(
     )
     .join('');
 
-  const card = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid ${SNAPPY_EMAIL_BRAND.border}; border-radius: 12px; overflow:hidden;">
-      <div style="background-color: ${SNAPPY_EMAIL_BRAND.primary}; padding: 20px 24px;">
-        <h1 style="color: ${SNAPPY_EMAIL_BRAND.accent}; font-size: 18px; margin: 0; letter-spacing:0.06em;text-transform:uppercase;">Operations alert</h1>
-        <p style="color: #94a3b8; font-size: 13px; margin: 4px 0 0 0;">New order · SNAPPY GIFTZ</p>
-      </div>
-      <div style="padding: 24px; background-color: #ffffff;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
-          <h2 style="font-size: 18px; color: #0f172a; margin: 0;">Order #${escapeHtml(details.orderNumber)}</h2>
-          <span style="font-size: 13px; color: #64748b;">${escapeHtml(details.orderDate)}</span>
+  const card = wrapTemplateCard(
+    'New order alert',
+    `
+        <h2 style="font-size:20px;color:${SNAPPY_EMAIL_BRAND.primary};margin:0 0 4px;">Order #${escapeHtml(details.orderNumber)}</h2>
+        <p style="margin:0 0 16px;font-size:13px;color:#64748b;">${escapeHtml(details.orderDate)}</p>
+        <div style="margin:0 0 20px;padding:14px 16px;background:${details.paymentMethod === 'COD' ? '#fffbeb' : '#f0fdf4'};border-radius:10px;font-size:14px;">
+          <strong>${details.paymentMethod === 'COD' ? 'Cash on Delivery — pending review' : 'Paid online (Razorpay)'}</strong>
+          ${details.codAmountDueInr ? `<div style="margin-top:6px;">Collect on delivery: <strong>${details.codAmountDueInr}</strong></div>` : ''}
         </div>
-
-        <div style="margin: 16px 0; padding: 12px 16px; background-color: ${details.paymentMethod === 'COD' ? '#fffbeb' : '#f0fdf4'}; border: 1px solid ${details.paymentMethod === 'COD' ? '#fef3c7' : '#dcfce7'}; border-radius: 6px;">
-          <strong style="color: ${details.paymentMethod === 'COD' ? '#b45309' : '#15803d'}; font-size: 14px;">
-            Payment Method: ${details.paymentMethod === 'COD' ? 'Cash on Delivery (Pending Review)' : 'Paid Online (Razorpay)'}
-          </strong>
-          ${details.codAmountDueInr ? `<div style="font-size: 13px; color: #b45309; margin-top: 4px;">Cash to Collect upon delivery: <strong>${details.codAmountDueInr}</strong></div>` : ''}
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
-          <tr>
-            <td style="width: 50%; vertical-align: top; padding-right: 12px;">
-              <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Customer Details</h4>
-              <div style="font-size: 13px; color: #334155; line-height: 1.5;">
-                <strong>${escapeHtml(details.customerName)}</strong><br>
-                ${escapeHtml(details.customerEmail)}<br>
-                ${details.customerPhone ? `Tel: ${escapeHtml(details.customerPhone)}` : ''}
-              </div>
-            </td>
-            <td style="width: 50%; vertical-align: top; padding-left: 12px;">
-              <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Delivery Address</h4>
-              <div style="font-size: 13px; color: #334155; line-height: 1.5;">
-                ${escapeHtml(details.shippingAddress.fullName)}<br>
-                ${escapeHtml(details.shippingAddress.addressLine1)}<br>
-                ${escapeHtml(details.shippingAddress.city)}, ${escapeHtml(details.shippingAddress.state)} - ${escapeHtml(details.shippingAddress.postalCode)}
-              </div>
-            </td>
-          </tr>
-        </table>
-
-        <h4 style="margin: 24px 0 8px 0; font-size: 13px; color: #64748b; text-transform: uppercase;">Ordered Items</h4>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-          <thead>
-            <tr style="border-bottom: 2px solid #e2e8f0; font-size: 11px; color: #64748b; text-transform: uppercase;">
-              <th style="padding: 6px 0; text-align: left;">Item</th>
-              <th style="padding: 6px 0; text-align: center;">Qty</th>
-              <th style="padding: 6px 0; text-align: right;">Unit Price</th>
-              <th style="padding: 6px 0; text-align: right;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemRowsHtml}
-          </tbody>
-        </table>
-
-        <div style="text-align: right; font-size: 16px; font-weight: 700; color: #0f172a; padding: 12px 0; border-top: 2px solid #0f172a;">
-          Total Order Value: ${details.totalInr}
-        </div>
-      </div>
-      <div style="padding: 16px 24px; background-color: #fafafa; font-size: 12px; color: #64748b; text-align: center;">
+        <table style="width:100%;font-size:13px;margin-bottom:16px;"><tr>
+          <td style="width:50%;vertical-align:top;padding-right:10px;">
+            <strong style="color:#64748b;font-size:11px;text-transform:uppercase;">Customer</strong><br/>
+            ${escapeHtml(details.customerName)}<br/>${escapeHtml(details.customerEmail)}
+          </td>
+          <td style="width:50%;vertical-align:top;">
+            <strong style="color:#64748b;font-size:11px;text-transform:uppercase;">Ship to</strong><br/>
+            ${escapeHtml(details.shippingAddress.city)}, ${escapeHtml(details.shippingAddress.state)}
+          </td>
+        </tr></table>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;"><thead><tr style="font-size:11px;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">
+          <th align="left">Item</th><th>Qty</th><th align="right">Total</th></tr></thead><tbody>${itemRowsHtml}</tbody></table>
+        <p style="text-align:right;font-size:17px;font-weight:700;margin:0 0 20px;">Total: ${details.totalInr}</p>
         ${ctaButton(`${SNAPPY_EMAIL_BRAND.siteUrl}/admin`, 'Open admin dashboard')}
-      </div>
-    </div>
-  `;
+  `,
+    seller
+  );
 
   const html = finalizeEmail(card, `New order #${details.orderNumber}`);
 
@@ -440,27 +354,18 @@ export function renderCodApprovedTemplate(
 ): { subject: string; html: string; text: string } {
   const subject = `Order Confirmed: #${details.orderNumber} (Cash on Delivery) - SNAPPY GIFTZ`;
 
-  const card = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid ${SNAPPY_EMAIL_BRAND.border}; border-radius: 12px; overflow:hidden;">
-      ${renderHeader(seller, 'COD Order Confirmed')}
-      <div style="padding: 24px; background-color: #ffffff;">
-        <h2 style="font-size: 18px; color: #0f172a; margin-top: 0;">Hi ${escapeHtml(details.customerName)}, your order is confirmed!</h2>
-        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-          Your Cash on Delivery order <strong>#${escapeHtml(details.orderNumber)}</strong> has been approved and is now being processed for packing and delivery.
-        </p>
-
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;">
-          <p style="margin: 0; font-size: 14px; color: #334155;">
-            <strong>Amount Payable on Delivery:</strong> <span style="font-size: 16px; color: #0f172a; font-weight: 700;">${details.codAmountDueInr}</span>
-          </p>
-          <p style="margin: 8px 0 0 0; font-size: 12px; color: #64748b;">
-            Please keep the exact cash amount ready at the time of delivery. You may also pay via UPI QR to our delivery executive.
-          </p>
+  const card = wrapTemplateCard(
+    'COD confirmed',
+    `
+        <h2 style="font-size:20px;color:${SNAPPY_EMAIL_BRAND.primary};margin:0 0 12px;">Hi ${escapeHtml(details.customerName)}, you're all set</h2>
+        <p style="margin:0 0 20px;">COD order <strong>#${escapeHtml(details.orderNumber)}</strong> is approved and being prepared.</p>
+        <div style="background:${SNAPPY_EMAIL_BRAND.accentLight};border:1px solid ${SNAPPY_EMAIL_BRAND.accent};border-radius:10px;padding:16px;">
+          <strong>Pay on delivery:</strong> <span style="font-size:18px;color:${SNAPPY_EMAIL_BRAND.primary};">${details.codAmountDueInr}</span>
+          <p style="margin:8px 0 0;font-size:12px;color:#64748b;">Cash or UPI to our delivery partner.</p>
         </div>
-      </div>
-      ${renderFooter(seller)}
-    </div>
-  `;
+  `,
+    seller
+  );
 
   const html = finalizeEmail(card, `COD order #${details.orderNumber} confirmed`);
 
@@ -471,7 +376,7 @@ Amount Payable on Delivery: ${details.codAmountDueInr}
 
 We are preparing your gift for delivery.
 Seller: ${seller.legalName}
-Support: ${seller.contactEmail} | ${seller.contactPhone}
+${supportLineText(seller)}
   `.trim();
 
   return { subject, html, text };
@@ -483,28 +388,21 @@ export function renderCodRejectedTemplate(
 ): { subject: string; html: string; text: string } {
   const subject = `Order Update: #${details.orderNumber} - SNAPPY GIFTZ`;
 
-  const card = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid ${SNAPPY_EMAIL_BRAND.border}; border-radius: 12px; overflow:hidden;">
-      ${renderHeader(seller, 'Order Cancellation Notice')}
-      <div style="padding: 24px; background-color: #ffffff;">
-        <h2 style="font-size: 18px; color: #0f172a; margin-top: 0;">Order #${escapeHtml(details.orderNumber)} Notice</h2>
-        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-          Hi ${escapeHtml(details.customerName)}, we were unable to process your Cash on Delivery order <strong>#${escapeHtml(details.orderNumber)}</strong>.
-        </p>
+  const card = wrapTemplateCard(
+    'Order update',
+    `
+        <h2 style="font-size:20px;color:${SNAPPY_EMAIL_BRAND.primary};margin:0 0 12px;">Order #${escapeHtml(details.orderNumber)}</h2>
+        <p style="margin:0 0 16px;">Hi ${escapeHtml(details.customerName)}, we couldn't approve this COD order.</p>
         ${
           details.reason
-            ? `<div style="background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 6px; padding: 14px; margin: 16px 0; color: #991b1b; font-size: 13px;">
-                <strong>Reason:</strong> ${escapeHtml(details.reason)}
-               </div>`
+            ? `<div style="background:#fef2f2;border:1px solid #fee2e2;border-radius:10px;padding:14px;margin:0 0 16px;color:#991b1b;font-size:13px;"><strong>Reason:</strong> ${escapeHtml(details.reason)}</div>`
             : ''
         }
-        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-          Any reserved items have been restored. If you wish to place this order again with online payment, please visit our website.
-        </p>
-      </div>
-      ${renderFooter(seller)}
-    </div>
-  `;
+        <p style="margin:0;">You can place the order again with online payment anytime.</p>
+        ${ctaButton(`${SNAPPY_EMAIL_BRAND.siteUrl}/#catalog-section`, 'Return to shop')}
+  `,
+    seller
+  );
 
   const html = finalizeEmail(card, `Update on order #${details.orderNumber}`);
 
@@ -513,7 +411,7 @@ Hi ${details.customerName},
 We were unable to process your COD order #${details.orderNumber}.
 ${details.reason ? `Reason: ${details.reason}\n` : ''}
 Please visit SNAPPY GIFTZ to place an order or contact us for assistance.
-Support: ${seller.contactEmail} | ${seller.contactPhone}
+${supportLineText(seller)}
   `.trim();
 
   return { subject, html, text };
@@ -525,22 +423,20 @@ export function renderCustomerRegistrationTemplate(
 ): { subject: string; html: string; text: string } {
   const subject = `Welcome to SNAPPY GIFTZ!`;
 
-  const card = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid ${SNAPPY_EMAIL_BRAND.border}; border-radius: 12px; overflow:hidden;">
-      ${renderHeader(seller, 'Welcome')}
-      <div style="padding: 24px; background-color: #ffffff;">
-        <h2 style="font-size: 18px; color: ${SNAPPY_EMAIL_BRAND.primary}; margin-top: 0;">Welcome, ${escapeHtml(details.customerName)}!</h2>
-        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-          Thank you for creating an account with SNAPPY GIFTZ. We are thrilled to bring thoughtful, personalized gifting and rapid Hyderabad delivery to your fingertips.
-        </p>
-        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-          Track orders, manage addresses, and personalize gifts from your account.
-        </p>
-        ${ctaButton(`${SNAPPY_EMAIL_BRAND.siteUrl}/#catalog-section`, 'Browse the collection')}
-      </div>
-      ${renderFooter(seller)}
-    </div>
-  `;
+  const card = wrapTemplateCard(
+    'Welcome',
+    `
+        <h2 style="font-size:22px;color:${SNAPPY_EMAIL_BRAND.primary};margin:0 0 12px;">Welcome, ${escapeHtml(details.customerName)}!</h2>
+        <p style="margin:0 0 16px;">Thanks for joining <strong>SNAPPY GIFTZ</strong> — Hyderabad's studio for personalized luxury gifting, custom engraving, and express local delivery.</p>
+        <ul style="margin:0 0 24px;padding-left:20px;color:#475569;font-size:14px;line-height:1.8;">
+          <li>Track orders and delivery in your account</li>
+          <li>Save addresses for faster checkout</li>
+          <li>Personalize gifts with engraving &amp; artwork</li>
+        </ul>
+        ${ctaButton(`${SNAPPY_EMAIL_BRAND.siteUrl}/#catalog-section`, 'Explore the collection')}
+  `,
+    seller
+  );
 
   const html = finalizeEmail(card, 'Welcome to SNAPPY GIFTZ');
 
@@ -548,7 +444,7 @@ export function renderCustomerRegistrationTemplate(
 Welcome to SNAPPY GIFTZ, ${details.customerName}!
 Thank you for creating an account.
 Browse gifts and track orders at SNAPPY GIFTZ.
-Support: ${seller.contactEmail} | ${seller.contactPhone}
+${supportLineText(seller)}
   `.trim();
 
   return { subject, html, text };
@@ -560,23 +456,19 @@ export function renderAdminNewRegistrationTemplate(
 ): { subject: string; html: string; text: string } {
   const subject = `[SNAPPY GIFTZ] New account: ${details.customerEmail}`;
 
-  const card = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid ${SNAPPY_EMAIL_BRAND.border}; border-radius: 12px; overflow:hidden;">
-      ${renderHeader(seller, 'New registration')}
-      <div style="padding: 24px; background-color: #ffffff;">
-        <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-top:0;">
-          A new customer registered on the storefront.
-        </p>
-        <table style="width:100%;font-size:13px;color:#334155;border-collapse:collapse;">
-          <tr><td style="padding:6px 0;color:#64748b;">Name</td><td style="font-weight:600;">${escapeHtml(details.customerName)}</td></tr>
-          <tr><td style="padding:6px 0;color:#64748b;">Email</td><td>${escapeHtml(details.customerEmail)}</td></tr>
-          <tr><td style="padding:6px 0;color:#64748b;">Role</td><td>${escapeHtml(details.role)}</td></tr>
+  const card = wrapTemplateCard(
+    'New signup',
+    `
+        <p style="margin:0 0 16px;">A new customer registered on the storefront.</p>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          <tr><td style="padding:8px 0;color:#64748b;width:80px;">Name</td><td style="font-weight:600;">${escapeHtml(details.customerName)}</td></tr>
+          <tr><td style="padding:8px 0;color:#64748b;">Email</td><td>${escapeHtml(details.customerEmail)}</td></tr>
+          <tr><td style="padding:8px 0;color:#64748b;">Role</td><td>${escapeHtml(details.role)}</td></tr>
         </table>
         ${ctaButton(`${SNAPPY_EMAIL_BRAND.siteUrl}/admin`, 'View in admin')}
-      </div>
-      ${renderFooter(seller)}
-    </div>
-  `;
+  `,
+    seller
+  );
 
   const html = finalizeEmail(card, `New signup: ${details.customerEmail}`);
   const text = `New registration\nName: ${details.customerName}\nEmail: ${details.customerEmail}\nRole: ${details.role}`;
