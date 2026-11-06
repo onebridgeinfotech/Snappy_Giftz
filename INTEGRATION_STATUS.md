@@ -97,7 +97,7 @@ This document details the configuration status, verification findings, and remai
   - Templates: `src/lib/email/email-templates.ts` (Order confirmation, invoice available, shipment dispatched).
 - **Required Environment Variables:**
   - `RESEND_API_KEY`
-  - `EMAIL_FROM` (e.g. `SNAPPY GIFTZ <info@snappygitz.com>`)
+  - `EMAIL_FROM` (e.g. `SNAPPY GIFTZ <info@snappygiftz.com>`)
   - `OWNER_NOTIFICATION_EMAIL` (Store owner address)
 - **Configuration Status:** **MISSING (Production HTTP Adapter)**. No Resend API client or HTTP adapter exists in the codebase. Raw TCP socket connections to port 1025 are blocked on serverless platforms.
 - **Verification Status:** Validated locally using Mailpit raw SMTP. Production delivery fails closed.

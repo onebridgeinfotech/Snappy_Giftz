@@ -105,7 +105,7 @@ This roadmap establishes the precise, phased execution plan to resolve all defec
   1. Update `index.html` title to `SNAPPY GIFTZ — Premier Personal & Corporate Gifting Platform`.
   2. Update `src/app/layout.tsx` metadata and OpenGraph titles to `SNAPPY GIFTZ`.
   3. Update `StoreConfig` and `SellerConfig` database defaults to `SNAPPY GIFTZ`.
-  4. Standardize email templates, invoice headers, and footer contacts to `info@snappygitz.com`.
+  4. Standardize email templates, invoice headers, and footer contacts to `info@snappygiftz.com`.
   5. Preserve original logo artwork in `public/assets/snappy-gifts.png` without alteration.
 - **Dependencies:** None.
 - **Testing:** Grep codebase for "Ajmer Gift Charm" and "Snappy Gifts" to confirm 100% elimination of unauthorized brand variants.
