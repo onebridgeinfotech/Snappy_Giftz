@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       [
         process.env.ADMIN_EMAIL,
         ...(process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : []),
-        'phoenixnot13@gmail.com',
+        'ezonetechnologies2124@gmail.com',
         'onebridgeinfotech@gmail.com',
       ]
         .filter(Boolean)

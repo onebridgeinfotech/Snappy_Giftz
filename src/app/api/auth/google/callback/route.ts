@@ -71,7 +71,7 @@ export async function GET(req: Request) {
 
     redirectTarget = getSafeRedirectUrl(redirect, '/');
 
-    const secretKey = process.env.SESSION_SECRET || 'snappy-oauth-secret-fallback';
+    const secretKey = process.env.SESSION_SECRET || process.env.NEXTAUTH_SECRET || 'snappy-oauth-secret-fallback';
     const expectedSigWithRedirect = crypto
       .createHmac('sha256', secretKey)
       .update(`${nonce}:${timestamp}:${redirectTarget}`)

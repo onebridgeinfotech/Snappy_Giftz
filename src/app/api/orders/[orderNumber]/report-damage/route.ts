@@ -124,13 +124,13 @@ export async function POST(
     // Register into shared claims store and audit log
     await registerDamageClaim(claimData);
 
-    // 6. Alert Owner & Admin Account (phoenixnot13@gmail.com)
+    // 6. Alert Owner & Admin Account (ezonetechnologies2124@gmail.com)
     await enqueueTransactionalEmail({
       idempotencyKey: `email:damage_report_admin:${claimId}`,
       eventType: 'SYSTEM_ALERT',
       orderId: order.id || order.orderNumber,
       orderNumber: order.orderNumber,
-      recipientEmail: BUSINESS_CONFIG.adminEmail || 'phoenixnot13@gmail.com',
+      recipientEmail: BUSINESS_CONFIG.adminEmail || 'ezonetechnologies2124@gmail.com',
       recipientName: 'SNAPPY GIFTZ Owner Review Desk',
       subject: `[ACTION REQUIRED] Damaged Product Report #${order.orderNumber} (${claimId})`,
       htmlBody: `

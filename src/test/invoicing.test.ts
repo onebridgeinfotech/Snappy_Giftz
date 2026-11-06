@@ -2079,7 +2079,7 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
       throw new Error('Expected INVOICE_AVAILABLE email to be enqueued immediately for approved electronic invoice');
     }
 
-    // 2.5 Admin archive copy is dispatched to phoenixnot13@gmail.com with ADMIN_INVOICE_ARCHIVE
+    // 2.5 Admin archive copy is dispatched to ezonetechnologies2124@gmail.com with ADMIN_INVOICE_ARCHIVE
     const adminArchiveEmail = outbox.find(
       (m) => m.idempotencyKey === `email:admin_invoice_archive:${invoice.invoiceNumber}`
     );
@@ -2089,8 +2089,8 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
     if (adminArchiveEmail.eventType !== 'ADMIN_INVOICE_ARCHIVE') {
       throw new Error(`Expected eventType ADMIN_INVOICE_ARCHIVE, got ${adminArchiveEmail.eventType}`);
     }
-    if (adminArchiveEmail.recipientEmail !== 'phoenixnot13@gmail.com') {
-      throw new Error(`Expected admin email phoenixnot13@gmail.com, got ${adminArchiveEmail.recipientEmail}`);
+    if (adminArchiveEmail.recipientEmail !== 'ezonetechnologies2124@gmail.com') {
+      throw new Error(`Expected admin email ezonetechnologies2124@gmail.com, got ${adminArchiveEmail.recipientEmail}`);
     }
 
     // 3. Customer can download invoice immediately without waiting for physical dispatch signature

@@ -29,14 +29,6 @@ const DEV_FALLBACK_USERS: Record<string, FallbackUserRecord> = {
     isActive: true,
     isEmailVerified: true,
   },
-  'phoenixnot13@gmail.com': {
-    id: 'usr-admin-phoenix',
-    name: 'Snappy Admin',
-    email: 'phoenixnot13@gmail.com',
-    role: Role.ADMIN,
-    isActive: true,
-    isEmailVerified: true,
-  },
   'ezonetechnologies2124@gmail.com': {
     id: 'usr-admin-ezone',
     name: 'Snappy Admin',

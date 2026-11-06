@@ -313,9 +313,6 @@ export async function getAdminOrderDetails(orderIdOrNumber: string) {
         user: {
           select: { id: true, name: true, email: true, phone: true, role: true },
         },
-        organization: {
-          select: { id: true, companyName: true, gstin: true },
-        },
       },
     });
 
@@ -1110,15 +1107,15 @@ function formatAdminOrderListItem(order: any) {
     createdAt: new Date(order.createdAt).toISOString(),
     shipment: shipment
       ? {
-          carrierPartner: shipment.carrierPartner,
-          awbNumber: shipment.awbNumber,
-          trackingUrl: shipment.trackingUrl,
-          dispatchStatus: shipment.dispatchStatus,
-          dispatchedAt: shipment.dispatchedAt ? new Date(shipment.dispatchedAt).toISOString() : null,
-          deliveredAt: shipment.deliveredAt ? new Date(shipment.deliveredAt).toISOString() : null,
-          invoicePhysicallySignedBy: shipment.invoicePhysicallySignedBy || null,
-          invoicePhysicallySignedAt: shipment.invoicePhysicallySignedAt ? new Date(shipment.invoicePhysicallySignedAt).toISOString() : null,
-        }
+        carrierPartner: shipment.carrierPartner,
+        awbNumber: shipment.awbNumber,
+        trackingUrl: shipment.trackingUrl,
+        dispatchStatus: shipment.dispatchStatus,
+        dispatchedAt: shipment.dispatchedAt ? new Date(shipment.dispatchedAt).toISOString() : null,
+        deliveredAt: shipment.deliveredAt ? new Date(shipment.deliveredAt).toISOString() : null,
+        invoicePhysicallySignedBy: shipment.invoicePhysicallySignedBy || null,
+        invoicePhysicallySignedAt: shipment.invoicePhysicallySignedAt ? new Date(shipment.invoicePhysicallySignedAt).toISOString() : null,
+      }
       : null,
   };
 }
@@ -1248,13 +1245,13 @@ function formatCustomerOrderListItem(order: any) {
     createdAt: new Date(order.createdAt).toISOString(),
     shipment: shipment
       ? {
-          carrierPartner: shipment.carrierPartner,
-          awbNumber: shipment.awbNumber,
-          trackingUrl: shipment.trackingUrl,
-          dispatchStatus: shipment.dispatchStatus,
-          dispatchedAt: shipment.dispatchedAt ? new Date(shipment.dispatchedAt).toISOString() : null,
-          deliveredAt: shipment.deliveredAt ? new Date(shipment.deliveredAt).toISOString() : null,
-        }
+        carrierPartner: shipment.carrierPartner,
+        awbNumber: shipment.awbNumber,
+        trackingUrl: shipment.trackingUrl,
+        dispatchStatus: shipment.dispatchStatus,
+        dispatchedAt: shipment.dispatchedAt ? new Date(shipment.dispatchedAt).toISOString() : null,
+        deliveredAt: shipment.deliveredAt ? new Date(shipment.deliveredAt).toISOString() : null,
+      }
       : null,
   };
 }
