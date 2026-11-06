@@ -22,7 +22,7 @@ export class SmtpEmailService implements EmailAdapter {
     this.secure = process.env.SMTP_SECURE === 'true' || this.port === 465;
     this.user = process.env.SMTP_USER || '';
     this.pass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS || '';
-    this.fromEmail = process.env.SMTP_FROM || process.env.SMTP_FROM_EMAIL || process.env.EMAIL_FROM || 'orders@snappygiftz.com';
+    this.fromEmail = process.env.SMTP_FROM || process.env.SMTP_FROM_EMAIL || process.env.EMAIL_FROM || 'info@snappygitz.com';
     this.fromName = process.env.SMTP_FROM_NAME || 'SNAPPY GIFTZ';
 
     this.initTransporter();

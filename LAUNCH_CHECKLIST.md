@@ -9,7 +9,7 @@ This checklist is the final operational verification gate before pointing produc
 - [ ] **Official Brand Name Standardized:** Verify that **SNAPPY GIFTZ** is displayed consistently across header, footer, page titles, OpenGraph metadata, email templates, and invoices (zero instances of "Ajmer Gift Charm" or "Snappy Gifts").
 - [ ] **Logo Artwork Verified:** Original logo artwork in `public/assets/snappy-gifts.png` renders sharply without distortion or clipping across mobile, tablet, and desktop viewports.
 - [ ] **Favicon & Web App Icons:** `favicon.ico`, `apple-touch-icon.png`, and web manifest icons configured in `public/` and `src/app/`.
-- [ ] **Business Contact Details:** Official support email (`orders@snappygiftz.com`), corporate desk phone, and central atelier address (`14, Ana Sagar Circular Road, Civil Lines, Ajmer, Rajasthan - 305001`) confirmed.
+- [ ] **Business Contact Details:** Official support email (`info@snappygitz.com`), corporate desk phone, and central atelier address (`14, Ana Sagar Circular Road, Civil Lines, Ajmer, Rajasthan - 305001`) confirmed.
 - [ ] **Tax & Regulatory Identifiers:** Verified GSTIN and MSME Udyam registration numbers configured in `SellerConfig` and printed in the footer.
 
 ---
@@ -69,7 +69,7 @@ This checklist is the final operational verification gate before pointing produc
   - DKIM CNAME records (all 3 records verified)
   - DMARC record: `v=DMARC1; p=quarantine; rua=mailto:dmarc-reports@snappygiftz.com`
 - [ ] **Production API Key:** Live `RESEND_API_KEY` configured in environment.
-- [ ] **Sender Address:** `EMAIL_FROM` set to `SNAPPY GIFTZ <orders@snappygiftz.com>`.
+- [ ] **Sender Address:** `EMAIL_FROM` set to `SNAPPY GIFTZ <info@snappygitz.com>`.
 - [ ] **Store Owner Alerts:** `OWNER_NOTIFICATION_EMAIL` configured to receive immediate alerts for new orders, new RFQs, and payment discrepancies.
 - [ ] **Outbox Background Worker:** Concurrency-safe email outbox processor active to dispatch queued messages with automatic retry.
 
