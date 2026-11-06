@@ -66,6 +66,8 @@ export class OrderHoldExpiredError extends Error {
 const DEV_PAYMENTS_STORE: Map<string, any> = new Map();
 const DEV_PROCESSED_WEBHOOKS: Set<string> = new Set();
 const DEV_RECONCILIATIONS: any[] = [];
+/** When DB is offline, tests set this so synthetic orders honor delivery approval (Point 10). */
+const DELIVERY_APPROVAL_TEST_OVERRIDE = new Map<string, boolean>();
 
 /**
  * Initiates a payment attempt for a pending Snappy Gifts order.
@@ -115,6 +117,9 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
     }
 
     if (!order) {
+      const approvalFromTest = DELIVERY_APPROVAL_TEST_OVERRIDE.has(cleanOrderNumber)
+        ? DELIVERY_APPROVAL_TEST_OVERRIDE.get(cleanOrderNumber)!
+        : true;
       // Minimal mock order for tests when DB is offline
       order = {
         id: `dev-ord-${cleanOrderNumber}`,
@@ -129,7 +134,7 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
         guestLookupToken: input.guestToken ? input.guestToken.trim() : undefined,
         userId: input.userId,
         payments: [],
-        deliveryChargeCustomerApproved: true,
+        deliveryChargeCustomerApproved: approvalFromTest,
       };
     }
   }
@@ -955,6 +960,7 @@ export function _resetPaymentDevStoreForTesting() {
   DEV_PAYMENTS_STORE.clear();
   DEV_PROCESSED_WEBHOOKS.clear();
   DEV_RECONCILIATIONS.length = 0;
+  DELIVERY_APPROVAL_TEST_OVERRIDE.clear();
 }
 
 /**
@@ -1068,9 +1074,11 @@ export async function approveOrderDeliveryCharge(orderNumber: string, actor: str
     const devOrd = DEV_ORDERS_STORE.get(cleanNumber);
     if (devOrd) {
       devOrd.deliveryChargeCustomerApproved = true;
+      DELIVERY_APPROVAL_TEST_OVERRIDE.delete(cleanNumber);
       return true;
     }
   } catch {}
+  DELIVERY_APPROVAL_TEST_OVERRIDE.delete(cleanNumber);
   return true;
 }
 
@@ -1079,6 +1087,7 @@ export async function approveOrderDeliveryCharge(orderNumber: string, actor: str
  */
 export function _setOrderDeliveryApprovalForTesting(orderNumber: string, approved: boolean) {
   const clean = orderNumber.trim();
+  DELIVERY_APPROVAL_TEST_OVERRIDE.set(clean, approved);
   for (const devPmt of DEV_PAYMENTS_STORE.values()) {
     if (devPmt.orderNumber === clean && devPmt.order) {
       devPmt.order.deliveryChargeCustomerApproved = approved;

@@ -105,14 +105,33 @@ export default function CheckoutPage() {
         .then((data) => {
           setIsValidatingPin(false);
           if (data.success && data.data) {
+            const d = data.data as Record<string, unknown>;
+            const distanceKm =
+              typeof d.estimatedDistanceKm === 'number'
+                ? d.estimatedDistanceKm
+                : typeof d.distanceKm === 'number'
+                  ? d.distanceKm
+                  : undefined;
+            const eligible =
+              typeof d.eligible === 'boolean'
+                ? d.eligible
+                : typeof d.isServiceable === 'boolean'
+                  ? d.isServiceable
+                  : false;
+            const areaName = typeof d.areaName === 'string' ? d.areaName : undefined;
+            const message = typeof d.message === 'string' ? d.message : '';
             setDistanceInfo({
-              distanceKm: data.data.distanceKm,
-              eligible: data.data.eligible,
-              areaName: data.data.areaName,
-              message: data.data.message,
+              distanceKm,
+              eligible,
+              areaName,
+              message,
             });
-            if (!data.data.eligible) {
-              setFormError(data.data.rejectionReason || 'Destination exceeds our 20km delivery radius from A S Rao Nagar studio.');
+            if (!eligible) {
+              const rejection =
+                typeof d.rejectionReason === 'string'
+                  ? d.rejectionReason
+                  : message || 'Destination exceeds our 20km delivery radius from A S Rao Nagar studio.';
+              setFormError(rejection);
             } else {
               setFormError(null);
             }
