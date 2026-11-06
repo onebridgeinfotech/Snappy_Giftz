@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useApp } from '../context/AppContext';
 import {
   Search,
@@ -17,7 +18,8 @@ import {
   MapPin,
   Clock,
   Package,
-  User
+  User,
+  Home
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { AuthModal } from './AuthModal';
@@ -37,6 +39,7 @@ export const Header: React.FC = () => {
     currentPincode,
     setActiveCategory,
     activeCategory,
+    setActiveOccasion,
     navigateToCatalog
   } = useApp();
 
@@ -255,11 +258,16 @@ export const Header: React.FC = () => {
           
           {/* Left: Original SNAPPY GIFTZ Logo Artwork (Visually Prominent) */}
           <div className="flex items-center shrink-0">
-            <button
-              type="button"
-              onClick={() => { setMode('b2c'); }}
-              className="text-left group flex items-center py-0.5 focus:outline-hidden"
-              title="Snappy Giftz — Back to Storefront"
+            <Link
+              href="/"
+              onClick={() => {
+                setMode('b2c');
+                setActiveCategory('All');
+                setActiveOccasion('All');
+                setSearchQuery('');
+              }}
+              className="text-left group flex items-center py-0.5 focus:outline-hidden cursor-pointer"
+              title="Snappy Giftz — Back to Storefront Home"
               aria-label="Snappy Giftz Home"
             >
               {/* Authentic Trimmed Artwork: Perfectly scaled without padding obstruction */}
@@ -268,7 +276,7 @@ export const Header: React.FC = () => {
                 alt="Snappy Giftz — Turning Moments Into Memories"
                 className="h-12 sm:h-14 md:h-15 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.03]"
               />
-            </button>
+            </Link>
           </div>
 
           {/* Center: Refined Pill Search Bar with Trending Suggestions */}
@@ -355,6 +363,23 @@ export const Header: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Direct Home Navigation Button */}
+            <Link
+              href="/"
+              onClick={() => {
+                setMode('b2c');
+                setActiveCategory('All');
+                setActiveOccasion('All');
+                setSearchQuery('');
+              }}
+              className="flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-4 rounded-full border border-[#D5A34A]/50 bg-gradient-to-r from-[#24252A] to-[#17181C] hover:border-[#D5A34A] text-[#F1F5F9] hover:text-[#F5BD48] text-xs font-bold transition-all shadow-xs cursor-pointer group"
+              title="Return to Starting Page / Storefront Home"
+              aria-label="Return to Storefront Home"
+            >
+              <Home className="w-3.5 h-3.5 text-[#F5BD48] group-hover:scale-110 transition-transform" />
+              <span>Home</span>
+            </Link>
 
             {/* Track Order Direct Action */}
             <button
@@ -467,7 +492,25 @@ export const Header: React.FC = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between overflow-x-auto gap-4 no-scrollbar">
           
           {/* Category Quick Links */}
-          <div className="flex items-center gap-6 sm:gap-7 text-[#CBD5E1] font-medium whitespace-nowrap text-[12px]">
+          <div className="flex items-center gap-4 sm:gap-6 text-[#CBD5E1] font-medium whitespace-nowrap text-[12px]">
+            <Link
+              href="/"
+              onClick={() => {
+                setMode('b2c');
+                setActiveCategory('All');
+                setActiveOccasion('All');
+                setSearchQuery('');
+              }}
+              className={`transition-all flex items-center gap-1.5 px-3 py-1 rounded-full border cursor-pointer font-bold ${
+                activeCategory === 'All' && mode === 'b2c'
+                  ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] border-[#F5BD48] shadow-xs'
+                  : 'bg-[#24252A] text-white/90 border-[#D5A34A]/30 hover:border-[#D5A34A] hover:text-[#F5BD48]'
+              }`}
+              title="Return to Starting Page / Storefront Home"
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </Link>
             <button
               type="button"
               onClick={() => navigateToCatalog({ category: 'Personalized Gifts' })}
@@ -578,6 +621,25 @@ export const Header: React.FC = () => {
               </button>
             )}
           </div>
+
+          {/* Mobile Home Storefront Link */}
+          <Link
+            href="/"
+            onClick={() => {
+              setMode('b2c');
+              setActiveCategory('All');
+              setActiveOccasion('All');
+              setSearchQuery('');
+              setMobileMenuOpen(false);
+            }}
+            className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#08090B] bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] flex items-center justify-between shadow-sm cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              <Home className="w-4 h-4" />
+              <span>Return to Storefront Home</span>
+            </span>
+            <span>→</span>
+          </Link>
 
           {/* Quick Category List */}
           <div className="space-y-1">

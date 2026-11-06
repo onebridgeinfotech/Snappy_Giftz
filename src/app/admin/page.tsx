@@ -13,6 +13,10 @@ export default function AdminPage() {
     if (mode !== 'admin') {
       setMode('admin');
     }
+    return () => {
+      // Automatically restore storefront mode when navigating away from the admin page
+      setMode('b2c');
+    };
   }, [mode, setMode]);
 
   return (
@@ -25,4 +29,3 @@ export default function AdminPage() {
     </div>
   );
 }
-

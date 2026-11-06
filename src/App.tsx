@@ -31,12 +31,14 @@ import {
   Search,
   Filter,
   ArrowRight,
-  X
+  X,
+  Home
 } from 'lucide-react';
 
 const MainContent: React.FC = () => {
   const {
     mode,
+    setMode,
     products,
     selectedProduct,
     setSelectedProduct,
@@ -157,7 +159,23 @@ const MainContent: React.FC = () => {
 
       {/* Main Mode View Routing */}
       {mode === 'admin' ? (
-        <AdminDashboard />
+        <div className="space-y-4">
+          <div className="bg-[#12141A] border-b border-[#D5A34A]/30 py-2.5 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 shadow-lg">
+            <span className="text-xs text-[#CBD5E1] flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>You are viewing the <strong>Admin Operations Console</strong>.</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setMode('b2c')}
+              className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] text-xs font-bold hover:brightness-110 flex items-center gap-1.5 shadow-md cursor-pointer transition-all"
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Switch to Customer Storefront (Browse Gifts)</span>
+            </button>
+          </div>
+          <AdminDashboard />
+        </div>
       ) : (
         /* B2C STOREFRONT */
         <main className="flex-1">

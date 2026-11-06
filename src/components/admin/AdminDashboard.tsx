@@ -46,7 +46,8 @@ import {
   FolderTree,
   Edit2,
   Sparkles,
-  Gift
+  Gift,
+  Home
 } from 'lucide-react';
 import { AdminCategoryOccasionManager } from './AdminCategoryOccasionManager';
 import { AdminDamageReportsDesk } from './AdminDamageReportsDesk';
@@ -1466,13 +1467,14 @@ export const AdminDashboard: React.FC = () => {
           </form>
 
           <div className="text-center pt-2 border-t border-[#D5A34A]/15">
-            <button
-              type="button"
+            <a
+              href="/"
               onClick={() => setMode('b2c')}
-              className="text-xs text-[#94A3B8] hover:text-[#D5A34A] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs text-[#CBD5E1] hover:text-[#F5BD48] font-semibold transition-colors cursor-pointer"
             >
-              ← Return to Customer Storefront
-            </button>
+              <Home className="w-3.5 h-3.5 text-[#D5A34A]" />
+              <span>← Return to Customer Storefront</span>
+            </a>
           </div>
         </div>
       </div>
@@ -1496,13 +1498,25 @@ export const AdminDashboard: React.FC = () => {
           </h1>
         </div>
 
-        <button
-          onClick={() => setShowAddProductModal(true)}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] hover:brightness-110 text-[#08090B] text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md shadow-[#D5A34A]/20 transition-all cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Product to Catalog</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <a
+            href="/"
+            onClick={() => setMode('b2c')}
+            className="px-4 py-2.5 rounded-xl border border-[#D5A34A]/40 bg-[#17181C] hover:bg-[#D5A34A]/15 text-[#F5BD48] text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md"
+            title="Return to Customer Storefront to browse gifts and catalogue"
+          >
+            <Home className="w-4 h-4 text-[#D5A34A]" />
+            <span>View Live Storefront</span>
+          </a>
+
+          <button
+            onClick={() => setShowAddProductModal(true)}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] hover:brightness-110 text-[#08090B] text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md shadow-[#D5A34A]/20 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Product to Catalog</span>
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
