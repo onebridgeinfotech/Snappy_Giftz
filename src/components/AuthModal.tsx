@@ -44,7 +44,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
-  const [passkeySupported, setPasskeySupported] = useState(false);
+  const passkeySupported = mounted && isPasskeySupported();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [accountType, setAccountType] = useState<'CUSTOMER' | 'B2B_CLIENT'>('CUSTOMER');
@@ -92,10 +92,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    setPasskeySupported(isPasskeySupported());
   }, []);
 
   if (!isOpen || !mounted) return null;
