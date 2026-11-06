@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { prisma } from '../src/lib/prisma';
 import { hashPassword, validatePasswordStrength } from '../src/lib/auth/password';
 import { Role } from '@prisma/client';

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyPassword } from '@/lib/auth/password';
+import { verifyPassword, hashPassword } from '@/lib/auth/password';
 import { createSession, getSessionCookieOptions } from '@/lib/auth/session';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
 import { isStorefrontFallbackAllowed } from '@/lib/catalog/public-catalog.service';
@@ -63,6 +63,18 @@ const DEV_FALLBACK_USERS: Record<string, FallbackUserRecord> = {
   },
 };
 
+const configuredEnvAdminEmail = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+if (configuredEnvAdminEmail && !DEV_FALLBACK_USERS[configuredEnvAdminEmail]) {
+  DEV_FALLBACK_USERS[configuredEnvAdminEmail] = {
+    id: 'usr-admin-env',
+    name: 'SNAPPY GIFTZ Administrator',
+    email: configuredEnvAdminEmail,
+    role: Role.ADMIN,
+    isActive: true,
+    isEmailVerified: true,
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -74,6 +86,19 @@ export async function POST(req: Request) {
 
     const cleanEmail = email.trim().toLowerCase();
     const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+
+    // Admin Credentials Resolution: Support ADMIN_EMAIL & ADMIN_BOOTSTRAP_PASSWORD from .env
+    const configuredAdminEmail = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+    const configuredAdminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const isConfiguredAdmin =
+      Boolean(configuredAdminEmail && cleanEmail === configuredAdminEmail) ||
+      configuredAdminEmails.includes(cleanEmail);
+    const configuredBootstrapPassword = (process.env.ADMIN_BOOTSTRAP_PASSWORD || '').trim();
+    const isBootstrapPasswordMatch =
+      Boolean(configuredBootstrapPassword && password === configuredBootstrapPassword);
 
     // Rate Limiting Guard: Prevent credential stuffing & password brute-forcing
     const rateLimit = await enforceRateLimit('AUTH_LOGIN', `${ipAddress}:${cleanEmail}`);
@@ -108,12 +133,64 @@ export async function POST(req: Request) {
       isDbUnavailable = true;
     }
 
-    // 2. Handle DB offline or dev fallback mode
-    if ((!user || isDbUnavailable) && isStorefrontFallbackAllowed()) {
-      const fallbackUser = DEV_FALLBACK_USERS[cleanEmail];
+    // 2. Dynamic Admin Auto-Bootstrap & Verification
+    if (isConfiguredAdmin && isBootstrapPasswordMatch) {
+      if (!isDbUnavailable) {
+        try {
+          const hashedPassword = await hashPassword(password);
+          user = await prisma.user.upsert({
+            where: { email: cleanEmail },
+            update: {
+              role: Role.ADMIN,
+              passwordHash: hashedPassword,
+              isActive: true,
+              isEmailVerified: true,
+            },
+            create: {
+              email: cleanEmail,
+              name: 'SNAPPY GIFTZ Administrator',
+              role: Role.ADMIN,
+              passwordHash: hashedPassword,
+              isActive: true,
+              isEmailVerified: true,
+            },
+          });
+        } catch (dbSyncErr) {
+          console.warn('[API_AUTH_LOGIN] Admin DB sync skipped/fallback:', dbSyncErr);
+        }
+      }
+
+      if (!user) {
+        user = {
+          id: 'usr-admin-env',
+          name: 'SNAPPY GIFTZ Administrator',
+          email: cleanEmail,
+          role: Role.ADMIN,
+          isActive: true,
+          isEmailVerified: true,
+        };
+      }
+    }
+
+    // 3. Handle DB offline or dev fallback mode
+    if ((!user || isDbUnavailable) && (isStorefrontFallbackAllowed() || isConfiguredAdmin)) {
+      const fallbackUser =
+        DEV_FALLBACK_USERS[cleanEmail] ||
+        (isConfiguredAdmin
+          ? {
+              id: 'usr-admin-env',
+              name: 'SNAPPY GIFTZ Administrator',
+              email: cleanEmail,
+              role: Role.ADMIN,
+              isActive: true,
+              isEmailVerified: true,
+            }
+          : null);
+
       if (fallbackUser) {
         // Enforce valid password check in dev fallback mode
         const isPasswordMatch =
+          isBootstrapPasswordMatch ||
           Boolean(process.env.ADMIN_BOOTSTRAP_PASSWORD && password === process.env.ADMIN_BOOTSTRAP_PASSWORD) ||
           password === 'Admin@12345' ||
           password === 'Password123!' ||
@@ -152,9 +229,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
-    // 3. Verify password hash if user came from database
+    // 4. Verify password hash if user came from database
     if (user.passwordHash) {
-      const isValidPassword = await verifyPassword(password, user.passwordHash);
+      const isValidPassword =
+        (isConfiguredAdmin && isBootstrapPasswordMatch) ||
+        (await verifyPassword(password, user.passwordHash));
       if (!isValidPassword) {
         return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
       }

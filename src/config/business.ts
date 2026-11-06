@@ -54,3 +54,8 @@ export function getAdminNotificationEmails(): string[] {
   const merged = [...BUSINESS_CONFIG.adminEmails, ...fromEnv];
   return [...new Set(merged.map((e) => e.toLowerCase()))];
 }
+
+/** Primary operations administrator email address from env or default config. */
+export function getPrimaryAdminEmail(): string {
+  return (process.env.ADMIN_EMAIL || BUSINESS_CONFIG.adminEmail).trim().toLowerCase();
+}

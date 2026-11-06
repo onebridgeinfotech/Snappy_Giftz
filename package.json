@@ -15,7 +15,8 @@
     "test:e2e": "npx tsx src/test/e2e-journeys.test.ts",
     "test:a11y": "npx tsx src/test/security.test.ts",
     "test:playwright": "npx playwright test",
-    "seed:catalog": "npx tsx scripts/seed-storefront-catalog.ts"
+    "seed:catalog": "npx tsx scripts/seed-storefront-catalog.ts",
+    "bootstrap:admin": "npx tsx scripts/bootstrap-admin.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

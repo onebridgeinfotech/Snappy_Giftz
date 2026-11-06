@@ -44,6 +44,7 @@ export async function POST(req: Request) {
     const protectedAdminEmails = new Set(
       [
         process.env.ADMIN_EMAIL,
+        ...(process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : []),
         'phoenixnot13@gmail.com',
         'onebridgeinfotech@gmail.com',
       ]

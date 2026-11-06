@@ -117,7 +117,24 @@ export function resetAdminDevStores() {
 
 // Initialize initial dev users
 (function initDevUsers() {
+  const envAdminEmail = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
   const users = [
+    ...(envAdminEmail
+      ? [
+          {
+            id: 'usr-admin-env',
+            name: 'SNAPPY GIFTZ Administrator',
+            email: envAdminEmail,
+            phone: '9876543210',
+            role: 'ADMIN',
+            isActive: true,
+            isEmailVerified: true,
+            organizationId: null,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+            updatedAt: new Date('2026-01-01T00:00:00Z'),
+          },
+        ]
+      : []),
     {
       id: 'usr-admin-1',
       name: 'Dev Admin',
