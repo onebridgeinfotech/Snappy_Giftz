@@ -13,6 +13,7 @@ export interface CreateProductInput {
   taxRatePercent?: number;
   basePricePaise: number;
   mrpPaise: number;
+  productType?: 'REGULAR' | 'CUSTOMIZABLE';
   isCustomizable?: boolean;
   customizationType?: 'engraving' | 'photo' | 'logo' | 'combo';
   customizationFeePaise?: number;
@@ -35,6 +36,7 @@ export interface UpdateProductInput {
   taxRatePercent?: number;
   basePricePaise?: number;
   mrpPaise?: number;
+  productType?: 'REGULAR' | 'CUSTOMIZABLE';
   isCustomizable?: boolean;
   customizationType?: 'engraving' | 'photo' | 'logo' | 'combo';
   customizationFeePaise?: number;
@@ -131,6 +133,10 @@ export function validateProductInput(input: CreateProductInput): { valid: boolea
     (!Number.isInteger(input.customizationFeePaise) || input.customizationFeePaise < 0)
   ) {
     errors.push('Customization fee in paise must be a non-negative integer.');
+  }
+
+  if (input.productType !== undefined && !['REGULAR', 'CUSTOMIZABLE'].includes(input.productType)) {
+    errors.push('Product type must be either "REGULAR" or "CUSTOMIZABLE".');
   }
 
   if (input.variants && Array.isArray(input.variants)) {

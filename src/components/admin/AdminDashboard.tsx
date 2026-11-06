@@ -44,7 +44,9 @@ import {
   HardDrive,
   Folder,
   FolderTree,
-  Edit2
+  Edit2,
+  Sparkles,
+  Gift
 } from 'lucide-react';
 import { AdminCategoryOccasionManager } from './AdminCategoryOccasionManager';
 import { AdminDamageReportsDesk } from './AdminDamageReportsDesk';
@@ -1262,6 +1264,7 @@ export const AdminDashboard: React.FC = () => {
   // New Product Modal Form State
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [newProdName, setNewProdName] = useState('');
+  const [newProdType, setNewProdType] = useState<'REGULAR' | 'CUSTOMIZABLE'>('REGULAR');
   const [newProdCategory, setNewProdCategory] = useState('Personalized Gifts');
   const [newProdBasePrice, setNewProdBasePrice] = useState(1499);
   const [newProdMrp, setNewProdMrp] = useState(2199);
@@ -1287,7 +1290,9 @@ export const AdminDashboard: React.FC = () => {
     addProduct({
       name: newProdName,
       tagline: newProdTagline,
-      description: 'Handcrafted luxury gift with premium laser engraving or packaging.',
+      description: newProdType === 'CUSTOMIZABLE'
+        ? 'Handcrafted luxury personalized gift with custom laser engraving, inscription, or photos.'
+        : 'Handcrafted luxury ready-to-ship gift hamper with premium artisanal packaging.',
       category: newProdCategory,
       occasion: ['Festival', 'Corporate', 'Anniversary'],
       recipient: ['Colleague', 'Friends', 'Family'],
@@ -1298,8 +1303,9 @@ export const AdminDashboard: React.FC = () => {
       rating: 5.0,
       reviewsCount: 1,
       images: [newProdImage],
-      isCustomizable: true,
-      customizationType: 'engraving',
+      productType: newProdType,
+      isCustomizable: newProdType === 'CUSTOMIZABLE',
+      customizationType: newProdType === 'CUSTOMIZABLE' ? 'engraving' : undefined,
       stock: newProdStock,
       sku: newProdSku,
       warehouseLocation: newProdWarehouse,
@@ -1309,6 +1315,7 @@ export const AdminDashboard: React.FC = () => {
 
     setShowAddProductModal(false);
     setNewProdName('');
+    setNewProdType('REGULAR');
   };
 
   // Edit Product Modal State (Part 3.2)
@@ -1358,13 +1365,21 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleOpenEditProduct = (prod: any) => {
-    setEditingProduct({ ...prod });
+    const pType = (prod.productType === 'CUSTOMIZABLE' || prod.productType === 'REGULAR')
+      ? prod.productType
+      : (prod.isCustomizable ? 'CUSTOMIZABLE' : 'REGULAR');
+    setEditingProduct({
+      ...prod,
+      productType: pType,
+      isCustomizable: pType === 'CUSTOMIZABLE',
+    });
     setShowEditProductModal(true);
   };
 
   const handleSaveProductEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
+    const pType = editingProduct.productType === 'CUSTOMIZABLE' ? 'CUSTOMIZABLE' : 'REGULAR';
     updateProduct(editingProduct.id, {
       name: editingProduct.name,
       basePrice: Number(editingProduct.basePrice),
@@ -1372,7 +1387,8 @@ export const AdminDashboard: React.FC = () => {
       stock: Number(editingProduct.stock),
       category: editingProduct.category,
       badge: editingProduct.badge,
-      isCustomizable: Boolean(editingProduct.isCustomizable),
+      productType: pType,
+      isCustomizable: pType === 'CUSTOMIZABLE',
       images: Array.isArray(editingProduct.images) ? editingProduct.images : [editingProduct.images],
     });
     showToast(`Product "${editingProduct.name}" updated successfully.`);
@@ -2336,7 +2352,21 @@ export const AdminDashboard: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <span className="text-[10px] font-mono text-white/40 block">{prod.sku}</span>
                     <h4 className="font-serif font-bold text-xs text-white truncate">{prod.name}</h4>
-                    <span className="text-[11px] text-[#D5A34A] block">{prod.category}</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[11px] text-[#D5A34A]">{prod.category}</span>
+                      <span className="text-white/20">•</span>
+                      {prod.productType === 'CUSTOMIZABLE' || prod.isCustomizable ? (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[#F5BD48] bg-[#F5BD48]/10 px-1.5 py-0.5 rounded border border-[#F5BD48]/25 font-mono">
+                          <Sparkles className="w-2.5 h-2.5 text-[#F5BD48]" />
+                          <span>CUSTOMIZABLE</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-400 bg-slate-800/40 px-1.5 py-0.5 rounded border border-slate-700/40 font-mono">
+                          <Gift className="w-2.5 h-2.5 text-slate-400" />
+                          <span>REGULAR</span>
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs font-serif font-bold text-[#F5BD48] mt-1 block">₹{prod.basePrice}</span>
                   </div>
                 </div>
@@ -4535,6 +4565,56 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateProduct} className="space-y-3 text-xs">
+              {/* Product Type Selector */}
+              <div>
+                <label className="block font-bold text-[#D5A34A] mb-1.5">
+                  Product Type <span className="text-red-400">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setNewProdType('REGULAR')}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      newProdType === 'REGULAR'
+                        ? 'border-[#D5A34A] bg-[#D5A34A]/10 ring-1 ring-[#D5A34A]'
+                        : 'border-white/10 bg-[#17181C] hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <Package className={`w-4 h-4 ${newProdType === 'REGULAR' ? 'text-[#F5BD48]' : 'text-white/60'}`} />
+                        <span className="font-bold text-white text-xs">Regular Gift</span>
+                      </div>
+                      {newProdType === 'REGULAR' && <CheckCircle2 className="w-4 h-4 text-[#F5BD48]" />}
+                    </div>
+                    <p className="text-[11px] text-white/60 leading-relaxed">
+                      Standard, ready-to-ship gifts. No customer personalization required. Displayed in Regular Gifts section.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewProdType('CUSTOMIZABLE')}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      newProdType === 'CUSTOMIZABLE'
+                        ? 'border-[#D5A34A] bg-[#D5A34A]/10 ring-1 ring-[#D5A34A]'
+                        : 'border-white/10 bg-[#17181C] hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className={`w-4 h-4 ${newProdType === 'CUSTOMIZABLE' ? 'text-[#F5BD48]' : 'text-white/60'}`} />
+                        <span className="font-bold text-white text-xs">Customizable Gift</span>
+                      </div>
+                      {newProdType === 'CUSTOMIZABLE' && <CheckCircle2 className="w-4 h-4 text-[#F5BD48]" />}
+                    </div>
+                    <p className="text-[11px] text-white/60 leading-relaxed">
+                      Requires personalization (names, text, dates, photos). Featured prominently in &quot;Make It Personal&quot;.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-[#D5A34A] mb-1">Product Title *</label>
                 <input
@@ -5580,17 +5660,57 @@ export const AdminDashboard: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-xl bg-[#17181C] border border-white/10">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(editingProduct.isCustomizable)}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, isCustomizable: e.target.checked })}
-                    className="rounded border-white/20 text-[#D5A34A] focus:ring-[#D5A34A]"
-                  />
-                  <span className="text-white/90 font-medium">Allow Personalization</span>
+              {/* Product Type Configuration */}
+              <div>
+                <label className="block font-bold text-[#D5A34A] mb-1.5">
+                  Product Type <span className="text-red-400">*</span>
                 </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setEditingProduct({ ...editingProduct, productType: 'REGULAR', isCustomizable: false })}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      editingProduct.productType === 'REGULAR'
+                        ? 'border-[#D5A34A] bg-[#D5A34A]/10 ring-1 ring-[#D5A34A]'
+                        : 'border-white/10 bg-[#17181C] hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <Package className={`w-4 h-4 ${editingProduct.productType === 'REGULAR' ? 'text-[#F5BD48]' : 'text-white/60'}`} />
+                        <span className="font-bold text-white text-xs">Regular Gift</span>
+                      </div>
+                      {editingProduct.productType === 'REGULAR' && <CheckCircle2 className="w-4 h-4 text-[#F5BD48]" />}
+                    </div>
+                    <p className="text-[11px] text-white/60 leading-relaxed">
+                      Standard, ready-to-ship gifts. No customer personalization required. Displayed in Regular Gifts section.
+                    </p>
+                  </button>
 
+                  <button
+                    type="button"
+                    onClick={() => setEditingProduct({ ...editingProduct, productType: 'CUSTOMIZABLE', isCustomizable: true })}
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                      editingProduct.productType === 'CUSTOMIZABLE'
+                        ? 'border-[#D5A34A] bg-[#D5A34A]/10 ring-1 ring-[#D5A34A]'
+                        : 'border-white/10 bg-[#17181C] hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className={`w-4 h-4 ${editingProduct.productType === 'CUSTOMIZABLE' ? 'text-[#F5BD48]' : 'text-white/60'}`} />
+                        <span className="font-bold text-white text-xs">Customizable Gift</span>
+                      </div>
+                      {editingProduct.productType === 'CUSTOMIZABLE' && <CheckCircle2 className="w-4 h-4 text-[#F5BD48]" />}
+                    </div>
+                    <p className="text-[11px] text-white/60 leading-relaxed">
+                      Requires customer personalization (names, text, dates, photos). Featured in &quot;Make It Personal&quot;.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              <div>
                 <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-xl bg-[#17181C] border border-white/10">
                   <input
                     type="checkbox"
@@ -5598,7 +5718,7 @@ export const AdminDashboard: React.FC = () => {
                     onChange={(e) => setEditingProduct({ ...editingProduct, isGiftWrapAvailable: e.target.checked })}
                     className="rounded border-white/20 text-[#D5A34A] focus:ring-[#D5A34A]"
                   />
-                  <span className="text-white/90 font-medium">Allow ₹20 Gift Wrap</span>
+                  <span className="text-white/90 font-medium">Allow ₹20 Gift Wrap Option</span>
                 </label>
               </div>
 
