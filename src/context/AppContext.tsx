@@ -84,8 +84,8 @@ interface AppContextType {
   addTicketReply: (ticketId: string, text: string, sender: 'customer' | 'agent') => void;
   
   // UI Navigation & Modals
-  activeModal: 'none' | 'cart' | 'checkout' | 'product_detail' | 'personalize' | 'rfq' | 'order_track' | 'invoice_view' | 'onboarding';
-  setActiveModal: (m: 'none' | 'cart' | 'checkout' | 'product_detail' | 'personalize' | 'rfq' | 'order_track' | 'invoice_view' | 'onboarding') => void;
+  activeModal: 'none' | 'cart' | 'wishlist' | 'checkout' | 'product_detail' | 'personalize' | 'rfq' | 'order_track' | 'invoice_view' | 'onboarding';
+  setActiveModal: (m: 'none' | 'cart' | 'wishlist' | 'checkout' | 'product_detail' | 'personalize' | 'rfq' | 'order_track' | 'invoice_view' | 'onboarding') => void;
   
   searchQuery: string;
   setSearchQuery: (q: string) => void;
@@ -116,7 +116,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Safe initial state matching server-rendered markup (prevents hydration mismatch)
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [wishlist, setWishlist] = useState<string[]>(['prod-1', 'prod-3']);
+  const [wishlist, setWishlist] = useState<string[]>([]);
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
   const [quotations, setQuotations] = useState<CorporateQuotation[]>(INITIAL_QUOTATIONS);
 
@@ -169,7 +169,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedQuotation, setSelectedQuotation] = useState<CorporateQuotation | null>(null);
 
-  const [activeModal, setActiveModal] = useState<'none' | 'cart' | 'checkout' | 'product_detail' | 'personalize' | 'rfq' | 'order_track' | 'invoice_view' | 'onboarding'>('none');
+  const [activeModal, setActiveModal] = useState<'none' | 'cart' | 'wishlist' | 'checkout' | 'product_detail' | 'personalize' | 'rfq' | 'order_track' | 'invoice_view' | 'onboarding'>('none');
   
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');

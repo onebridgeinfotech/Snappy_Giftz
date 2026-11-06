@@ -9,6 +9,7 @@ import { CustomizableProductCard } from './components/CustomizableProductCard';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { PersonalizationStudio } from './components/PersonalizationStudio';
 import { CartDrawer } from './components/CartDrawer';
+import { WishlistDrawer } from './components/WishlistDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { OrderTrackingModal } from './components/OrderTrackingModal';
@@ -63,6 +64,21 @@ const MainContent: React.FC = () => {
   useEffect(() => {
     setVisibleCount(8);
   }, [searchQuery, activeCategory, activeOccasion, sortBy]);
+
+  // Open wishlist drawer when arriving via /wishlist redirect (?wishlist=1)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('wishlist') !== '1') return;
+    setActiveModal('wishlist');
+    params.delete('wishlist');
+    const q = params.toString();
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}${q ? `?${q}` : ''}${window.location.hash}`
+    );
+  }, [setActiveModal]);
 
   // Filter products by category, occasion, and search query
   const filteredProducts = products.filter(p => {
@@ -709,6 +725,20 @@ const MainContent: React.FC = () => {
         <CartDrawer
           onClose={() => setActiveModal('none')}
           onProceedToCheckout={() => setActiveModal('checkout')}
+        />
+      )}
+
+      {/* 1b. Wishlist Drawer */}
+      {activeModal === 'wishlist' && (
+        <WishlistDrawer
+          onClose={() => setActiveModal('none')}
+          onViewProduct={(productId) => {
+            const p = products.find((x) => x.id === productId);
+            if (p) {
+              setSelectedProduct(p);
+              setActiveModal('product_detail');
+            }
+          }}
         />
       )}
 
