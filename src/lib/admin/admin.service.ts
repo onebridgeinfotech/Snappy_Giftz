@@ -523,8 +523,8 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
     allOrders = await prisma.order.findMany({
       include: {
         items: true,
-        payment: true,
-        shipment: true,
+        payments: true,
+        shipments: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -1131,7 +1131,7 @@ export async function generateSalesReport(filter: ReportDateFilter = {}, asCsv =
     }
     allOrders = await prisma.order.findMany({
       where,
-      include: { items: true, payment: true },
+      include: { items: true, payments: true },
       orderBy: { createdAt: 'desc' },
     });
   } catch {

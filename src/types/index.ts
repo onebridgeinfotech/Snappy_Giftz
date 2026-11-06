@@ -96,7 +96,7 @@ export interface Product {
   dimensions?: string;
   weight?: string;
   estimatedDispatchDays: number;
-  badge?: 'Best Seller' | 'Trending' | 'Handcrafted' | 'Corporate Pick' | 'New Arrival';
+  badge?: 'Best Seller' | 'Trending' | 'Handcrafted' | 'Corporate Pick' | 'New Arrival' | (string & {});
 }
 
 export interface CustomizationOption {

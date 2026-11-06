@@ -334,9 +334,24 @@ export async function recordCodCollection(input: {
         orderNumber: updatedOrder.orderNumber,
         orderStatus: updatedOrder.orderStatus,
         paymentStatus: 'PAID',
-        collectionReceipt: collectionRecord,
-        order: updatedOrder,
-        collection: collectionRecord,
+        collectionReceipt: {
+          ...collectionRecord,
+          amountCollectedPaise: Number(collectionRecord.amountCollectedPaise),
+        },
+        order: {
+          ...updatedOrder,
+          itemsSubtotalPaise: Number(updatedOrder.itemsSubtotalPaise),
+          taxTotalPaise: Number(updatedOrder.taxTotalPaise),
+          shippingTotalPaise: Number(updatedOrder.shippingTotalPaise),
+          grandTotalPaise: Number(updatedOrder.grandTotalPaise),
+          customizationTotalPaise: Number(updatedOrder.customizationTotalPaise || 0),
+          discountTotalPaise: Number(updatedOrder.discountTotalPaise || 0),
+          taxableAmountPaise: Number(updatedOrder.taxableAmountPaise),
+        },
+        collection: {
+          ...collectionRecord,
+          amountCollectedPaise: Number(collectionRecord.amountCollectedPaise),
+        },
       };
     });
 

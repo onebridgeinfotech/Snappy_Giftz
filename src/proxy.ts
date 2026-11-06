@@ -9,6 +9,18 @@ export const SESSION_COOKIE_NAME = 'snappy_session_token';
  * Routes that do not require customer authentication.
  */
 const PUBLIC_PAGE_PREFIXES = [
+  '/',
+  '/catalog',
+  '/products',
+  '/shop',
+  '/cart',
+  '/checkout',
+  '/about',
+  '/contact',
+  '/privacy',
+  '/terms',
+  '/refund-policy',
+  '/shipping-policy',
   '/login',
   '/register',
   '/reset-password',
@@ -22,7 +34,13 @@ const PUBLIC_API_PREFIXES = [
   '/api/integrations', // Integration routes are protected by requireRole([ADMIN])
   '/api/webhooks', // Signed webhooks (e.g. Razorpay HMAC)
   '/api/health', // Health and readiness probes
-  '/api/shipping/pincode', // Pincode serviceability lookup
+  '/api/shipping', // Pincode & distance serviceability lookups
+  '/api/delivery', // Delivery calculation and rates
+  '/api/catalog', // Public products, categories, occasions
+  '/api/orders/lookup', // Order tracking concierge
+  '/api/checkout', // Quote calculation & checkout flow
+  '/api/payments', // Razorpay order generation & verification
+  '/api/personalization', // Customization configuration & uploads
 ];
 
 function isPublicPage(pathname: string): boolean {
