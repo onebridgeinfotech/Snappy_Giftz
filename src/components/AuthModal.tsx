@@ -90,8 +90,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
     setMounted(true);
   }, []);
 
-  if (!isOpen || !mounted) return null;
-
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -264,6 +262,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
       setIsLoading(false);
     }
   };
+
+  if (!isOpen || !mounted) return null;
 
   return createPortal(
     <div

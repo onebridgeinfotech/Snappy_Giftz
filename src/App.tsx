@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { HeroBanner } from './components/HeroBanner';
@@ -60,7 +60,7 @@ const MainContent: React.FC = () => {
   const [visibleCount, setVisibleCount] = useState<number>(8);
 
   // Reset pagination when search or filters change
-  React.useEffect(() => {
+  useEffect(() => {
     setVisibleCount(8);
   }, [searchQuery, activeCategory, activeOccasion, sortBy]);
 

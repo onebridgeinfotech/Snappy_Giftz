@@ -761,11 +761,13 @@ export const Header: React.FC = () => {
       {/* ========================================================================= */}
       {/* 5. SECURE AUTH & PERSONA MODAL                                            */}
       {/* ========================================================================= */}
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        onAuthSuccess={(user) => setAuthenticatedUser(user)}
-      />
+      {authModalOpen && (
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          onAuthSuccess={(user) => setAuthenticatedUser(user)}
+        />
+      )}
 
     </header>
   );
