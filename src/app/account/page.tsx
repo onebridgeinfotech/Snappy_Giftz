@@ -94,6 +94,17 @@ export default function AccountPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Invalidate bfcache on browser back/forward navigation after logout
+  useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
+
   // Load User on mount
   useEffect(() => {
     fetch('/api/auth/me')
@@ -144,10 +155,18 @@ export default function AccountPage() {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
+      try {
+        localStorage.removeItem('snappy_remembered_email');
+        sessionStorage.clear();
+      } catch {}
       await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.href = '/login';
+      window.location.replace('/login');
     } catch {
-      window.location.href = '/login';
+      try {
+        localStorage.removeItem('snappy_remembered_email');
+        sessionStorage.clear();
+      } catch {}
+      window.location.replace('/login');
     }
   };
 

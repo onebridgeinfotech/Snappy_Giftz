@@ -1693,7 +1693,7 @@ export const AdminDashboard: React.FC = () => {
           }`}
         >
           <Building2 className="w-4 h-4 text-indigo-400" />
-          <span>COD & Hyderabad Delivery</span>
+          <span>Corporate &amp; Quotations</span>
         </button>
 
         <button
@@ -2710,18 +2710,18 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
               <h2 className="font-serif text-2xl font-bold text-white flex items-center gap-2">
-                <Building2 className="w-6 h-6 text-rose-800" />
-                <span>Cash on Delivery & Hyderabad Direct Delivery Desk</span>
+                <Building2 className="w-6 h-6 text-[#F5BD48]" />
+                <span>Corporate B2B &amp; Custom Quotations Desk</span>
               </h2>
-              <p className="text-xs text-slate-500">
-                Verify and approve COD orders, record cash collections with receipt numbers, manage Hyderabad serviceable pincodes and delivery fee rules.
+              <p className="text-xs text-[#94A3B8]">
+                Manage B2B corporate client accounts, incoming RFQ quotation requests, custom pricing agreements, and bulk multi-address deliveries.
               </p>
             </div>
             <button
               onClick={fetchCorporateAdminData}
-              className="px-3.5 py-1.5 rounded-xl border border-white/10 hover:bg-slate-50 text-slate-600 text-xs flex items-center gap-1.5"
+              className="px-3.5 py-1.5 rounded-xl border border-white/10 bg-[#181A22] hover:bg-[#20232D] text-white text-xs flex items-center gap-1.5 font-semibold transition-colors cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className="w-3.5 h-3.5 text-[#F5BD48]" />
               <span>Refresh Desk</span>
             </button>
           </div>
@@ -2730,50 +2730,50 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex flex-wrap gap-2 text-xs font-semibold border-b border-white/10 pb-3">
             <button
               onClick={() => setCorporateSubTab('accounts')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                 corporateSubTab === 'accounts'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/20'
+                  : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/10'
               }`}
             >
               Corporate Accounts ({corporateAccounts.length})
             </button>
             <button
               onClick={() => setCorporateSubTab('rfqs')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                 corporateSubTab === 'rfqs'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/20'
+                  : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/10'
               }`}
             >
               Incoming RFQs ({corporateRFQs.length})
             </button>
             <button
               onClick={() => setCorporateSubTab('quotes')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                 corporateSubTab === 'quotes'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/20'
+                  : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/10'
               }`}
             >
-              Quotations & Revisions ({corporateQuotes.length})
+              Quotations &amp; Revisions ({corporateQuotes.length})
             </button>
             <button
               onClick={() => setCorporateSubTab('orders')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                 corporateSubTab === 'orders'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/20'
+                  : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/10'
               }`}
             >
               Multi-Address Order Groups ({corporateOrderGroups.length})
             </button>
             <button
               onClick={() => setCorporateSubTab('pricing')}
-              className={`px-3 py-1.5 rounded-xl transition-all ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                 corporateSubTab === 'pricing'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/20'
+                  : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/10'
               }`}
             >
               Agreed Pricing ({corporatePricingAgreements.length})
@@ -2802,7 +2802,7 @@ export const AdminDashboard: React.FC = () => {
                               ? 'bg-amber-100 text-amber-800'
                               : acc.status === 'SUSPENDED'
                               ? 'bg-rose-100 text-rose-800'
-                              : 'bg-slate-200 text-slate-700'
+                              : 'bg-white/10 text-slate-300 border border-white/15'
                           }`}>
                             {acc.status}
                           </span>
@@ -2898,7 +2898,7 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300">
                         <div>
                           <span className="text-slate-400">Items: </span>
                           <span>{(rfq.items || []).map((i: any) => `${i.productName} (${i.requestedQuantity || i.quantity} pcs)`).join(', ')}</span>
@@ -2927,7 +2927,7 @@ export const AdminDashboard: React.FC = () => {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-white">{q.quoteNumber}</span>
-                            <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-bold font-mono text-[10px]">
+                            <span className="px-2 py-0.5 rounded bg-white/10 text-slate-300 border border-white/15 font-bold font-mono text-[10px]">
                               Rev {q.revision}
                             </span>
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
@@ -2958,7 +2958,7 @@ export const AdminDashboard: React.FC = () => {
                           {q.status === 'ISSUED' && (
                             <button
                               onClick={() => handleReviseQuotation(q)}
-                              className="px-3 py-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 font-semibold"
+                              className="px-3 py-1.5 rounded-xl border border-[#D5A34A]/30 bg-[#181A22] hover:bg-[#20232D] text-[#F5BD48] font-semibold transition-colors"
                             >
                               Revise Quote
                             </button>
@@ -2966,7 +2966,7 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="text-slate-600 text-[11px]">
+                      <div className="text-slate-300 text-[11px]">
                         Items: {(q.items || []).map((i: any) => `${i.productName} (${i.quantity} pcs @ ₹${i.unitPricePaise / 100})`).join('; ')}
                       </div>
                     </div>
@@ -3064,22 +3064,22 @@ export const AdminDashboard: React.FC = () => {
 
           <div className="space-y-4">
             {tickets.map(t => (
-              <div key={t.id} className="p-4 rounded-2xl border border-white/10 bg-white space-y-3">
+              <div key={t.id} className="p-4 rounded-2xl border border-white/10 bg-[#17181C] space-y-3">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-xs text-rose-700">{t.ticketNumber}</span>
-                    <span className="text-xs font-bold text-white/90">{t.subject}</span>
+                    <span className="font-mono font-bold text-xs text-[#F5BD48]">{t.ticketNumber}</span>
+                    <span className="text-xs font-bold text-white">{t.subject}</span>
                   </div>
-                  <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold uppercase">{t.status}</span>
+                  <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded font-bold uppercase">{t.status}</span>
                 </div>
 
                 <div className="space-y-2 text-xs">
                   {t.messages.map((m, idx) => (
-                    <div key={idx} className={`p-2.5 rounded-xl ${m.sender === 'agent' ? 'bg-rose-50 text-[#F5BD48] ml-6' : 'bg-slate-50 text-white/90 mr-6'}`}>
+                    <div key={idx} className={`p-2.5 rounded-xl ${m.sender === 'agent' ? 'bg-[#D5A34A]/10 border border-[#D5A34A]/20 text-[#F5BD48] ml-6' : 'bg-white/5 border border-white/10 text-slate-200 mr-6'}`}>
                       <div className="font-bold text-[10px] uppercase text-slate-400 mb-0.5">
                         {m.sender === 'agent' ? `${BUSINESS_CONFIG.brandName} Support Desk` : t.customerName} • {m.time}
                       </div>
-                      <div>{m.text}</div>
+                      <div className="text-white/90">{m.text}</div>
                     </div>
                   ))}
                 </div>
@@ -3094,7 +3094,7 @@ export const AdminDashboard: React.FC = () => {
                         e.currentTarget.value = '';
                       }
                     }}
-                    className="flex-1 px-3 py-1.5 rounded-xl border border-white/10 text-xs focus:outline-hidden"
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-slate-500 text-xs focus:border-[#D5A34A] focus:outline-hidden"
                   />
                   <button
                     onClick={(e) => {
@@ -3104,7 +3104,7 @@ export const AdminDashboard: React.FC = () => {
                         input.value = '';
                       }
                     }}
-                    className="px-4 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold"
+                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#D5A34A] to-[#F5BD48] text-black text-xs font-semibold hover:brightness-110 transition-all cursor-pointer"
                   >
                     Reply
                   </button>
@@ -3163,30 +3163,30 @@ export const AdminDashboard: React.FC = () => {
             <form onSubmit={handleSaveSellerConfig} className="space-y-5 text-xs max-w-3xl">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Legal Business Name *</label>
+                  <label className="block font-bold text-white mb-1">Legal Business Name *</label>
                   <input
                     type="text"
                     required
                     value={sellerForm.legalName}
                     onChange={(e) => setSellerForm({ ...sellerForm, legalName: e.target.value })}
                     placeholder="e.g. Snappy Gifts Private Limited"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 font-semibold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 font-semibold focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Trade / Brand Name</label>
+                  <label className="block font-bold text-white mb-1">Trade / Brand Name</label>
                   <input
                     type="text"
                     value={sellerForm.tradeName}
                     onChange={(e) => setSellerForm({ ...sellerForm, tradeName: e.target.value })}
                     placeholder="e.g. Snappy Gifts"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">GSTIN (15 characters) *</label>
+                  <label className="block font-bold text-white mb-1">GSTIN (15 characters) *</label>
                   <input
                     type="text"
                     required
@@ -3194,68 +3194,68 @@ export const AdminDashboard: React.FC = () => {
                     value={sellerForm.gstin}
                     onChange={(e) => setSellerForm({ ...sellerForm, gstin: e.target.value.toUpperCase() })}
                     placeholder="e.g. 08AABCS1429B1Z1"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 font-mono font-bold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 font-mono font-bold focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Permanent Account Number (PAN)</label>
+                  <label className="block font-bold text-white mb-1">Permanent Account Number (PAN)</label>
                   <input
                     type="text"
                     maxLength={10}
                     value={sellerForm.pan}
                     onChange={(e) => setSellerForm({ ...sellerForm, pan: e.target.value.toUpperCase() })}
                     placeholder="e.g. AABCS1429B"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 font-mono"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 font-mono focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1">Registered Street Address *</label>
+                  <label className="block font-bold text-white mb-1">Registered Street Address *</label>
                   <input
                     type="text"
                     required
                     value={sellerForm.registeredStreet}
                     onChange={(e) => setSellerForm({ ...sellerForm, registeredStreet: e.target.value })}
-                    placeholder="e.g. 42 Heritage Boulevard, Vaishali Nagar"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10"
+                    placeholder="e.g. 42 Heritage Boulevard, Banjara Hills"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">City *</label>
+                  <label className="block font-bold text-white mb-1">City *</label>
                   <input
                     type="text"
                     required
                     value={sellerForm.city}
                     onChange={(e) => setSellerForm({ ...sellerForm, city: e.target.value })}
-                    placeholder="e.g. Jaipur"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10"
+                    placeholder="e.g. Hyderabad"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">PIN Code (6 digits) *</label>
+                  <label className="block font-bold text-white mb-1">PIN Code (6 digits) *</label>
                   <input
                     type="text"
                     required
                     maxLength={6}
                     value={sellerForm.pincode}
                     onChange={(e) => setSellerForm({ ...sellerForm, pincode: e.target.value })}
-                    placeholder="e.g. 302021"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 font-mono"
+                    placeholder="e.g. 500034"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 font-mono focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">State & State Code *</label>
+                  <label className="block font-bold text-white mb-1">State &amp; State Code *</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       required
                       value={sellerForm.state}
                       onChange={(e) => setSellerForm({ ...sellerForm, state: e.target.value })}
-                      className="w-2/3 px-3.5 py-2.5 rounded-xl border border-white/10"
+                      className="w-2/3 px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white font-semibold focus:border-[#D5A34A] focus:outline-hidden"
                     />
                     <input
                       type="text"
@@ -3263,14 +3263,14 @@ export const AdminDashboard: React.FC = () => {
                       maxLength={2}
                       value={sellerForm.stateCode}
                       onChange={(e) => setSellerForm({ ...sellerForm, stateCode: e.target.value })}
-                      placeholder="08"
-                      className="w-1/3 px-3.5 py-2.5 rounded-xl border border-white/10 font-mono font-bold text-center"
+                      placeholder="36"
+                      className="w-1/3 px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-[#F5BD48] font-mono font-bold text-center focus:border-[#D5A34A] focus:outline-hidden"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Invoice Series Prefix *</label>
+                  <label className="block font-bold text-white mb-1">Invoice Series Prefix *</label>
                   <input
                     type="text"
                     required
@@ -3278,47 +3278,47 @@ export const AdminDashboard: React.FC = () => {
                     value={sellerForm.invoicePrefix}
                     onChange={(e) => setSellerForm({ ...sellerForm, invoicePrefix: e.target.value.toUpperCase() })}
                     placeholder="SG"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 font-mono font-bold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 font-mono font-bold focus:border-[#D5A34A] focus:outline-hidden"
                   />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">Used for GST format: [PREFIX]/[FY]/[SEQ] (Max 16 chars)</span>
+                  <span className="text-[10px] text-[#94A3B8] mt-0.5 block">Used for GST format: [PREFIX]/[FY]/[SEQ] (Max 16 chars)</span>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Tax & Billing Email *</label>
+                  <label className="block font-bold text-white mb-1">Tax &amp; Billing Email *</label>
                   <input
                     type="email"
                     required
                     value={sellerForm.contactEmail}
                     onChange={(e) => setSellerForm({ ...sellerForm, contactEmail: e.target.value })}
                     placeholder="tax@snappygiftz.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Support Phone *</label>
+                  <label className="block font-bold text-white mb-1">Support Phone *</label>
                   <input
                     type="text"
                     required
                     value={sellerForm.contactPhone}
                     onChange={(e) => setSellerForm({ ...sellerForm, contactPhone: e.target.value })}
-                    placeholder="+91 141 234 5678"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10"
+                    placeholder="+91 8885486999"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1">Authorized Signatory Name & Designation</label>
+                  <label className="block font-bold text-white mb-1">Authorized Signatory Name &amp; Designation</label>
                   <input
                     type="text"
                     value={sellerForm.authorizedSignatoryName}
                     onChange={(e) => setSellerForm({ ...sellerForm, authorizedSignatoryName: e.target.value })}
-                    placeholder="e.g. Ramesh Sharma, Head of Finance & Taxation"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10"
+                    placeholder="e.g. Authorized Signatory, Snappy Gifts"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-white/30 focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
 
-                <div className="md:col-span-2 p-3 rounded-xl bg-slate-50 border border-white/10 flex items-center gap-2">
+                <div className="md:col-span-2 p-3 rounded-xl bg-[#181A22] border border-white/10 flex items-center gap-2">
                   <input
                     type="checkbox"
                     id="isVerifiedCheckbox"
@@ -3365,38 +3365,38 @@ export const AdminDashboard: React.FC = () => {
               <button
                 onClick={fetchOutboxMessages}
                 disabled={isLoadingOutbox}
-                className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5"
+                className="px-3.5 py-2 rounded-xl border border-white/10 bg-[#181A22] hover:bg-[#20232D] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingOutbox ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-3.5 h-3.5 text-[#F5BD48] ${isLoadingOutbox ? 'animate-spin' : ''}`} />
                 <span>Refresh</span>
               </button>
 
               <button
                 onClick={handleProcessOutbox}
                 disabled={isProcessingOutbox}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold text-xs flex items-center gap-1.5 shadow-md shadow-[#D5A34A]/20 disabled:opacity-50 transition-all cursor-pointer"
               >
-                {isProcessingOutbox ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {isProcessingOutbox ? <Loader2 className="w-4 h-4 animate-spin text-[#08090B]" /> : <Send className="w-4 h-4 text-[#08090B]" />}
                 <span>Process Outbox Worker</span>
               </button>
             </div>
           </div>
 
           {isLoadingOutbox ? (
-            <div className="p-12 text-center text-slate-400 flex items-center justify-center gap-2">
-              <Loader2 className="w-5 h-5 animate-spin" />
+            <div className="p-12 text-center text-[#94A3B8] flex items-center justify-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-[#F5BD48]" />
               <span>Fetching email outbox messages...</span>
             </div>
           ) : outboxMessages.length === 0 ? (
-            <div className="p-12 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-white/10">
-              <Send className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="font-semibold text-slate-600 text-xs">No email outbox records currently queued.</p>
-              <p className="text-[11px] text-slate-400 mt-1">Transactional emails will appear here when orders are confirmed, dispatched, or invoiced.</p>
+            <div className="p-12 text-center bg-[#17181C] rounded-2xl border border-white/10">
+              <Send className="w-8 h-8 text-[#94A3B8] mx-auto mb-2" />
+              <p className="font-semibold text-white text-xs">No email outbox records currently queued.</p>
+              <p className="text-[11px] text-[#94A3B8] mt-1">Transactional emails will appear here when orders are confirmed, dispatched, or invoiced.</p>
             </div>
           ) : (
             <div className="overflow-x-auto border border-white/10 rounded-2xl">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-600 font-bold border-b border-white/10">
+                <thead className="bg-[#181A22] text-[#CBD5E1] font-bold border-b border-white/10">
                   <tr>
                     <th className="p-3">Event Type</th>
                     <th className="p-3">Order Ref</th>
@@ -3408,11 +3408,11 @@ export const AdminDashboard: React.FC = () => {
                     <th className="p-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-white/10">
                   {outboxMessages.map((msg) => (
-                    <tr key={msg.id} className="hover:bg-[#17181C]">
+                    <tr key={msg.id} className="hover:bg-white/5 transition-colors">
                       <td className="p-3">
-                        <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-white/90">
+                        <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 text-white">
                           {msg.eventType}
                         </span>
                       </td>
@@ -3423,7 +3423,7 @@ export const AdminDashboard: React.FC = () => {
                         <div className="font-semibold text-white/90">{msg.recipientEmail}</div>
                         {msg.recipientName && <div className="text-[10px] text-slate-400">{msg.recipientName}</div>}
                       </td>
-                      <td className="p-3 text-slate-600 max-w-xs truncate" title={msg.subject}>
+                      <td className="p-3 text-slate-300 max-w-xs truncate" title={msg.subject}>
                         {msg.subject}
                       </td>
                       <td className="p-3 text-center">
@@ -3493,14 +3493,14 @@ export const AdminDashboard: React.FC = () => {
                   placeholder="Search name, email, phone..."
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
-                  className="pl-9 pr-3 py-2 rounded-xl border border-white/10 text-xs w-52 sm:w-64 focus:outline-hidden focus:ring-2 focus:ring-cyan-500"
+                  className="pl-9 pr-3 py-2 rounded-xl border border-white/10 bg-[#181A22] text-white placeholder-slate-400 text-xs w-52 sm:w-64 focus:outline-hidden focus:border-[#D5A34A]"
                 />
               </div>
 
               <select
                 value={userRoleFilter}
                 onChange={(e) => setUserRoleFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-white/10 text-xs bg-white focus:outline-hidden"
+                className="px-3 py-2 rounded-xl border border-white/10 text-xs bg-[#181A22] text-white focus:outline-hidden focus:border-[#D5A34A]"
               >
                 <option value="">All Roles</option>
                 <option value="CUSTOMER">Customer</option>
@@ -3519,7 +3519,7 @@ export const AdminDashboard: React.FC = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-600 font-bold border-b border-white/10">
+                <thead className="bg-[#181A22] text-[#CBD5E1] font-bold border-b border-white/10">
                   <tr>
                     <th className="p-3">User / Identity</th>
                     <th className="p-3">Role</th>
@@ -3530,10 +3530,10 @@ export const AdminDashboard: React.FC = () => {
                     <th className="p-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-white/10">
                   {usersList.length > 0 ? (
                     usersList.map((u) => (
-                      <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
+                      <tr key={u.id} className="hover:bg-white/5 transition-colors">
                         <td className="p-3">
                           <div className="font-bold text-white">{u.name || 'Unnamed User'}</div>
                           <div className="text-[11px] font-mono text-slate-500">{u.email}</div>
@@ -3542,25 +3542,24 @@ export const AdminDashboard: React.FC = () => {
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                               u.role === 'ADMIN'
-                                ? 'bg-rose-100 text-rose-800'
+                                ? 'bg-rose-950/60 text-rose-300 border border-rose-500/30'
                                 : u.role === 'STAFF'
-                                ? 'bg-purple-100 text-purple-800'
-                                
-                                : 'bg-slate-100 text-white/90'
+                                ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
+                                : 'bg-white/10 text-white/90 border border-white/15'
                             }`}
                           >
                             {u.role}
                           </span>
                         </td>
-                        <td className="p-3 text-slate-600 font-mono text-[11px]">
+                        <td className="p-3 text-[#94A3B8] font-mono text-[11px]">
                           {u.phone || '—'}
                         </td>
                         <td className="p-3">
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                               u.isActive
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-rose-100 text-rose-800'
+                                ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-rose-950/60 text-rose-300 border border-rose-500/30'
                             }`}
                           >
                             {u.isActive ? 'ACTIVE' : 'DEACTIVATED'}
@@ -3569,14 +3568,14 @@ export const AdminDashboard: React.FC = () => {
                         <td className="p-3 text-center font-bold text-white/90">
                           {u.orderCount}
                         </td>
-                        <td className="p-3 text-slate-500 text-[11px] whitespace-nowrap">
+                        <td className="p-3 text-[#94A3B8] text-[11px] whitespace-nowrap">
                           {new Date(u.createdAt).toLocaleDateString('en-IN')}
                         </td>
                         <td className="p-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => setSelectedUserDetail(u)}
-                              className="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-[11px]"
+                              className="px-2 py-1 rounded-lg bg-[#24252A] text-[#F5BD48] hover:bg-[#2E3036] border border-[#D5A34A]/30 font-semibold text-[11px] cursor-pointer"
                               title="Inspect User Details"
                             >
                               Details
@@ -3626,14 +3625,14 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   disabled={usersPagination.page <= 1}
                   onClick={() => fetchUsers(usersPagination.page - 1)}
-                  className="px-2.5 py-1 rounded-lg border border-white/10 hover:bg-slate-50 disabled:opacity-50"
+                  className="px-2.5 py-1 rounded-lg border border-white/10 bg-[#181A22] hover:bg-[#20232D] text-white disabled:opacity-40 cursor-pointer"
                 >
                   Previous
                 </button>
                 <button
                   disabled={usersPagination.page >= usersPagination.totalPages}
                   onClick={() => fetchUsers(usersPagination.page + 1)}
-                  className="px-2.5 py-1 rounded-lg border border-white/10 hover:bg-slate-50 disabled:opacity-50"
+                  className="px-2.5 py-1 rounded-lg border border-white/10 bg-[#181A22] hover:bg-[#20232D] text-white disabled:opacity-40 cursor-pointer"
                 >
                   Next
                 </button>
@@ -3658,29 +3657,29 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-slate-600">
+              <div className="flex items-center gap-1.5 text-xs text-slate-300">
                 <label>From:</label>
                 <input
                   type="date"
                   value={reportDateFrom}
                   onChange={(e) => setReportDateFrom(e.target.value)}
-                  className="px-2 py-1 rounded-lg border border-white/10 text-xs"
+                  className="px-2 py-1 rounded-lg border border-white/10 bg-[#181A22] text-white text-xs focus:outline-hidden focus:border-[#D5A34A]"
                 />
               </div>
 
-              <div className="flex items-center gap-1.5 text-xs text-slate-600">
+              <div className="flex items-center gap-1.5 text-xs text-slate-300">
                 <label>To:</label>
                 <input
                   type="date"
                   value={reportDateTo}
                   onChange={(e) => setReportDateTo(e.target.value)}
-                  className="px-2 py-1 rounded-lg border border-white/10 text-xs"
+                  className="px-2 py-1 rounded-lg border border-white/10 bg-[#181A22] text-white text-xs focus:outline-hidden focus:border-[#D5A34A]"
                 />
               </div>
 
               <button
                 onClick={() => fetchReports()}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
+                className="px-3 py-1.5 rounded-xl bg-[#181A22] text-white text-xs font-semibold hover:bg-[#20232D] border border-white/10 transition-colors cursor-pointer"
               >
                 Apply Filter
               </button>
@@ -3706,10 +3705,10 @@ export const AdminDashboard: React.FC = () => {
               <button
                 key={st.id}
                 onClick={() => setReportsSubTab(st.id as any)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   reportsSubTab === st.id
-                    ? 'bg-emerald-100 text-emerald-900 font-bold'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/20'
+                    : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
                 }`}
               >
                 {st.label}
@@ -3734,28 +3733,28 @@ export const AdminDashboard: React.FC = () => {
                   <div className="text-[10px] text-slate-400 mt-0.5">Exclusively captured payments</div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-50 border border-white/10">
-                  <div className="text-xs text-slate-500 font-semibold">Captured Orders</div>
+                <div className="p-4 rounded-2xl bg-[#181A22] border border-white/10">
+                  <div className="text-xs text-[#94A3B8] font-semibold">Captured Orders</div>
                   <div className="text-xl font-bold font-mono text-white mt-1">
                     {salesReportData.summary.capturedOrdersCount}
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Total orders: {salesReportData.summary.totalOrdersCount}</div>
+                  <div className="text-[10px] text-[#94A3B8] mt-0.5">Total orders: {salesReportData.summary.totalOrdersCount}</div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-50 border border-white/10">
-                  <div className="text-xs text-slate-500 font-semibold">Average Order Value</div>
+                <div className="p-4 rounded-2xl bg-[#181A22] border border-white/10">
+                  <div className="text-xs text-[#94A3B8] font-semibold">Average Order Value</div>
                   <div className="text-xl font-bold font-mono text-white mt-1">
                     {salesReportData.summary.aovFormatted}
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Based on captured orders</div>
+                  <div className="text-[10px] text-[#94A3B8] mt-0.5">Based on captured orders</div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-100">
-                  <div className="text-xs text-slate-500 font-semibold">Pending/Authorized</div>
-                  <div className="text-xl font-bold font-mono text-amber-800 mt-1">
+                <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/20">
+                  <div className="text-xs text-[#94A3B8] font-semibold">Pending/Authorized</div>
+                  <div className="text-xl font-bold font-mono text-amber-400 mt-1">
                     {salesReportData.summary.pendingRevenueFormatted}
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Unsettled orders: {salesReportData.summary.pendingOrdersCount}</div>
+                  <div className="text-[10px] text-[#94A3B8] mt-0.5">Unsettled orders: {salesReportData.summary.pendingOrdersCount}</div>
                 </div>
               </div>
 
@@ -3766,7 +3765,7 @@ export const AdminDashboard: React.FC = () => {
                 </h3>
                 <div className="overflow-x-auto border border-white/10 rounded-2xl">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-white/10">
+                    <thead className="bg-[#181A22] text-[#CBD5E1] font-bold border-b border-white/10">
                       <tr>
                         <th className="p-2.5">Product Name</th>
                         <th className="p-2.5 text-center">SKU</th>
@@ -3799,8 +3798,8 @@ export const AdminDashboard: React.FC = () => {
               {/* Order Status Breakdown */}
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
                 {Object.entries(ordersReportData.statusBreakdown || {}).map(([st, count]: any) => (
-                  <div key={st} className="p-3 rounded-2xl bg-slate-50 border border-white/10 text-center">
-                    <div className="text-[11px] font-bold text-slate-600 uppercase">{st}</div>
+                  <div key={st} className="p-3 rounded-2xl bg-[#181A22] border border-white/10 text-center">
+                    <div className="text-[11px] font-bold text-[#F5BD48] uppercase">{st}</div>
                     <div className="text-xl font-bold font-mono text-white mt-1">{count}</div>
                   </div>
                 ))}
@@ -3813,25 +3812,25 @@ export const AdminDashboard: React.FC = () => {
                 </h3>
                 <div className="overflow-x-auto border border-white/10 rounded-2xl">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-white/10">
+                    <thead className="bg-[#181A22] text-[#CBD5E1] font-bold border-b border-white/10">
                       <tr>
                         <th className="p-2.5">State</th>
                         <th className="p-2.5 text-center">Order Count</th>
                         <th className="p-2.5 text-right">Captured Revenue</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-white/10">
                       {ordersReportData.byState && ordersReportData.byState.length > 0 ? (
                         ordersReportData.byState.map((s: any) => (
-                          <tr key={s.state}>
+                          <tr key={s.state} className="hover:bg-white/5 transition-colors">
                             <td className="p-2.5 font-semibold text-white">{s.state}</td>
                             <td className="p-2.5 text-center font-bold text-white/90">{s.count}</td>
-                            <td className="p-2.5 text-right font-mono font-bold text-emerald-700">{s.revenueFormatted}</td>
+                            <td className="p-2.5 text-right font-mono font-bold text-emerald-400">{s.revenueFormatted}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={3} className="p-4 text-center text-slate-400 italic">No location records available.</td>
+                          <td colSpan={3} className="p-4 text-center text-[#94A3B8] italic">No location records available.</td>
                         </tr>
                       )}
                     </tbody>
@@ -3842,15 +3841,15 @@ export const AdminDashboard: React.FC = () => {
           ) : reportsSubTab === 'inventory' && inventoryReportData ? (
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-white/10">
-                  <div className="text-xs text-slate-500 font-semibold">Total Stock Units</div>
+                <div className="p-4 rounded-2xl bg-[#181A22] border border-white/10">
+                  <div className="text-xs text-[#94A3B8] font-semibold">Total Stock Units</div>
                   <div className="text-xl font-bold font-mono text-white mt-1">
                     {inventoryReportData.summary.totalStockUnits}
                   </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100">
-                  <div className="text-xs text-slate-500 font-semibold">Stock Valuation</div>
-                  <div className="text-xl font-bold font-mono text-emerald-800 mt-1">
+                <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
+                  <div className="text-xs text-[#94A3B8] font-semibold">Stock Valuation</div>
+                  <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
                     {inventoryReportData.summary.totalStockValueFormatted}
                   </div>
                 </div>
@@ -3886,13 +3885,13 @@ export const AdminDashboard: React.FC = () => {
                           <th className="p-2.5 text-right">Base Price</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-rose-50">
+                      <tbody className="divide-y divide-white/10">
                         {inventoryReportData.lowStockItems.map((item: any) => (
-                          <tr key={item.id} className="hover:bg-rose-50/30">
+                          <tr key={item.id} className="hover:bg-rose-500/10">
                             <td className="p-2.5 font-bold text-white">{item.name}</td>
-                            <td className="p-2.5 text-center font-mono text-[11px] text-slate-600">{item.sku}</td>
-                            <td className="p-2.5 text-center font-bold text-rose-700 font-mono">{item.stock}</td>
-                            <td className="p-2.5 text-slate-600">{item.warehouseLocation}</td>
+                            <td className="p-2.5 text-center font-mono text-[11px] text-slate-300">{item.sku}</td>
+                            <td className="p-2.5 text-center font-bold text-rose-400 font-mono">{item.stock}</td>
+                            <td className="p-2.5 text-slate-300">{item.warehouseLocation}</td>
                             <td className="p-2.5 text-right font-mono text-white">₹{item.basePrice}</td>
                           </tr>
                         ))}
@@ -3905,27 +3904,27 @@ export const AdminDashboard: React.FC = () => {
           ) : reportsSubTab === 'taxes' && taxReportData ? (
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-white/10">
-                  <div className="text-xs text-slate-500 font-semibold">Total Issued Invoices</div>
+                <div className="p-4 rounded-2xl bg-[#181A22] border border-white/10">
+                  <div className="text-xs text-[#94A3B8] font-semibold">Total Issued Invoices</div>
                   <div className="text-xl font-bold font-mono text-white mt-1">
                     {taxReportData.summary.invoiceCount}
                   </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100">
-                  <div className="text-xs text-slate-500 font-semibold">Total Taxable Value</div>
-                  <div className="text-xl font-bold font-mono text-blue-900 mt-1">
+                <div className="p-4 rounded-2xl bg-blue-950/30 border border-blue-500/20">
+                  <div className="text-xs text-[#94A3B8] font-semibold">Total Taxable Value</div>
+                  <div className="text-xl font-bold font-mono text-blue-400 mt-1">
                     {taxReportData.summary.taxableTotalFormatted}
                   </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100">
-                  <div className="text-xs text-slate-500 font-semibold">Total GST (CGST+SGST+IGST)</div>
-                  <div className="text-xl font-bold font-mono text-emerald-900 mt-1">
+                <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
+                  <div className="text-xs text-[#94A3B8] font-semibold">Total GST (CGST+SGST+IGST)</div>
+                  <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
                     {taxReportData.summary.taxTotalFormatted}
                   </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-100">
-                  <div className="text-xs text-slate-500 font-semibold">Pending Physical Signatures</div>
-                  <div className="text-xl font-bold font-mono text-amber-900 mt-1">
+                <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/20">
+                  <div className="text-xs text-[#94A3B8] font-semibold">Pending Physical Signatures</div>
+                  <div className="text-xl font-bold font-mono text-amber-400 mt-1">
                     {taxReportData.summary.pendingPhysicalSignatureCount}
                   </div>
                 </div>
@@ -3934,7 +3933,7 @@ export const AdminDashboard: React.FC = () => {
               {/* Tax Invoice Table */}
               <div className="overflow-x-auto border border-white/10 rounded-2xl">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-white/10">
+                  <thead className="bg-[#181A22] text-[#CBD5E1] font-bold border-b border-white/10">
                     <tr>
                       <th className="p-2.5">Invoice #</th>
                       <th className="p-2.5">Order #</th>
@@ -3945,21 +3944,21 @@ export const AdminDashboard: React.FC = () => {
                       <th className="p-2.5 text-center">Signed</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-white/10">
                     {taxReportData.invoices && taxReportData.invoices.length > 0 ? (
                       taxReportData.invoices.map((inv: any) => (
-                        <tr key={inv.id}>
+                        <tr key={inv.id} className="hover:bg-white/5 transition-colors">
                           <td className="p-2.5 font-mono font-bold text-white">{inv.invoiceNumber}</td>
-                          <td className="p-2.5 font-mono text-slate-600">{inv.orderNumber}</td>
+                          <td className="p-2.5 font-mono text-[#94A3B8]">{inv.orderNumber}</td>
                           <td className="p-2.5">
                             <div className="font-semibold text-white">{inv.customerName}</div>
-                            {inv.customerGstin && <div className="text-[10px] font-mono text-slate-500">{inv.customerGstin}</div>}
+                            {inv.customerGstin && <div className="text-[10px] font-mono text-[#94A3B8]">{inv.customerGstin}</div>}
                           </td>
-                          <td className="p-2.5 text-right font-mono text-slate-700">₹{(inv.taxablePaise / 100).toFixed(2)}</td>
-                          <td className="p-2.5 text-right font-mono text-slate-700">₹{(inv.taxTotalPaise / 100).toFixed(2)}</td>
-                          <td className="p-2.5 text-right font-mono font-bold text-emerald-800">₹{(inv.grandTotalPaise / 100).toFixed(2)}</td>
+                          <td className="p-2.5 text-right font-mono text-white">₹{(inv.taxablePaise / 100).toFixed(2)}</td>
+                          <td className="p-2.5 text-right font-mono text-[#F5BD48]">₹{(inv.taxTotalPaise / 100).toFixed(2)}</td>
+                          <td className="p-2.5 text-right font-mono font-bold text-emerald-400">₹{(inv.grandTotalPaise / 100).toFixed(2)}</td>
                           <td className="p-2.5 text-center">
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${inv.isPhysicallySigned ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase border ${inv.isPhysicallySigned ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/30' : 'bg-amber-950/60 text-amber-300 border-amber-500/30'}`}>
                               {inv.isPhysicallySigned ? 'Signed' : 'Pending'}
                             </span>
                           </td>
@@ -3967,7 +3966,7 @@ export const AdminDashboard: React.FC = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={7} className="p-4 text-center text-slate-400 italic">No invoices recorded in window.</td>
+                        <td colSpan={7} className="p-4 text-center text-[#94A3B8] italic">No invoices recorded in window.</td>
                       </tr>
                     )}
                   </tbody>
@@ -4005,58 +4004,58 @@ export const AdminDashboard: React.FC = () => {
             {/* General Settings */}
             <div className="space-y-3">
               <h3 className="font-bold text-white uppercase text-xs tracking-wide flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-slate-700" />
+                <Building2 className="w-4 h-4 text-[#F5BD48]" />
                 <span>Store Identity & Contact</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Store Brand Name</label>
+                  <label className="block font-bold text-white mb-1">Store Brand Name</label>
                   <input
                     type="text"
                     required
                     value={storeConfigForm.storeName}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, storeName: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Support Email</label>
+                  <label className="block font-bold text-white mb-1">Support Email</label>
                   <input
                     type="email"
                     required
                     value={storeConfigForm.supportEmail}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, supportEmail: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Support Phone</label>
+                  <label className="block font-bold text-white mb-1">Support Phone</label>
                   <input
                     type="text"
                     required
                     value={storeConfigForm.supportPhone}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, supportPhone: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Operating Hours</label>
+                  <label className="block font-bold text-white mb-1">Operating Hours</label>
                   <input
                     type="text"
                     required
                     value={storeConfigForm.operatingHours}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, operatingHours: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1">Central Warehouse / HQ Address</label>
+                  <label className="block font-bold text-white mb-1">Central Warehouse / HQ Address</label>
                   <input
                     type="text"
                     required
                     value={storeConfigForm.headquartersAddress}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, headquartersAddress: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
               </div>
@@ -4065,52 +4064,52 @@ export const AdminDashboard: React.FC = () => {
             {/* Shipping & Delivery Settings */}
             <div className="space-y-3 pt-4 border-t border-white/10">
               <h3 className="font-bold text-white uppercase text-xs tracking-wide flex items-center gap-2">
-                <Truck className="w-4 h-4 text-blue-600" />
-                <span>Shipping Charges & Logistics Configuration</span>
+                <Truck className="w-4 h-4 text-[#F5BD48]" />
+                <span>Shipping Charges &amp; Logistics Configuration</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Standard Shipping Fee (₹)</label>
+                  <label className="block font-bold text-white mb-1">Standard Shipping Fee (₹)</label>
                   <input
                     type="number"
                     min="0"
                     required
                     value={storeConfigForm.standardShippingFeeRupees}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, standardShippingFeeRupees: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10 font-mono"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white font-mono focus:border-[#D5A34A] focus:outline-hidden"
                   />
-                  <span className="text-[10px] text-slate-400">Stored as {Math.round(storeConfigForm.standardShippingFeeRupees * 100)} paise</span>
+                  <span className="text-[10px] text-[#94A3B8]">Stored as {Math.round(storeConfigForm.standardShippingFeeRupees * 100)} paise</span>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Free Shipping Threshold (₹)</label>
+                  <label className="block font-bold text-white mb-1">Free Shipping Threshold (₹)</label>
                   <input
                     type="number"
                     min="0"
                     required
                     value={storeConfigForm.freeShippingThresholdRupees}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, freeShippingThresholdRupees: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10 font-mono"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white font-mono focus:border-[#D5A34A] focus:outline-hidden"
                   />
-                  <span className="text-[10px] text-slate-400">Orders above this get free shipping</span>
+                  <span className="text-[10px] text-[#94A3B8]">Orders above this get free shipping</span>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Express Air Shipping Fee (₹)</label>
+                  <label className="block font-bold text-white mb-1">Express Air Shipping Fee (₹)</label>
                   <input
                     type="number"
                     min="0"
                     required
                     value={storeConfigForm.expressShippingFeeRupees}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, expressShippingFeeRupees: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10 font-mono"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white font-mono focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
                 <div className="sm:col-span-3">
-                  <label className="block font-bold text-slate-700 mb-1">Shipping & Packaging Instructions</label>
+                  <label className="block font-bold text-white mb-1">Shipping &amp; Packaging Instructions</label>
                   <textarea
                     rows={2}
                     value={storeConfigForm.shippingInstructions}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, shippingInstructions: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10 text-xs"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white text-xs focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
               </div>
@@ -4119,30 +4118,30 @@ export const AdminDashboard: React.FC = () => {
             {/* Inventory Controls */}
             <div className="space-y-3 pt-4 border-t border-white/10">
               <h3 className="font-bold text-white uppercase text-xs tracking-wide flex items-center gap-2">
-                <Warehouse className="w-4 h-4 text-amber-600" />
-                <span>Inventory & Low-Stock Alerts</span>
+                <Warehouse className="w-4 h-4 text-amber-500" />
+                <span>Inventory &amp; Low-Stock Alerts</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Low-Stock Alert Threshold (units)</label>
+                  <label className="block font-bold text-white mb-1">Low-Stock Alert Threshold (units)</label>
                   <input
                     type="number"
                     min="1"
                     required
                     value={storeConfigForm.lowStockThreshold}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, lowStockThreshold: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10 font-mono"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white font-mono focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Out-of-Stock Lock Threshold</label>
+                  <label className="block font-bold text-white mb-1">Out-of-Stock Lock Threshold</label>
                   <input
                     type="number"
                     min="0"
                     required
                     value={storeConfigForm.outOfStockThreshold}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, outOfStockThreshold: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10 font-mono"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white font-mono focus:border-[#D5A34A] focus:outline-hidden"
                   />
                 </div>
                 <div className="sm:col-span-2">
@@ -4151,9 +4150,9 @@ export const AdminDashboard: React.FC = () => {
                       type="checkbox"
                       checked={storeConfigForm.autoNotifyLowStock}
                       onChange={(e) => setStoreConfigForm({ ...storeConfigForm, autoNotifyLowStock: e.target.checked })}
-                      className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4 h-4"
+                      className="rounded border-white/20 text-[#D5A34A] focus:ring-[#D5A34A] w-4 h-4 accent-[#D5A34A]"
                     />
-                    <span className="font-bold text-slate-700">Display persistent operational warnings when stock falls below reorder threshold</span>
+                    <span className="font-bold text-[#E2E8F0]">Display persistent operational warnings when stock falls below reorder threshold</span>
                   </label>
                 </div>
               </div>
@@ -4162,33 +4161,21 @@ export const AdminDashboard: React.FC = () => {
             {/* Personalization Settings */}
             <div className="space-y-3 pt-4 border-t border-white/10">
               <h3 className="font-bold text-white uppercase text-xs tracking-wide flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-purple-600" />
-                <span>Personalization & Manufacturing Gates</span>
+                <ShieldCheck className="w-4 h-4 text-purple-400" />
+                <span>Personalization &amp; Manufacturing Gates</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Wooden Crate Surcharge (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={storeConfigForm.woodenCrateSurchargeRupees}
-                    onChange={(e) => setStoreConfigForm({ ...storeConfigForm, woodenCrateSurchargeRupees: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10 font-mono"
-                  />
-                  <span className="text-[10px] text-slate-400">Server gate: requires ADMIN role to alter</span>
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Max Artwork Upload Limit (Bytes)</label>
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-white mb-1">Max Artwork Upload Limit (Bytes)</label>
                   <input
                     type="number"
                     min="1048576"
                     required
                     value={storeConfigForm.maxArtworkUploadBytes}
                     onChange={(e) => setStoreConfigForm({ ...storeConfigForm, maxArtworkUploadBytes: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-white/10 font-mono"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#181A22] text-white font-mono focus:border-[#D5A34A] focus:outline-hidden"
                   />
-                  <span className="text-[10px] text-slate-400">{(storeConfigForm.maxArtworkUploadBytes / (1024 * 1024)).toFixed(1)} MB maximum upload size</span>
+                  <span className="text-[10px] text-[#94A3B8]">{(storeConfigForm.maxArtworkUploadBytes / (1024 * 1024)).toFixed(1)} MB maximum upload size</span>
                 </div>
                 <div className="sm:col-span-2 flex flex-col gap-2">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -4196,18 +4183,18 @@ export const AdminDashboard: React.FC = () => {
                       type="checkbox"
                       checked={storeConfigForm.allowCustomText}
                       onChange={(e) => setStoreConfigForm({ ...storeConfigForm, allowCustomText: e.target.checked })}
-                      className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 w-4 h-4"
+                      className="rounded border-white/20 text-[#D5A34A] focus:ring-[#D5A34A] w-4 h-4 accent-[#D5A34A]"
                     />
-                    <span className="font-semibold text-slate-700">Allow customers to submit custom engraved names / messages</span>
+                    <span className="font-semibold text-[#E2E8F0]">Allow customers to submit custom engraved names / messages</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={storeConfigForm.allowArtworkUpload}
                       onChange={(e) => setStoreConfigForm({ ...storeConfigForm, allowArtworkUpload: e.target.checked })}
-                      className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 w-4 h-4"
+                      className="rounded border-white/20 text-[#D5A34A] focus:ring-[#D5A34A] w-4 h-4 accent-[#D5A34A]"
                     />
-                    <span className="font-semibold text-slate-700">Allow corporate and retail users to upload high-resolution logo artwork</span>
+                    <span className="font-semibold text-[#E2E8F0]">Allow corporate and retail users to upload high-resolution logo artwork</span>
                   </label>
                 </div>
               </div>
@@ -4320,7 +4307,7 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setGdriveBanner(null)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-slate-400 hover:text-white transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -4329,69 +4316,69 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Storage Details & Folder Hierarchy */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-white/10 space-y-1">
+              <div className="p-3.5 rounded-xl bg-[#181A22] border border-white/10 space-y-1">
                 <div className="font-bold text-white flex items-center gap-1.5">
-                  <Package className="w-4 h-4 text-violet-600" />
+                  <Package className="w-4 h-4 text-violet-400" />
                   <span>Product_Images</span>
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[#94A3B8]">
                   Public catalog assets, variant photography, and gallery media.
                 </p>
-                <div className="font-mono text-[10px] text-slate-400 truncate pt-1">
+                <div className="font-mono text-[10px] text-[#94A3B8] truncate pt-1">
                   ID: {gdriveStatus?.productImagesFolderId || 'Pending connection'}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-white/10 space-y-1">
+              <div className="p-3.5 rounded-xl bg-[#181A22] border border-white/10 space-y-1">
                 <div className="font-bold text-white flex items-center justify-between gap-1.5">
                   <div className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
                     <span>Customer_Photos</span>
                   </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-500/30 font-semibold">
                     Private
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[#94A3B8]">
                   Custom photo prints, monogram engravings, and customer artwork.
                 </p>
-                <div className="font-mono text-[10px] text-slate-400 truncate pt-1">
+                <div className="font-mono text-[10px] text-[#94A3B8] truncate pt-1">
                   ID: {gdriveStatus?.customerPhotosFolderId || 'Pending connection'}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-white/10 space-y-1">
+              <div className="p-3.5 rounded-xl bg-[#181A22] border border-white/10 space-y-1">
                 <div className="font-bold text-white flex items-center justify-between gap-1.5">
                   <div className="flex items-center gap-1.5">
-                    <FileText className="w-4 h-4 text-blue-600" />
+                    <FileText className="w-4 h-4 text-blue-400" />
                     <span>Order_Attachments</span>
                   </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-950/60 text-blue-300 border border-blue-500/30 font-semibold">
                     Secure
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[#94A3B8]">
                   Customer order documents, packaging proofs, and delivery receipts.
                 </p>
-                <div className="font-mono text-[10px] text-slate-400 truncate pt-1">
+                <div className="font-mono text-[10px] text-[#94A3B8] truncate pt-1">
                   ID: {gdriveStatus?.orderAttachmentsFolderId || 'Pending connection'}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-white/10 space-y-1">
+              <div className="p-3.5 rounded-xl bg-[#181A22] border border-white/10 space-y-1">
                 <div className="font-bold text-white flex items-center justify-between gap-1.5">
                   <div className="flex items-center gap-1.5">
-                    <FileSpreadsheet className="w-4 h-4 text-amber-600" />
+                    <FileSpreadsheet className="w-4 h-4 text-amber-400" />
                     <span>Invoices</span>
                   </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 font-semibold">
                     Audited
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[#94A3B8]">
                   GST tax invoice PDFs, signed debit notes, and tax archives.
                 </p>
-                <div className="font-mono text-[10px] text-slate-400 truncate pt-1">
+                <div className="font-mono text-[10px] text-[#94A3B8] truncate pt-1">
                   ID: {gdriveStatus?.invoicesFolderId || 'Pending connection'}
                 </div>
               </div>
@@ -4496,16 +4483,16 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Connection Metadata Footer */}
-            <div className="p-3 rounded-xl bg-slate-100/70 border border-white/10/80 text-[11px] text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="p-3 rounded-xl bg-[#181A22] border border-white/10 text-[11px] text-[#94A3B8] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Lock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <Lock className="w-3.5 h-3.5 text-[#F5BD48] shrink-0" />
                 <span>
-                  <strong>Privacy & Security Policy:</strong> Access restricted to application scope (<code className="font-mono text-[10px] bg-slate-200 px-1 py-0.5 rounded">drive.file</code>). Tokens stored with AES-256-GCM encryption.
+                  <strong className="text-white">Privacy &amp; Security Policy:</strong> Access restricted to application scope (<code className="font-mono text-[10px] bg-white/10 text-white px-1 py-0.5 rounded">drive.file</code>). Tokens stored with AES-256-GCM encryption.
                 </span>
               </div>
               {gdriveStatus?.accountEmail && (
-                <div className="text-slate-500 shrink-0">
-                  Connected Account: <strong className="text-white/90">{gdriveStatus.accountEmail}</strong>
+                <div className="text-[#94A3B8] shrink-0">
+                  Connected Account: <strong className="text-white">{gdriveStatus.accountEmail}</strong>
                 </div>
               )}
             </div>
@@ -4531,7 +4518,7 @@ export const AdminDashboard: React.FC = () => {
               <select
                 value={auditActionFilter}
                 onChange={(e) => setAuditActionFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-white/10 text-xs bg-white"
+                className="px-3 py-2 rounded-xl border border-white/10 text-xs bg-[#181A22] text-white focus:outline-hidden focus:border-[#D5A34A]"
               >
                 <option value="">All Actions</option>
                 <option value="USER_ROLE_UPDATE">Role Elevation / Changes</option>
@@ -4553,7 +4540,7 @@ export const AdminDashboard: React.FC = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-600 font-bold border-b border-white/10">
+                <thead className="bg-[#181A22] text-[#CBD5E1] font-bold border-b border-white/10">
                   <tr>
                     <th className="p-3">Timestamp (IST)</th>
                     <th className="p-3">Actor / Admin</th>
@@ -4563,32 +4550,32 @@ export const AdminDashboard: React.FC = () => {
                     <th className="p-3 text-right">Details</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-white/10">
                   {auditLogs.length > 0 ? (
                     auditLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                      <tr key={log.id} className="hover:bg-white/5 transition-colors">
+                        <td className="p-3 font-mono text-[11px] text-[#94A3B8] whitespace-nowrap">
                           {new Date(log.createdAt).toLocaleString('en-IN')}
                         </td>
                         <td className="p-3">
                           <div className="font-semibold text-white font-mono text-[11px]">{log.actorEmail}</div>
-                          <div className="text-[10px] text-slate-400">ID: {log.actorId.slice(0, 8)}...</div>
+                          <div className="text-[10px] text-[#94A3B8]">ID: {log.actorId.slice(0, 8)}...</div>
                         </td>
                         <td className="p-3">
-                          <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-teal-50 text-teal-900 border border-teal-200">
+                          <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-[#D5A34A]/15 text-[#F5BD48] border border-[#D5A34A]/30">
                             {log.action}
                           </span>
                         </td>
-                        <td className="p-3 font-semibold text-slate-700">
+                        <td className="p-3 font-semibold text-white">
                           {log.entityType}
                         </td>
-                        <td className="p-3 font-mono text-[11px] text-slate-600">
+                        <td className="p-3 font-mono text-[11px] text-[#94A3B8]">
                           {log.entityId}
                         </td>
                         <td className="p-3 text-right">
                           <button
                             onClick={() => setSelectedAuditPayload(log.payload)}
-                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px]"
+                            className="px-2.5 py-1 rounded-lg bg-[#24252A] hover:bg-[#2E3036] text-[#F5BD48] border border-[#D5A34A]/30 font-semibold text-[11px] cursor-pointer"
                           >
                             Inspect
                           </button>
@@ -4597,7 +4584,7 @@ export const AdminDashboard: React.FC = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-400 italic">
+                      <td colSpan={6} className="p-8 text-center text-[#94A3B8] italic">
                         No audit trail entries found.
                       </td>
                     </tr>
@@ -4609,7 +4596,7 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Audit Pagination */}
           {auditPagination.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-white/10 pt-3 text-xs text-slate-500">
+            <div className="flex items-center justify-between border-t border-white/10 pt-3 text-xs text-[#94A3B8]">
               <div>
                 Page {auditPagination.page} of {auditPagination.totalPages} ({auditPagination.total} audit events)
               </div>
@@ -4617,14 +4604,14 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   disabled={auditPagination.page <= 1}
                   onClick={() => fetchAuditLogs(auditPagination.page - 1)}
-                  className="px-2.5 py-1 rounded-lg border border-white/10 hover:bg-slate-50 disabled:opacity-50"
+                  className="px-2.5 py-1 rounded-lg border border-white/10 bg-[#181A22] hover:bg-[#20232D] text-white disabled:opacity-40 cursor-pointer"
                 >
                   Previous
                 </button>
                 <button
                   disabled={auditPagination.page >= auditPagination.totalPages}
                   onClick={() => fetchAuditLogs(auditPagination.page + 1)}
-                  className="px-2.5 py-1 rounded-lg border border-white/10 hover:bg-slate-50 disabled:opacity-50"
+                  className="px-2.5 py-1 rounded-lg border border-white/10 bg-[#181A22] hover:bg-[#20232D] text-white disabled:opacity-40 cursor-pointer"
                 >
                   Next
                 </button>

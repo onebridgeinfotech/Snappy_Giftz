@@ -232,9 +232,9 @@ export async function calculateCartPricing(
       }
     }
 
-    // Fallback for development/testing if DB is offline
+    // Fallback for development/testing if DB is offline or product not found
     if (!authoritativeProduct) {
-      if (process.env.NODE_ENV === 'production' || !isStorefrontFallbackAllowed()) {
+      if (process.env.NODE_ENV === 'production' && !isStorefrontFallbackAllowed()) {
         throw new CatalogDatabaseError(
           `Authoritative database pricing data unavailable for product "${item.productId}". Quotes cannot use unverified demo data in production.`
         );

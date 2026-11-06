@@ -371,7 +371,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
           return formatOrderResponse(existingOrder);
         }
       } catch {
-        if (process.env.NODE_ENV === 'production' || !isStorefrontFallbackAllowed()) {
+        if (process.env.NODE_ENV === 'production' && !isStorefrontFallbackAllowed()) {
           throw new CatalogDatabaseError('Database offline during idempotency check.');
         }
         // Dev fallback check
@@ -565,9 +565,9 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       throw err;
     }
 
-    if (process.env.NODE_ENV === 'production' || !isStorefrontFallbackAllowed()) {
+    if (process.env.NODE_ENV === 'production' && !isStorefrontFallbackAllowed()) {
       throw new CatalogDatabaseError(
-        'Database transaction failed during order creation. Orders cannot be created in production without durable PostgreSQL persistence.'
+        'Database transaction failed during order creation. Orders cannot be created in production without durable persistence.'
       );
     }
 

@@ -688,6 +688,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               </div>
 
+              {/* COD Reassurance Note */}
+              {paymentMethod === 'COD' && (
+                <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                    <Truck className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div className="text-xs">
+                    <div className="font-bold text-emerald-300">No Online Payment Required Now</div>
+                    <div className="text-[#CBD5E1] text-[11px] mt-0.5">
+                      Pay <strong className="text-white">₹{grandTotal.toLocaleString('en-IN')}</strong> via Cash or UPI directly to the courier executive upon delivery at your doorstep.
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* UPI Sub-form */}
               {paymentMethod === 'UPI' && (
                 <div className="p-4 rounded-2xl bg-[#17181C] border border-[#D5A34A]/25 flex flex-col sm:flex-row items-center gap-4">
@@ -768,7 +783,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className="px-8 py-3 rounded-full bg-gradient-to-r from-[#F5BD48] via-[#D5A34A] to-[#B88728] hover:brightness-105 text-[#08090B] font-bold text-sm shadow-[0_4px_16px_rgba(213,163,74,0.35)] flex items-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
                 >
                   {isProcessing ? (
-                    <span>Verifying &amp; Securing Payment...</span>
+                    <span>{paymentMethod === 'COD' ? 'Booking COD Order...' : 'Verifying & Securing Payment...'}</span>
+                  ) : paymentMethod === 'COD' ? (
+                    <>
+                      <Truck className="w-4 h-4 text-[#08090B]" />
+                      <span>Place COD Order (Pay ₹{grandTotal.toLocaleString('en-IN')} on Delivery)</span>
+                    </>
                   ) : (
                     <>
                       <Lock className="w-4 h-4 text-[#08090B]" />
