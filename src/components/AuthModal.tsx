@@ -94,6 +94,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    setPasskeySupported(isPasskeySupported());
+  }, []);
+
   if (!isOpen || !mounted) return null;
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -142,10 +146,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    setPasskeySupported(isPasskeySupported());
-  }, []);
 
   const handlePasskeyLogin = async () => {
     if (!email.trim()) {
