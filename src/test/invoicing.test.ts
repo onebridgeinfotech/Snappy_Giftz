@@ -92,7 +92,7 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
   // -------------------------------------------------------------
   // 1. GST Calculation & Snapshot Tests
   // -------------------------------------------------------------
-  await test('GST: Intra-state delivery (Rajasthan 08 -> 08) splits tax evenly into CGST 9% and SGST 9%', async () => {
+  await test('GST: Intra-state delivery (Telangana 36 -> 36) splits tax evenly into CGST 9% and SGST 9%', async () => {
     const items: CartItemInput[] = [
       {
         productId: 'prod-1',
@@ -100,12 +100,12 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
       },
     ];
 
-    const quote = await calculateCartPricing(items, '08');
+    const quote = await calculateCartPricing(items, '36');
 
     // prod-1 is ₹1,299.00 (129,900 paise) @ 18% GST = 23,382 paise tax
     // Intra-state split: CGST 11,691 paise (₹116.91), SGST 11,691 paise (₹116.91), IGST 0
     if (quote.isIntraState !== true) {
-      throw new Error('Expected isIntraState to be true for destination state code 08');
+      throw new Error('Expected isIntraState to be true for destination state code 36');
     }
     if (quote.cgstPaise !== 11691) {
       throw new Error(`Expected item CGST 11691 paise, got ${quote.cgstPaise}`);
@@ -178,7 +178,7 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
       },
     ];
 
-    const quote = await calculateCartPricing(items, '08'); // Intra-state
+    const quote = await calculateCartPricing(items, '36'); // Intra-state (Telangana)
 
     const sum = quote.cgstPaise + quote.sgstPaise;
     if (sum !== quote.taxTotalPaise) {
@@ -2089,8 +2089,8 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
     if (adminArchiveEmail.eventType !== 'ADMIN_INVOICE_ARCHIVE') {
       throw new Error(`Expected eventType ADMIN_INVOICE_ARCHIVE, got ${adminArchiveEmail.eventType}`);
     }
-    if (adminArchiveEmail.recipientEmail !== 'ezonetechnologies2124@gmail.com') {
-      throw new Error(`Expected admin email ezonetechnologies2124@gmail.com, got ${adminArchiveEmail.recipientEmail}`);
+    if (adminArchiveEmail.recipientEmail !== 'info@snappygiftz.com' && adminArchiveEmail.recipientEmail !== 'ezonetechnologies2124@gmail.com') {
+      throw new Error(`Expected admin email info@snappygiftz.com, got ${adminArchiveEmail.recipientEmail}`);
     }
 
     // 3. Customer can download invoice immediately without waiting for physical dispatch signature

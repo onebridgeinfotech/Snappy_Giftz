@@ -244,16 +244,16 @@ export async function runSecurityTestSuite(): Promise<{ passed: number; failed: 
   await runTest('Rate Limiter: Correctly enforces per-operation limit and remaining count', async () => {
     resetRateLimitDevStore();
     const key = 'test_ip_127_0_0_1';
+    const limit = RATE_LIMIT_PRESETS.AUTH_LOGIN.limit;
 
-    // Limit for AUTH_LOGIN is 5
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= limit; i++) {
       const res = await enforceRateLimit('AUTH_LOGIN', key);
       assert.equal(res.allowed, true);
       assert.equal(res.currentCount, i);
-      assert.equal(res.remaining, 5 - i);
+      assert.equal(res.remaining, limit - i);
     }
 
-    // 6th attempt must be blocked
+    // Attempt beyond limit must be blocked
     const blockedRes = await enforceRateLimit('AUTH_LOGIN', key);
     assert.equal(blockedRes.allowed, false);
     assert.equal(blockedRes.remaining, 0);

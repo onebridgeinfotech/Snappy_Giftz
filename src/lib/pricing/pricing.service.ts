@@ -195,7 +195,7 @@ export async function calculateCartPricing(
     } | null = null;
 
     try {
-      const dbProduct = await prisma.product.findUnique({
+      let dbProduct = await prisma.product.findUnique({
         where: { id: item.productId },
         select: {
           id: true,
@@ -222,6 +222,41 @@ export async function calculateCartPricing(
           },
         },
       });
+
+      if (!dbProduct) {
+        dbProduct = await prisma.product.findFirst({
+          where: {
+            OR: [
+              { slug: item.productId },
+              { name: item.productId },
+            ],
+          },
+          select: {
+            id: true,
+            name: true,
+            hsnCode: true,
+            taxRatePercent: true,
+            basePricePaise: true,
+            customizationFeePaise: true,
+            isCustomizable: true,
+            customizationType: true,
+            isActive: true,
+            isArchived: true,
+            variants: {
+              where: { isArchived: false },
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                pricePaise: true,
+                stockQuantity: true,
+                isActive: true,
+                isArchived: true,
+              },
+            },
+          },
+        });
+      }
 
       if (dbProduct) {
         authoritativeProduct = dbProduct;
