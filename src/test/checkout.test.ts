@@ -121,15 +121,15 @@ export async function runCheckoutTestSuite() {
   });
 
   // ------------------------------------------------------------------
-  // 2. Indian GST Split (Intra-State Rajasthan vs Interstate)
+  // 2. Indian GST Split (Intra-State Telangana vs Interstate)
   // ------------------------------------------------------------------
   console.log('\n--- 2. Indian GST Calculation Rules (CGST/SGST vs IGST) ---');
 
-  await test('Intra-Rajasthan destination (08) splits GST into 50% CGST + 50% SGST', async () => {
-    const quote = await calculateCartPricing([{ productId: 'prod-1', quantity: 1 }], '08');
+  await test('Intra-State Telangana destination (36) splits GST into 50% CGST + 50% SGST', async () => {
+    const quote = await calculateCartPricing([{ productId: 'prod-1', quantity: 1 }], '36');
     assert.equal(quote.isIntraState, true);
-    assert.ok(quote.cgstPaise > 0, 'CGST must be > 0 for Rajasthan delivery');
-    assert.ok(quote.sgstPaise > 0, 'SGST must be > 0 for Rajasthan delivery');
+    assert.ok(quote.cgstPaise > 0, 'CGST must be > 0 for Telangana delivery');
+    assert.ok(quote.sgstPaise > 0, 'SGST must be > 0 for Telangana delivery');
     assert.equal(quote.cgstPaise, quote.sgstPaise, 'CGST and SGST must be equal');
     assert.equal(quote.igstPaise, 0, 'IGST must be 0 for intra-state delivery');
     assert.equal(quote.taxTotalPaise, quote.cgstPaise + quote.sgstPaise);
@@ -145,16 +145,16 @@ export async function runCheckoutTestSuite() {
   });
 
   await test('Asserts exact expected paise amounts for intra-state and interstate orders', async () => {
-    // prod-1: ₹1,299 = 129,900 paise, 18% GST to Rajasthan (08)
-    const quoteRaj = await calculateCartPricing([{ productId: 'prod-1', quantity: 1 }], '08');
-    assert.equal(quoteRaj.itemsSubtotalPaise, 129900);
-    assert.equal(quoteRaj.taxableAmountPaise, 129900);
-    assert.equal(quoteRaj.taxTotalPaise, 23382); // round(129900 * 0.18) = 23382
-    assert.equal(quoteRaj.cgstPaise, 11691); // floor(23382 / 2) = 11691
-    assert.equal(quoteRaj.sgstPaise, 11691); // 23382 - 11691 = 11691
-    assert.equal(quoteRaj.igstPaise, 0);
-    assert.equal(quoteRaj.shippingTotalPaise, 0); // >= ₹999 free shipping
-    assert.equal(quoteRaj.grandTotalPaise, 153282); // 129900 + 23382 + 0
+    // prod-1: ₹1,299 = 129,900 paise, 18% GST to Telangana (36)
+    const quoteTel = await calculateCartPricing([{ productId: 'prod-1', quantity: 1 }], '36');
+    assert.equal(quoteTel.itemsSubtotalPaise, 129900);
+    assert.equal(quoteTel.taxableAmountPaise, 129900);
+    assert.equal(quoteTel.taxTotalPaise, 23382); // round(129900 * 0.18) = 23382
+    assert.equal(quoteTel.cgstPaise, 11691); // floor(23382 / 2) = 11691
+    assert.equal(quoteTel.sgstPaise, 11691); // 23382 - 11691 = 11691
+    assert.equal(quoteTel.igstPaise, 0);
+    assert.equal(quoteTel.shippingTotalPaise, 0); // >= ₹999 free shipping
+    assert.equal(quoteTel.grandTotalPaise, 153282); // 129900 + 23382 + 0
 
     // prod-4: ₹899 = 89,900 paise, 18% GST to Maharashtra (27)
     const quoteMum = await calculateCartPricing([{ productId: 'prod-4', quantity: 1 }], '27', 9900);
@@ -498,8 +498,10 @@ export async function runCheckoutTestSuite() {
 
   await test('Production mode throws CatalogDatabaseError and never fakes orders during DB outage', async () => {
     const origEnv = process.env.NODE_ENV;
+    const origFallback = process.env.ALLOW_DEMO_FALLBACK;
     try {
       (process.env as any).NODE_ENV = 'production';
+      (process.env as any).ALLOW_DEMO_FALLBACK = 'false';
       await assert.rejects(
         async () => {
           await createOrder({
@@ -513,7 +515,7 @@ export async function runCheckoutTestSuite() {
               state: 'Telangana',
               pincode: '500034',
             },
-            items: [{ productId: 'prod-1', quantity: 1 }],
+            items: [{ productId: 'non-existent-product-ghost-999', quantity: 1 }],
             paymentMethod: 'UPI',
           });
         },
@@ -521,6 +523,7 @@ export async function runCheckoutTestSuite() {
       );
     } finally {
       (process.env as any).NODE_ENV = origEnv;
+      (process.env as any).ALLOW_DEMO_FALLBACK = origFallback;
     }
   });
 
