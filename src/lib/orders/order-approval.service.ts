@@ -57,6 +57,50 @@ export interface OrderApprovalStatusDetails {
 }
 
 /**
+ * Synchronous resolver to evaluate stage directly from an order object
+ */
+export function resolveOrderApprovalStage(order: any): OrderApprovalStage {
+  if (!order) return 'DRAFT_CART';
+  const orderStatus = String(order.orderStatus || order.status || '').toUpperCase();
+  const paymentStatus = String(order.paymentStatus || '').toUpperCase();
+
+  if (orderStatus === 'CANCELLED' || orderStatus === 'REJECTED') {
+    return 'CANCELLED';
+  }
+  if (
+    paymentStatus === 'CAPTURED' ||
+    paymentStatus === 'PAID' ||
+    ['CONFIRMED', 'IN_CUSTOMIZATION', 'QUALITY_CHECK', 'DISPATCHED', 'DELIVERED'].includes(orderStatus)
+  ) {
+    return 'CONFIRMED';
+  }
+
+  const isCustomerApproved = Boolean(
+    order.deliveryChargeCustomerApproved ||
+    order.deliveryChargeApproved ||
+    order.customerApprovedAt ||
+    (order.metadata && (order.metadata as any).customerApprovedFinalAmount)
+  );
+
+  const isDeliveryChargeAssigned = Boolean(
+    order.deliveryChargeAssigned ||
+    order.deliveryChargeAssignedAt ||
+    (order.deliveryChargePending === false && (order.shippingFeePaise != null || order.shippingTotalPaise != null)) ||
+    (order.shippingFeePaise && order.shippingFeePaise > 0) ||
+    (order.shippingTotalPaise && order.shippingTotalPaise > 0) ||
+    (order.metadata && (order.metadata as any).deliveryChargeAssigned)
+  );
+
+  if (isCustomerApproved) {
+    return 'CUSTOMER_APPROVED';
+  }
+  if (isDeliveryChargeAssigned) {
+    return 'AWAITING_CUSTOMER_APPROVAL';
+  }
+  return 'ORDER_AWAITING_OWNER_REVIEW';
+}
+
+/**
  * Evaluates the current approval stage of an order
  */
 export async function getOrderApprovalStage(

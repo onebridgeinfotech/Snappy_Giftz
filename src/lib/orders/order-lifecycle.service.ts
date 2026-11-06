@@ -103,6 +103,7 @@ export interface AdminOrderListOptions {
   search?: string;
   orderStatus?: OrderStatus;
   paymentStatus?: PaymentStatus;
+  paymentMethod?: string;
   startDate?: string | Date;
   endDate?: string | Date;
   sortBy?: 'createdAt' | 'grandTotalPaise' | 'orderNumber';
@@ -154,6 +155,10 @@ export async function listOrdersForAdmin(options: AdminOrderListOptions = {}) {
 
   if (options.paymentStatus) {
     where.paymentStatus = options.paymentStatus;
+  }
+
+  if (options.paymentMethod) {
+    where.paymentMethod = options.paymentMethod;
   }
 
   if (options.startDate || options.endDate) {
@@ -228,6 +233,9 @@ export async function listOrdersForAdmin(options: AdminOrderListOptions = {}) {
     }
     if (options.paymentStatus) {
       devList = devList.filter((o) => o.paymentStatus === options.paymentStatus);
+    }
+    if (options.paymentMethod) {
+      devList = devList.filter((o) => o.paymentMethod === options.paymentMethod);
     }
     if (options.search) {
       const s = options.search.trim().toLowerCase();

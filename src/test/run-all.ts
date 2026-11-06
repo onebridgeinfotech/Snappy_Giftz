@@ -20,6 +20,7 @@ import { runE2EJourneysTestSuite } from './e2e-journeys.test';
 import { runLoginPageTests } from './login-page.test';
 import { runPasswordResetTestSuite } from './password-reset.test';
 import { runGoogleDriveTestSuite } from './google-drive.test';
+import { runAdminPortalTestSuite } from './admin-portal.test';
 
 async function main() {
   console.log('====================================================');
@@ -71,6 +72,9 @@ async function main() {
   // Run Google Drive Integration Suite (Batch 15)
   const googleDriveResults = await runGoogleDriveTestSuite();
 
+  // Run Admin Portal & Logistics Suite (Phase 3)
+  const adminPortalResults = await runAdminPortalTestSuite();
+
   const totalPassed =
     authResults.passed +
     catalogResults.passed +
@@ -86,7 +90,8 @@ async function main() {
     e2eResults.passed +
     loginResults.passed +
     passwordResetResults.passed +
-    googleDriveResults.passed;
+    googleDriveResults.passed +
+    adminPortalResults.passed;
 
   const totalFailed =
     authResults.failed +
@@ -103,7 +108,8 @@ async function main() {
     e2eResults.failed +
     loginResults.failed +
     passwordResetResults.failed +
-    googleDriveResults.failed;
+    googleDriveResults.failed +
+    adminPortalResults.failed;
 
   console.log('====================================================');
   console.log('            MASTER TEST EXECUTION SUMMARY           ');
@@ -123,6 +129,7 @@ async function main() {
   console.log(` 13. Customer Login & OAuth:    ${loginResults.passed} passed, ${loginResults.failed} failed`);
   console.log(` 14. Password Reset & OTP (14): ${passwordResetResults.passed} passed, ${passwordResetResults.failed} failed`);
   console.log(` 15. Google Drive Cloud Storage:${googleDriveResults.passed} passed, ${googleDriveResults.failed} failed`);
+  console.log(` 16. Admin Portal & Logistics:  ${adminPortalResults.passed} passed, ${adminPortalResults.failed} failed`);
   console.log('----------------------------------------------------');
   console.log(`  TOTAL VERIFIED TESTS:         ${totalPassed} passed, ${totalFailed} failed`);
   console.log('====================================================\n');

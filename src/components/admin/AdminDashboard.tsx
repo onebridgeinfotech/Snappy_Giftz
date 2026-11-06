@@ -42,8 +42,12 @@ import {
   Database,
   Cloud,
   HardDrive,
-  Folder
+  Folder,
+  FolderTree,
+  Edit2
 } from 'lucide-react';
+import { AdminCategoryOccasionManager } from './AdminCategoryOccasionManager';
+import { AdminDamageReportsDesk } from './AdminDamageReportsDesk';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -117,6 +121,8 @@ export const AdminDashboard: React.FC = () => {
     | 'overview'
     | 'orders'
     | 'inventory'
+    | 'categories'
+    | 'damage-reports'
     | 'quotations'
     | 'users'
     | 'reports'
@@ -230,6 +236,8 @@ export const AdminDashboard: React.FC = () => {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
+  const [orderPaymentMethodFilter, setOrderPaymentMethodFilter] = useState<string>('');
+  const [orderDateFilter, setOrderDateFilter] = useState<string>('');
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [adminOrderError, setAdminOrderError] = useState<string | null>(null);
 
@@ -1032,6 +1040,7 @@ export const AdminDashboard: React.FC = () => {
       if (orderSearch.trim()) params.set('search', orderSearch.trim());
       if (orderStatusFilter) params.set('orderStatus', orderStatusFilter);
       if (paymentStatusFilter) params.set('paymentStatus', paymentStatusFilter);
+      if (orderPaymentMethodFilter) params.set('paymentMethod', orderPaymentMethodFilter);
 
       const res = await fetch(`/api/admin/orders?${params.toString()}`);
       const data = await res.json();
@@ -1048,7 +1057,7 @@ export const AdminDashboard: React.FC = () => {
     } finally {
       setIsLoadingOrders(false);
     }
-  }, [orderSearch, orderStatusFilter, paymentStatusFilter, orders]);
+  }, [orderSearch, orderStatusFilter, paymentStatusFilter, orderPaymentMethodFilter, orders]);
 
   useEffect(() => {
     if (activeAdminTab === 'orders') {
@@ -1302,6 +1311,75 @@ export const AdminDashboard: React.FC = () => {
     setNewProdName('');
   };
 
+  // Edit Product Modal State (Part 3.2)
+  const [showEditProductModal, setShowEditProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+
+  // Dedicated Delivery Charge Modal State (Part 3.5 Owner Workflow)
+  const [deliveryChargeModalOrder, setDeliveryChargeModalOrder] = useState<any | null>(null);
+  const [deliveryChargeInputRupees, setDeliveryChargeInputRupees] = useState<string>('100');
+  const [isSubmittingDeliveryCharge, setIsSubmittingDeliveryCharge] = useState<boolean>(false);
+
+  const handleOpenDeliveryChargeModal = (ord: any) => {
+    setDeliveryChargeModalOrder(ord);
+    const currRupees = ord.shippingTotalPaise ? (ord.shippingTotalPaise / 100).toFixed(0) : '100';
+    setDeliveryChargeInputRupees(currRupees);
+  };
+
+  const handleSubmitDeliveryChargeModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deliveryChargeModalOrder) return;
+    const amountRupees = parseFloat(deliveryChargeInputRupees);
+    if (isNaN(amountRupees) || amountRupees < 0) {
+      showToast('Please enter a valid non-negative delivery charge amount.', 'error');
+      return;
+    }
+
+    setIsSubmittingDeliveryCharge(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${deliveryChargeModalOrder.id}/delivery-charge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryChargePaise: Math.round(amountRupees * 100) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update delivery charge.');
+      }
+      showToast(data.message || `Delivery charge set to ₹${amountRupees.toFixed(2)}. Customer notified.`);
+      setDeliveryChargeModalOrder(null);
+      fetchAdminOrders(adminPagination.page);
+      fetchOverviewMetrics();
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsSubmittingDeliveryCharge(false);
+    }
+  };
+
+  const handleOpenEditProduct = (prod: any) => {
+    setEditingProduct({ ...prod });
+    setShowEditProductModal(true);
+  };
+
+  const handleSaveProductEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    updateProduct(editingProduct.id, {
+      name: editingProduct.name,
+      basePrice: Number(editingProduct.basePrice),
+      mrp: Number(editingProduct.mrp),
+      stock: Number(editingProduct.stock),
+      category: editingProduct.category,
+      badge: editingProduct.badge,
+      isCustomizable: Boolean(editingProduct.isCustomizable),
+      images: Array.isArray(editingProduct.images) ? editingProduct.images : [editingProduct.images],
+    });
+    showToast(`Product "${editingProduct.name}" updated successfully.`);
+    setShowEditProductModal(false);
+    setEditingProduct(null);
+  };
+
   if (isAdminAuthenticated === null) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center bg-[#08090B]">
@@ -1450,6 +1528,30 @@ export const AdminDashboard: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveAdminTab('categories')}
+          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+            activeAdminTab === 'categories'
+              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
+              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
+          }`}
+        >
+          <FolderTree className="w-4 h-4 text-[#F5BD48]" />
+          <span>Categories & Occasions</span>
+        </button>
+
+        <button
+          onClick={() => setActiveAdminTab('damage-reports')}
+          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+            activeAdminTab === 'damage-reports'
+              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
+              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
+          }`}
+        >
+          <ShieldAlert className="w-4 h-4 text-amber-400" />
+          <span>Damage Claims Desk</span>
+        </button>
+
+        <button
           onClick={() => setActiveAdminTab('quotations')}
           className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
             activeAdminTab === 'quotations'
@@ -1562,113 +1664,142 @@ export const AdminDashboard: React.FC = () => {
       {activeAdminTab === 'overview' && (
         <div className="space-y-6">
           {/* Executive KPI Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+            <div className="p-5 rounded-2xl bg-[#12141A] border border-emerald-500/25 shadow-md">
+              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
                 <span>Captured Revenue</span>
-                <DollarSign className="w-4 h-4 text-emerald-600" />
+                <DollarSign className="w-4 h-4 text-emerald-400" />
               </div>
-              <div className="text-2xl font-serif font-bold text-slate-900 mt-2">
+              <div className="text-2xl font-serif font-bold text-white mt-2">
                 {overviewMetrics?.kpis?.capturedRevenueFormatted || `₹${totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
               </div>
-              <div className="text-[11px] text-emerald-700 font-medium mt-1">
+              <div className="text-[11px] text-emerald-400 font-medium mt-1">
                 Verified captured payments only
               </div>
               {overviewMetrics?.kpis?.pendingRevenuePaise > 0 && (
-                <div className="text-[10px] text-amber-700 mt-0.5">
+                <div className="text-[10px] text-amber-400 mt-0.5">
                   Pending/Auth: {overviewMetrics.kpis.pendingRevenueFormatted}
                 </div>
               )}
             </div>
 
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+            <div className="p-5 rounded-2xl bg-[#12141A] border border-rose-500/25 shadow-md">
+              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
                 <span>Orders & Velocity</span>
-                <Package className="w-4 h-4 text-rose-600" />
+                <Package className="w-4 h-4 text-rose-400" />
               </div>
-              <div className="text-2xl font-serif font-bold text-slate-900 mt-2">
+              <div className="text-2xl font-serif font-bold text-white mt-2">
                 {overviewMetrics?.kpis?.totalOrders ?? orders.length} Orders
               </div>
-              <div className="text-[11px] text-slate-600 font-medium mt-1">
-                Today: <strong className="text-rose-700">{overviewMetrics?.kpis?.ordersToday ?? 0} new</strong> (Asia/Kolkata)
+              <div className="text-[11px] text-[#94A3B8] font-medium mt-1">
+                Today: <strong className="text-rose-400">{overviewMetrics?.kpis?.ordersToday ?? 0} new</strong> (Asia/Kolkata)
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+            <div className="p-5 rounded-2xl bg-[#12141A] border border-amber-500/25 shadow-md">
+              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
+                <span>Delivery Charge & Approvals</span>
+                <DollarSign className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="text-2xl font-serif font-bold text-white mt-2">
+                {overviewMetrics?.kpis?.ordersAwaitingOwnerReview ?? 0} Review • {overviewMetrics?.kpis?.ordersAwaitingCustomerApproval ?? 0} Approval
+              </div>
+              <div className="text-[11px] text-amber-400 mt-1">
+                Manual fee quotes & customer approvals
+              </div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-[#12141A] border border-indigo-500/25 shadow-md">
+              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
                 <span>Cash on Delivery (COD)</span>
-                <Building2 className="w-4 h-4 text-indigo-600" />
+                <Building2 className="w-4 h-4 text-indigo-400" />
               </div>
-              <div className="text-2xl font-serif font-bold text-slate-900 mt-2">
-                {overviewMetrics?.kpis?.pendingCodApprovals ?? 0} Pending Approvals • {overviewMetrics?.kpis?.pendingCodCollections ?? 0} Pending Collections
+              <div className="text-2xl font-serif font-bold text-white mt-2">
+                {overviewMetrics?.kpis?.pendingCodApprovals ?? 0} Approvals • {overviewMetrics?.kpis?.pendingCodCollections ?? 0} Collections
+              </div>
+              <div className="text-[11px] text-indigo-300 mt-1">
+                Stock deducted only when Delivered
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+            <div className="p-5 rounded-2xl bg-[#12141A] border border-amber-500/25 shadow-md">
+              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
                 <span>Catalogue & Stock</span>
-                <Warehouse className="w-4 h-4 text-amber-600" />
+                <Warehouse className="w-4 h-4 text-amber-400" />
               </div>
-              <div className="text-2xl font-serif font-bold text-slate-900 mt-2">
+              <div className="text-2xl font-serif font-bold text-white mt-2">
                 {overviewMetrics?.kpis?.totalProducts ?? products.length} SKUs
               </div>
-              <div className="text-[11px] text-rose-600 font-semibold mt-1">
+              <div className="text-[11px] text-rose-400 font-semibold mt-1">
                 {overviewMetrics?.kpis?.lowStockProductsCount ?? lowStockProducts.length} low stock • {overviewMetrics?.kpis?.outOfStockProductsCount ?? 0} out
+              </div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-[#12141A] border border-[#D5A34A]/25 shadow-md cursor-pointer hover:border-[#D5A34A]/60 transition-all" onClick={() => setActiveAdminTab('damage-reports')}>
+              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
+                <span>Damage Claims Desk</span>
+                <ShieldAlert className="w-4 h-4 text-[#F5BD48]" />
+              </div>
+              <div className="text-2xl font-serif font-bold text-[#F5BD48] mt-2">
+                {overviewMetrics?.kpis?.pendingDamageReportsCount ?? 0} Pending
+              </div>
+              <div className="text-[11px] text-[#94A3B8] mt-1">
+                24h delivery defect inspection
               </div>
             </div>
 
           </div>
 
           {/* Operational Pipeline Tracker */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+          <div className="p-5 rounded-2xl bg-[#12141A] border border-[#D5A34A]/20 shadow-md space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Truck className="w-4 h-4 text-rose-600" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <Truck className="w-4 h-4 text-[#F5BD48]" />
                 <span>Live Fulfillment Pipeline Status</span>
               </h3>
               <button
                 onClick={() => setActiveAdminTab('orders')}
-                className="text-xs text-rose-700 hover:text-rose-900 font-semibold underline"
+                className="text-xs text-[#D5A34A] hover:text-[#F5BD48] font-semibold underline cursor-pointer"
               >
                 View Full Queue &rarr;
               </button>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <div className="text-slate-500 font-medium">Pending</div>
-                <div className="text-lg font-bold text-slate-900 mt-1">
+              <div className="p-3 rounded-xl bg-[#17181C] border border-white/10">
+                <div className="text-[#94A3B8] font-medium">Pending Placed</div>
+                <div className="text-lg font-bold text-white mt-1">
                   {overviewMetrics?.kpis?.pendingOrders ?? 0}
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-purple-50 border border-purple-100">
-                <div className="text-purple-700 font-medium">Customization</div>
-                <div className="text-lg font-bold text-purple-900 mt-1">
+              <div className="p-3 rounded-xl bg-[#17181C] border border-purple-500/20">
+                <div className="text-purple-400 font-medium">Customization</div>
+                <div className="text-lg font-bold text-purple-300 mt-1">
                   {overviewMetrics?.kpis?.ordersAwaitingCustomization ?? 0}
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
-                <div className="text-blue-700 font-medium">Quality Check</div>
-                <div className="text-lg font-bold text-blue-900 mt-1">
+              <div className="p-3 rounded-xl bg-[#17181C] border border-blue-500/20">
+                <div className="text-blue-400 font-medium">Quality Check</div>
+                <div className="text-lg font-bold text-blue-300 mt-1">
                   {overviewMetrics?.kpis?.ordersAwaitingQC ?? 0}
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
-                <div className="text-amber-700 font-medium">Ready to Dispatch</div>
-                <div className="text-lg font-bold text-amber-900 mt-1">
+              <div className="p-3 rounded-xl bg-[#17181C] border border-amber-500/20">
+                <div className="text-amber-400 font-medium">Ready / Confirmed</div>
+                <div className="text-lg font-bold text-amber-300 mt-1">
                   {overviewMetrics?.kpis?.ordersReadyForDispatch ?? 0}
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100">
-                <div className="text-indigo-700 font-medium">Dispatched</div>
-                <div className="text-lg font-bold text-indigo-900 mt-1">
+              <div className="p-3 rounded-xl bg-[#17181C] border border-indigo-500/20">
+                <div className="text-indigo-400 font-medium">Dispatched</div>
+                <div className="text-lg font-bold text-indigo-300 mt-1">
                   {overviewMetrics?.kpis?.dispatchedOrders ?? 0}
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-                <div className="text-emerald-700 font-medium">Delivered</div>
-                <div className="text-lg font-bold text-emerald-900 mt-1">
+              <div className="p-3 rounded-xl bg-[#17181C] border border-emerald-500/20">
+                <div className="text-emerald-400 font-medium">Delivered</div>
+                <div className="text-lg font-bold text-emerald-300 mt-1">
                   {overviewMetrics?.kpis?.deliveredOrders ?? 0}
                 </div>
               </div>
@@ -1679,16 +1810,16 @@ export const AdminDashboard: React.FC = () => {
           {(overviewMetrics?.kpis?.failedEmailsCount > 0 || (overviewMetrics?.kpis?.lowStockProductsCount ?? lowStockProducts.length) > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(overviewMetrics?.kpis?.lowStockProductsCount ?? lowStockProducts.length) > 0 && (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between">
+                <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-xs text-amber-300 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
+                    <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0" />
                     <span>
                       <strong>Stock Alert:</strong> {overviewMetrics?.kpis?.lowStockProductsCount ?? lowStockProducts.length} SKU(s) below reorder threshold (&lt;100 units).
                     </span>
                   </div>
                   <button
                     onClick={() => setActiveAdminTab('inventory')}
-                    className="text-xs font-bold underline hover:text-amber-950 shrink-0 ml-2"
+                    className="text-xs font-bold underline hover:text-white shrink-0 ml-2 cursor-pointer"
                   >
                     Inventory
                   </button>
@@ -1696,16 +1827,16 @@ export const AdminDashboard: React.FC = () => {
               )}
 
               {overviewMetrics?.kpis?.failedEmailsCount > 0 && (
-                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900 flex items-center justify-between">
+                <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-300 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                    <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
                     <span>
                       <strong>Email Delivery:</strong> {overviewMetrics.kpis.failedEmailsCount} transactional email(s) failed delivery.
                     </span>
                   </div>
                   <button
                     onClick={() => setActiveAdminTab('email-outbox')}
-                    className="text-xs font-bold underline hover:text-rose-950 shrink-0 ml-2"
+                    className="text-xs font-bold underline hover:text-white shrink-0 ml-2 cursor-pointer"
                   >
                     Retry Outbox
                   </button>
@@ -1717,18 +1848,18 @@ export const AdminDashboard: React.FC = () => {
           {/* Two-Column Operational Detail */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top Best Sellers */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+            <div className="p-5 rounded-2xl bg-[#12141A] border border-white/10 shadow-md space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-400" />
                   <span>Top Best-Selling Products</span>
                 </h3>
-                <span className="text-[11px] text-slate-400">Captured Volume</span>
+                <span className="text-[11px] text-[#94A3B8]">Captured Volume</span>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold">
+                <table className="w-full text-xs text-left text-[#CBD5E1]">
+                  <thead className="bg-[#17181C] text-[#94A3B8] border-b border-white/10 font-bold">
                     <tr>
                       <th className="p-2">Product Name</th>
                       <th className="p-2 text-center">SKU</th>
@@ -1736,27 +1867,27 @@ export const AdminDashboard: React.FC = () => {
                       <th className="p-2 text-right">Revenue</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-white/5">
                     {overviewMetrics?.bestSellers && overviewMetrics.bestSellers.length > 0 ? (
                       overviewMetrics.bestSellers.slice(0, 5).map((prod: any) => (
-                        <tr key={prod.id}>
-                          <td className="p-2 font-semibold text-slate-900 truncate max-w-[180px]" title={prod.name}>
+                        <tr key={prod.id} className="hover:bg-white/[0.02]">
+                          <td className="p-2 font-semibold text-white truncate max-w-[180px]" title={prod.name}>
                             {prod.name}
                           </td>
-                          <td className="p-2 text-center font-mono text-[11px] text-slate-500">
+                          <td className="p-2 text-center font-mono text-[11px] text-[#94A3B8]">
                             {prod.sku || '—'}
                           </td>
-                          <td className="p-2 text-center font-bold text-slate-800">
+                          <td className="p-2 text-center font-bold text-white">
                             {prod.unitsSold}
                           </td>
-                          <td className="p-2 text-right font-mono font-bold text-emerald-700">
+                          <td className="p-2 text-right font-mono font-bold text-emerald-400">
                             {prod.revenueFormatted}
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4} className="p-4 text-center text-slate-400 italic">
+                        <td colSpan={4} className="p-4 text-center text-[#94A3B8] italic">
                           No sales data recorded yet.
                         </td>
                       </tr>
@@ -1767,42 +1898,42 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Recent Admin Audit Activity */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+            <div className="p-5 rounded-2xl bg-[#12141A] border border-white/10 shadow-md space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-600" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-blue-400" />
                   <span>Recent Administrative Activity</span>
                 </h3>
                 <button
                   onClick={() => setActiveAdminTab('audit')}
-                  className="text-xs text-blue-700 hover:text-blue-900 font-semibold underline"
+                  className="text-xs text-[#D5A34A] hover:text-[#F5BD48] font-semibold underline cursor-pointer"
                 >
                   Full Log &rarr;
                 </button>
               </div>
 
-              <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+              <div className="divide-y divide-white/5 max-h-64 overflow-y-auto">
                 {overviewMetrics?.recentActivity && overviewMetrics.recentActivity.length > 0 ? (
                   overviewMetrics.recentActivity.slice(0, 5).map((log: any) => (
                     <div key={log.id} className="py-2.5 flex items-start justify-between text-xs">
                       <div>
-                        <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                        <div className="font-semibold text-white flex items-center gap-1.5">
+                          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#17181C] text-[#CBD5E1] border border-white/10">
                             {log.action}
                           </span>
-                          <span className="text-slate-600">{log.entityType}</span>
+                          <span className="text-[#94A3B8]">{log.entityType}</span>
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                          By: <span className="font-mono">{log.actorEmail}</span>
+                        <div className="text-[11px] text-[#64748B] mt-0.5">
+                          By: <span className="font-mono text-[#94A3B8]">{log.actorEmail}</span>
                         </div>
                       </div>
-                      <div className="text-[10px] text-slate-400 text-right whitespace-nowrap">
+                      <div className="text-[10px] text-[#64748B] text-right whitespace-nowrap">
                         {new Date(log.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-4 text-center text-slate-400 italic text-xs">
+                  <div className="p-4 text-center text-[#94A3B8] italic text-xs">
                     No recent administrative activity recorded.
                   </div>
                 )}
@@ -1814,21 +1945,21 @@ export const AdminDashboard: React.FC = () => {
 
       {/* TAB 2: ORDER FULFILLMENT PIPELINE */}
       {activeAdminTab === 'orders' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
-              <h2 className="font-serif text-2xl font-bold text-slate-900">
+              <h2 className="font-serif text-2xl font-bold text-white">
                 Order Fulfillment & Logistics Pipeline
               </h2>
-              <p className="text-xs text-slate-500">
-                Update operational status, assign courier AWB tracking, inspect item snapshots, and confirm dispatches.
+              <p className="text-xs text-[#94A3B8]">
+                Update operational status, assign courier AWB tracking, inspect item snapshots, assign owner delivery fees, and confirm dispatches.
               </p>
             </div>
 
             <button
               onClick={() => fetchAdminOrders(adminPagination.page)}
               disabled={isLoadingOrders}
-              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all self-start sm:self-auto"
+              className="px-3.5 py-2 rounded-xl bg-[#181A22] hover:bg-[#20232D] text-[#D5A34A] border border-[#D5A34A]/30 text-xs font-semibold flex items-center gap-1.5 transition-all self-start sm:self-auto"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoadingOrders ? 'animate-spin' : ''}`} />
               <span>Refresh Orders</span>
@@ -1837,14 +1968,14 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Validation / Authorization Error Banner */}
           {adminOrderError && (
-            <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center justify-between gap-3">
+            <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{adminOrderError}</span>
               </div>
               <button
                 onClick={() => setAdminOrderError(null)}
-                className="text-red-500 hover:text-red-700 p-1"
+                className="text-rose-400 hover:text-white p-1"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1852,7 +1983,7 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           {/* Search & Filter Toolbar */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-[#181A22] p-4 rounded-2xl border border-white/10 text-xs">
             <div className="sm:col-span-2 relative">
               <input
                 type="text"
@@ -1860,16 +1991,16 @@ export const AdminDashboard: React.FC = () => {
                 value={orderSearch}
                 onChange={(e) => setOrderSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && fetchAdminOrders(1)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-white/15 text-xs bg-[#0D0F14] text-white placeholder-white/40 focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
               />
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-4 h-4 text-white/40 absolute left-3 top-2.5" />
             </div>
 
             <div>
               <select
                 value={orderStatusFilter}
                 onChange={(e) => setOrderStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white font-semibold text-slate-700 focus:outline-hidden"
+                className="w-full px-3 py-2 rounded-xl border border-white/15 text-xs bg-[#0D0F14] font-semibold text-white/90 focus:outline-hidden"
               >
                 <option value="">All Order Statuses</option>
                 <option value="PENDING">PENDING (Order Placed)</option>
@@ -1886,22 +2017,34 @@ export const AdminDashboard: React.FC = () => {
               <select
                 value={paymentStatusFilter}
                 onChange={(e) => setPaymentStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white font-semibold text-slate-700 focus:outline-hidden"
+                className="w-full px-3 py-2 rounded-xl border border-white/15 text-xs bg-[#0D0F14] font-semibold text-white/90 focus:outline-hidden"
               >
                 <option value="">All Payment States</option>
                 <option value="CAPTURED">CAPTURED (Paid)</option>
-                <option value="PENDING">PENDING (Unpaid)</option>
+                <option value="PENDING">PENDING (Unpaid / COD)</option>
                 <option value="AUTHORIZED">AUTHORIZED (Held)</option>
                 <option value="FAILED">FAILED</option>
                 <option value="REFUNDED">REFUNDED</option>
               </select>
             </div>
+
+            <div>
+              <select
+                value={orderPaymentMethodFilter}
+                onChange={(e) => setOrderPaymentMethodFilter(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-white/15 text-xs bg-[#0D0F14] font-semibold text-white/90 focus:outline-hidden"
+              >
+                <option value="">All Payment Channels</option>
+                <option value="COD">Cash on Delivery (COD)</option>
+                <option value="RAZORPAY">Online (Razorpay)</option>
+              </select>
+            </div>
           </div>
 
           {/* Orders Table */}
-          <div className="overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="w-full text-left text-xs text-slate-700">
-              <thead className="bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider border-b border-slate-200">
+          <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#17181C]">
+            <table className="w-full text-left text-xs text-white/80">
+              <thead className="bg-[#12141A] text-[#D5A34A] uppercase text-[10px] tracking-wider border-b border-white/10">
                 <tr>
                   <th className="p-3">Order # & Date</th>
                   <th className="p-3">Customer & Channel</th>
@@ -1912,19 +2055,19 @@ export const AdminDashboard: React.FC = () => {
                   <th className="p-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-white/5">
                 {isLoadingOrders ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-400">
+                    <td colSpan={7} className="p-8 text-center text-white/40">
                       <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                        <Loader2 className="w-4 h-4 animate-spin text-[#D5A34A]" />
                         <span>Loading orders from server...</span>
                       </div>
                     </td>
                   </tr>
                 ) : adminOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-400">
+                    <td colSpan={7} className="p-8 text-center text-white/40">
                       No orders found matching your search or filter criteria.
                     </td>
                   </tr>
@@ -1951,41 +2094,43 @@ export const AdminDashboard: React.FC = () => {
                     }[statusStr] || [];
 
                     return (
-                      <tr key={ord.id} className="hover:bg-slate-50/50">
+                      <tr key={ord.id} className="hover:bg-white/[0.03] transition-colors">
                         <td className="p-3">
-                          <div className="font-mono font-bold text-slate-900">{ord.orderNumber}</div>
-                          <div className="text-[11px] text-slate-400">
+                          <div className="font-mono font-bold text-white">{ord.orderNumber}</div>
+                          <div className="text-[11px] text-white/50">
                             {ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('en-IN') : ord.date}
                           </div>
                         </td>
 
                         <td className="p-3">
-                          <div className="font-semibold text-slate-900">{ord.customerName}</div>
-                          <div className="text-[11px] text-slate-500">{ord.customerPhone}</div>
-                          <div className="text-[10px] text-slate-400">
-                            {ord.type === 'B2B' ? '🏢 Corporate B2B' : '🛍️ B2C Customer'}
+                          <div className="font-semibold text-white">{ord.customerName}</div>
+                          <div className="text-[11px] text-white/60">{ord.customerPhone}</div>
+                          <div className="text-[10px] text-[#D5A34A] flex items-center gap-1 mt-0.5">
+                            <span>{ord.type === 'B2B' ? '🏢 Corporate B2B' : '🛍️ B2C Customer'}</span>
+                            <span className="text-white/40">•</span>
+                            <span className="font-mono text-white/70">{ord.paymentMethod || 'Online'}</span>
                           </div>
                         </td>
 
                         <td className="p-3">
-                          <div className="font-medium text-slate-800">
+                          <div className="font-medium text-white/90">
                             {ord.itemsCount || (ord.items ? ord.items.reduce((s: number, i: any) => s + i.quantity, 0) : 1)} Items
                           </div>
                           {ord.items && ord.items[0]?.productName && (
-                            <div className="text-[10px] text-slate-500 truncate max-w-[180px]">
+                            <div className="text-[10px] text-white/50 truncate max-w-[180px]">
                               {ord.items[0].productName}
                             </div>
                           )}
                         </td>
 
                         <td className="p-3">
-                          <div className="font-serif font-bold text-slate-900">
+                          <div className="font-serif font-bold text-[#F5BD48]">
                             ₹{((ord.grandTotalPaise ? ord.grandTotalPaise / 100 : ord.grandTotal) || 0).toLocaleString('en-IN')}
                           </div>
-                          <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                          <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
                             ord.paymentStatus === 'CAPTURED' || ord.paymentStatus === 'Paid'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-800'
+                              ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30'
+                              : 'bg-amber-950/60 text-amber-300 border-amber-500/30'
                           }`}>
                             {ord.paymentStatus}
                           </span>
@@ -1993,14 +2138,14 @@ export const AdminDashboard: React.FC = () => {
 
                         <td className="p-3">
                           <div className="space-y-1">
-                            <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-lg ${
+                            <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-lg border ${
                               statusStr === 'DELIVERED'
-                                ? 'bg-emerald-100 text-emerald-800'
+                                ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30'
                                 : statusStr === 'DISPATCHED'
-                                ? 'bg-blue-100 text-blue-800'
+                                ? 'bg-sky-950/60 text-sky-400 border-sky-500/30'
                                 : statusStr === 'CANCELLED'
-                                ? 'bg-rose-100 text-rose-800'
-                                : 'bg-slate-100 text-slate-800'
+                                ? 'bg-rose-950/60 text-rose-400 border-rose-500/30'
+                                : 'bg-[#181A22] text-white/90 border-white/10'
                             }`}>
                               {statusStr.replace('_', ' ')}
                             </span>
@@ -2020,7 +2165,7 @@ export const AdminDashboard: React.FC = () => {
                                       handleStatusTransition(ord.id, target);
                                     }
                                   }}
-                                  className="text-[10.5px] px-2 py-1 rounded border border-slate-300 bg-white font-medium text-slate-700 focus:outline-hidden disabled:opacity-50"
+                                  className="text-[10.5px] px-2 py-1 rounded border border-white/15 bg-[#0D0F14] font-medium text-white focus:outline-hidden disabled:opacity-50"
                                 >
                                   <option value="">Move to &rarr;</option>
                                   {allowedTransitions.map((st) => (
@@ -2037,14 +2182,14 @@ export const AdminDashboard: React.FC = () => {
                         <td className="p-3 font-mono text-[11px]">
                           {awbNum ? (
                             <div>
-                              <div className="font-bold text-slate-900">{awbNum}</div>
-                              <div className="text-[10px] text-slate-400 font-sans">{carrierName || 'Express Courier'}</div>
+                              <div className="font-bold text-white">{awbNum}</div>
+                              <div className="text-[10px] text-white/50 font-sans">{carrierName || 'Express Courier'}</div>
                               {trackLink && (
                                 <a
                                   href={trackLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-[10px] text-rose-700 hover:underline flex items-center gap-0.5 font-sans font-semibold mt-0.5"
+                                  className="text-[10px] text-[#F5BD48] hover:underline flex items-center gap-0.5 font-sans font-semibold mt-0.5"
                                 >
                                   <span>Track Link</span>
                                   <ExternalLink className="w-2.5 h-2.5" />
@@ -2052,7 +2197,7 @@ export const AdminDashboard: React.FC = () => {
                               )}
                             </div>
                           ) : (
-                            <span className="text-[11px] text-slate-400 italic font-sans">
+                            <span className="text-[11px] text-white/40 italic font-sans">
                               Unassigned
                             </span>
                           )}
@@ -2062,9 +2207,9 @@ export const AdminDashboard: React.FC = () => {
                           {/* Set Delivery Charge Action */}
                           {!isTerminal && (
                             <button
-                              onClick={() => handleSetDeliveryCharge(ord.id, ord.shippingTotalPaise || 0)}
+                              onClick={() => handleOpenDeliveryChargeModal(ord)}
                               disabled={actionInProgressId === ord.id}
-                              className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-50 inline-flex items-center gap-1 font-semibold"
+                              className="p-1.5 rounded-lg text-[#F5BD48] hover:bg-[#F5BD48]/10 inline-flex items-center gap-1 font-semibold border border-[#D5A34A]/30 transition-colors"
                               title="Set / Update Owner Delivery Charge"
                             >
                               <DollarSign className="w-3.5 h-3.5" />
@@ -2076,7 +2221,7 @@ export const AdminDashboard: React.FC = () => {
                           <button
                             onClick={() => handleViewOrderDetails(ord.id)}
                             disabled={loadingDetailsId === ord.id}
-                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 inline-flex items-center gap-1 font-semibold"
+                            className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 inline-flex items-center gap-1 font-semibold border border-white/10 transition-colors"
                             title="Inspect Order Details & Audit Trail"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -2087,7 +2232,7 @@ export const AdminDashboard: React.FC = () => {
                           {canDispatch && (
                             <button
                               onClick={() => handleOpenDispatchModal(ord)}
-                              className="p-1.5 rounded-lg text-blue-700 hover:bg-blue-50 inline-flex items-center gap-1 font-semibold"
+                              className="p-1.5 rounded-lg text-sky-400 hover:bg-sky-950/40 inline-flex items-center gap-1 font-semibold border border-sky-500/30 transition-colors"
                               title="Assign Courier Partner & AWB"
                             >
                               <Truck className="w-3.5 h-3.5" />
@@ -2100,8 +2245,8 @@ export const AdminDashboard: React.FC = () => {
                             <button
                               onClick={() => handleConfirmDelivery(ord.id)}
                               disabled={actionInProgressId === ord.id}
-                              className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-50 inline-flex items-center gap-1 font-semibold disabled:opacity-50"
-                              title="Confirm Order Delivery"
+                              className="p-1.5 rounded-lg text-emerald-400 hover:bg-emerald-950/40 inline-flex items-center gap-1 font-semibold disabled:opacity-50 border border-emerald-500/30 transition-colors"
+                              title="Confirm Order Delivery (Deducts stock on COD)"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>Delivered</span>
@@ -2114,7 +2259,7 @@ export const AdminDashboard: React.FC = () => {
                               setSelectedOrder(ord);
                               setActiveModal('invoice_view');
                             }}
-                            className="p-1.5 rounded-lg text-slate-600 hover:text-rose-700 hover:bg-rose-50 inline-flex items-center gap-1 font-semibold"
+                            className="p-1.5 rounded-lg text-[#D5A34A] hover:bg-[#D5A34A]/10 inline-flex items-center gap-1 font-semibold border border-[#D5A34A]/20 transition-colors"
                             title="View & Print GST Tax Invoice"
                           >
                             <Printer className="w-3.5 h-3.5" />
@@ -2130,15 +2275,15 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Pagination Controls */}
           {adminPagination.totalPages > 1 && (
-            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
-              <span className="text-slate-500">
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-white/10">
+              <span className="text-white/60">
                 Showing {adminOrders.length} of {adminPagination.total} total orders (Page {adminPagination.page} of {adminPagination.totalPages})
               </span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => fetchAdminOrders(adminPagination.page - 1)}
                   disabled={adminPagination.page <= 1 || isLoadingOrders}
-                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 flex items-center gap-1 font-semibold"
+                  className="px-3 py-1.5 rounded-lg border border-white/15 bg-[#181A22] text-white hover:bg-[#20232D] disabled:opacity-40 flex items-center gap-1 font-semibold transition-colors"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                   <span>Prev</span>
@@ -2146,7 +2291,7 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   onClick={() => fetchAdminOrders(adminPagination.page + 1)}
                   disabled={adminPagination.page >= adminPagination.totalPages || isLoadingOrders}
-                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 flex items-center gap-1 font-semibold"
+                  className="px-3 py-1.5 rounded-lg border border-white/15 bg-[#181A22] text-white hover:bg-[#20232D] disabled:opacity-40 flex items-center gap-1 font-semibold transition-colors"
                 >
                   <span>Next</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -2160,38 +2305,46 @@ export const AdminDashboard: React.FC = () => {
 
       {/* TAB 3: INVENTORY & WAREHOUSES */}
       {activeAdminTab === 'inventory' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
-              <h2 className="font-serif text-2xl font-bold text-slate-900">
+              <h2 className="font-serif text-2xl font-bold text-white">
                 Warehouse Stock & SKU Management
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#94A3B8]">
                 Monitor real-time inventory counts across Hyderabad, Bengaluru, and national fulfillment hubs.
               </p>
             </div>
+
+            <button
+              onClick={() => setShowAddProductModal(true)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] hover:brightness-110 text-[#08090B] text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-[#D5A34A]/20 self-start sm:self-auto"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Product</span>
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {products.map((prod) => (
               <div
                 key={prod.id}
-                className="p-4 rounded-2xl border border-slate-200 bg-white flex flex-col justify-between space-y-3"
+                className="p-4 rounded-2xl border border-white/10 bg-[#17181C] flex flex-col justify-between space-y-3"
               >
                 <div className="flex gap-3">
-                  <img src={prod.images[0]} alt={prod.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                  <img src={prod.images[0]} alt={prod.name} className="w-16 h-16 rounded-xl object-cover shrink-0 border border-white/10" />
                   <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-mono text-slate-400 block">{prod.sku}</span>
-                    <h4 className="font-serif font-bold text-xs text-slate-900 truncate">{prod.name}</h4>
-                    <span className="text-[11px] text-slate-500 block">{prod.category}</span>
-                    <span className="text-xs font-serif font-bold text-rose-900 mt-1 block">₹{prod.basePrice}</span>
+                    <span className="text-[10px] font-mono text-white/40 block">{prod.sku}</span>
+                    <h4 className="font-serif font-bold text-xs text-white truncate">{prod.name}</h4>
+                    <span className="text-[11px] text-[#D5A34A] block">{prod.category}</span>
+                    <span className="text-xs font-serif font-bold text-[#F5BD48] mt-1 block">₹{prod.basePrice}</span>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center justify-between text-xs">
+                <div className="bg-[#12141A] p-2.5 rounded-xl border border-white/5 flex items-center justify-between text-xs">
                   <div>
-                    <span className="text-slate-500 block text-[10px]">Stock Count:</span>
-                    <strong className={`text-sm font-bold font-mono ${prod.stock < 100 ? 'text-rose-600' : 'text-slate-900'}`}>
+                    <span className="text-white/50 block text-[10px]">Stock Count:</span>
+                    <strong className={`text-sm font-bold font-mono ${prod.stock < 10 ? 'text-rose-400' : 'text-white'}`}>
                       {prod.stock} units
                     </strong>
                   </div>
@@ -2199,14 +2352,14 @@ export const AdminDashboard: React.FC = () => {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => updateProduct(prod.id, { stock: Math.max(0, prod.stock - 10) })}
-                      className="px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-100 font-bold"
+                      className="px-2 py-1 rounded bg-[#181A22] border border-white/15 hover:bg-[#20232D] text-white font-bold transition-colors"
                       title="Adjust down -10"
                     >
                       -10
                     </button>
                     <button
                       onClick={() => updateProduct(prod.id, { stock: prod.stock + 50 })}
-                      className="px-2 py-1 rounded bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-bold"
+                      className="px-2 py-1 rounded bg-[#D5A34A]/20 border border-[#D5A34A]/40 text-[#F5BD48] hover:bg-[#D5A34A]/30 font-bold transition-colors"
                       title="Restock +50"
                     >
                       +50
@@ -2214,9 +2367,18 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="text-[10px] text-slate-400 flex justify-between">
-                  <span>Warehouse: {prod.warehouseLocation.split(' ')[0]}</span>
-                  <span>HSN: {prod.hsnCode}</span>
+                <button
+                  type="button"
+                  onClick={() => handleOpenEditProduct(prod)}
+                  className="w-full py-1.5 rounded-xl bg-[#181A22] hover:bg-[#20232D] text-[#D5A34A] border border-[#D5A34A]/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit Product Details</span>
+                </button>
+
+                <div className="text-[10px] text-white/40 flex justify-between border-t border-white/5 pt-2">
+                  <span>Warehouse: {prod.warehouseLocation?.split(' ')[0] || 'Central'}</span>
+                  <span>HSN: {prod.hsnCode || '4820'}</span>
                 </div>
               </div>
             ))}
@@ -2224,10 +2386,24 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* TAB: CATEGORIES & OCCASIONS TAXONOMY */}
+      {activeAdminTab === 'categories' && (
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl text-white">
+          <AdminCategoryOccasionManager />
+        </div>
+      )}
+
+      {/* TAB: DAMAGE CLAIMS DESK */}
+      {activeAdminTab === 'damage-reports' && (
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl text-white">
+          <AdminDamageReportsDesk onClaimUpdated={fetchOverviewMetrics} />
+        </div>
+      )}
+
       {/* TAB 4: CORPORATE & QUOTATIONS DESK */}
       {activeAdminTab === 'quotations' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
               <h2 className="font-serif text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <Building2 className="w-6 h-6 text-rose-800" />
@@ -2572,8 +2748,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* TAB 5: SUPPORT DESK */}
       {activeAdminTab === 'tickets' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="border-b border-white/10 pb-4">
             <h2 className="font-serif text-2xl font-bold text-slate-900">
               Customer Support & Concierge Tickets
             </h2>
@@ -2637,8 +2813,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* TAB 6: SELLER & GST CONFIGURATION */}
       {activeAdminTab === 'seller-config' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div>
               <h2 className="font-serif text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <Building2 className="w-6 h-6 text-rose-800" />
@@ -2869,8 +3045,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* TAB 7: TRANSACTIONAL EMAIL OUTBOX */}
       {activeAdminTab === 'email-outbox' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
               <h2 className="font-serif text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <Send className="w-6 h-6 text-blue-600" />
@@ -2993,8 +3169,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* TAB 5: CUSTOMER AND STAFF MANAGEMENT */}
       {activeAdminTab === 'users' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
               <h2 className="font-serif text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <Users className="w-6 h-6 text-cyan-600" />
@@ -3165,8 +3341,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* TAB 6: BUSINESS REPORTS AND ANALYTICS */}
       {activeAdminTab === 'reports' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
               <h2 className="font-serif text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
@@ -3504,8 +3680,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* TAB 7: COMPLETE BUSINESS SETTINGS */}
       {activeAdminTab === 'settings' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
               <h2 className="font-serif text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <Settings className="w-6 h-6 text-violet-600" />
@@ -4035,8 +4211,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* TAB 8: AUDIT TRAIL LOGS */}
       {activeAdminTab === 'audit' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
               <h2 className="font-serif text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <ShieldCheck className="w-6 h-6 text-teal-600" />
@@ -4156,8 +4332,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* TAB 9: SYSTEM OPERATIONS & HEALTH OVERVIEW */}
       {activeAdminTab === 'operations' && (
-        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
               <h2 className="font-serif text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <Activity className="w-6 h-6 text-rose-600" />
@@ -4343,29 +4519,41 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Add Product Modal */}
       {showAddProductModal && (
-        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl space-y-4">
-            <h3 className="font-serif font-bold text-xl text-slate-900">Add New Product to Catalog</h3>
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="font-serif font-bold text-xl text-white flex items-center gap-2">
+                <Plus className="w-5 h-5 text-[#F5BD48]" />
+                <span>Add New Product to Catalog</span>
+              </h3>
+              <button
+                onClick={() => setShowAddProductModal(false)}
+                className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
             <form onSubmit={handleCreateProduct} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Product Title</label>
+                <label className="block font-bold text-[#D5A34A] mb-1">Product Title *</label>
                 <input
                   type="text"
                   required
                   value={newProdName}
                   onChange={(e) => setNewProdName(e.target.value)}
                   placeholder="e.g. Royal Rajputana Scented Candle Crate"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Category</label>
+                  <label className="block font-bold text-[#D5A34A] mb-1">Category *</label>
                   <select
                     value={newProdCategory}
                     onChange={(e) => setNewProdCategory(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden"
                   >
                     <option value="Personalized Gifts">Personalized Gifts</option>
                     <option value="Home Decor">Home Decor</option>
@@ -4377,42 +4565,42 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Stock Units</label>
+                  <label className="block font-bold text-[#D5A34A] mb-1">Stock Units</label>
                   <input
                     type="number"
                     value={newProdStock}
                     onChange={(e) => setNewProdStock(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Price (₹)</label>
+                  <label className="block font-bold text-[#D5A34A] mb-1">Price (₹) *</label>
                   <input
                     type="number"
                     value={newProdBasePrice}
                     onChange={(e) => setNewProdBasePrice(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">MRP (₹)</label>
+                  <label className="block font-bold text-[#D5A34A] mb-1">MRP (₹) *</label>
                   <input
                     type="number"
                     value={newProdMrp}
                     onChange={(e) => setNewProdMrp(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono focus:outline-hidden"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Warehouse Hub</label>
+                <label className="block font-bold text-[#D5A34A] mb-1">Warehouse Hub</label>
                 <select
                   value={newProdWarehouse}
                   onChange={(e) => setNewProdWarehouse(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden"
                 >
                   <option value="Hyderabad Central Warehouse">Hyderabad Central Warehouse (Telangana)</option>
                   <option value="Jaipur Logistics Hub">Jaipur Logistics Hub</option>
@@ -4421,26 +4609,26 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Image URL</label>
+                <label className="block font-bold text-[#D5A34A] mb-1">Image URL</label>
                 <input
                   type="text"
                   value={newProdImage}
                   onChange={(e) => setNewProdImage(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono text-[11px]"
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono text-[11px] focus:outline-hidden"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setShowAddProductModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 font-semibold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-rose-700 text-white font-semibold hover:bg-rose-800"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold hover:brightness-110 shadow-md shadow-[#D5A34A]/25 transition-all"
                 >
                   Add Product
                 </button>
@@ -4452,41 +4640,41 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Batch 6: Order Details & Audit History Modal */}
       {selectedOrderDetails && (
-        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-4xl bg-white rounded-3xl p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div>
                 <div className="flex items-center gap-3">
-                  <h3 className="font-serif font-bold text-xl text-slate-900">
+                  <h3 className="font-serif font-bold text-xl text-white">
                     Order {selectedOrderDetails.orderNumber}
                   </h3>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase border ${
                     selectedOrderDetails.orderStatus === 'DELIVERED'
-                      ? 'bg-emerald-100 text-emerald-800'
+                      ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30'
                       : selectedOrderDetails.orderStatus === 'DISPATCHED'
-                      ? 'bg-blue-100 text-blue-800'
+                      ? 'bg-sky-950/60 text-sky-400 border-sky-500/30'
                       : selectedOrderDetails.orderStatus === 'CANCELLED'
-                      ? 'bg-rose-100 text-rose-800'
-                      : 'bg-amber-100 text-amber-800'
+                      ? 'bg-rose-950/60 text-rose-400 border-rose-500/30'
+                      : 'bg-amber-950/60 text-amber-300 border-amber-500/30'
                   }`}>
                     {selectedOrderDetails.orderStatus?.replace('_', ' ')}
                   </span>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase border ${
                     selectedOrderDetails.paymentStatus === 'CAPTURED' || selectedOrderDetails.paymentStatus === 'Paid'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-amber-100 text-amber-800'
+                      ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30'
+                      : 'bg-amber-950/60 text-amber-300 border-amber-500/30'
                   }`}>
                     Payment: {selectedOrderDetails.paymentStatus}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-[#94A3B8] mt-1">
                   Placed on {new Date(selectedOrderDetails.createdAt).toLocaleString('en-IN')} • Gateway: {selectedOrderDetails.paymentMethod}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedOrderDetails(null)}
-                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl"
+                className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-xl"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4494,45 +4682,45 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Customer & Address Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                <h4 className="font-bold text-slate-900 uppercase text-[11px] tracking-wide mb-2">Customer & Tax Identity</h4>
-                <div className="text-slate-800 font-semibold">{selectedOrderDetails.customerName}</div>
-                <div className="text-slate-600">{selectedOrderDetails.customerEmail}</div>
-                <div className="text-slate-600">Phone: {selectedOrderDetails.customerPhone}</div>
+              <div className="p-4 rounded-2xl bg-[#17181C] border border-white/10 space-y-1">
+                <h4 className="font-bold text-[#D5A34A] uppercase text-[11px] tracking-wide mb-2">Customer & Tax Identity</h4>
+                <div className="text-white font-semibold">{selectedOrderDetails.customerName}</div>
+                <div className="text-white/70">{selectedOrderDetails.customerEmail}</div>
+                <div className="text-white/70">Phone: {selectedOrderDetails.customerPhone}</div>
                 {selectedOrderDetails.gstin && (
-                  <div className="text-slate-600 font-mono text-[11px] pt-1">
+                  <div className="text-white/70 font-mono text-[11px] pt-1">
                     GSTIN: <strong>{selectedOrderDetails.gstin}</strong>
                   </div>
                 )}
-                <div className="text-slate-500 text-[11px] pt-1">
+                <div className="text-white/50 text-[11px] pt-1">
                   Destination State Code: <strong>{selectedOrderDetails.destinationStateCode}</strong>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                <h4 className="font-bold text-slate-900 uppercase text-[11px] tracking-wide mb-2">Delivery Address</h4>
+              <div className="p-4 rounded-2xl bg-[#17181C] border border-white/10 space-y-1">
+                <h4 className="font-bold text-[#D5A34A] uppercase text-[11px] tracking-wide mb-2">Delivery Address</h4>
                 {selectedOrderDetails.shippingAddress ? (
                   <>
-                    <div className="text-slate-800">{selectedOrderDetails.shippingAddress.street || selectedOrderDetails.shippingAddress.addressLine1}</div>
-                    <div className="text-slate-600">
+                    <div className="text-white">{selectedOrderDetails.shippingAddress.street || selectedOrderDetails.shippingAddress.addressLine1}</div>
+                    <div className="text-white/70">
                       {[selectedOrderDetails.shippingAddress.city, selectedOrderDetails.shippingAddress.state, selectedOrderDetails.shippingAddress.pincode || selectedOrderDetails.shippingAddress.postalCode].filter(Boolean).join(', ')}
                     </div>
-                    <div className="text-slate-500 text-[11px]">{selectedOrderDetails.shippingAddress.country || 'India'}</div>
+                    <div className="text-white/50 text-[11px]">{selectedOrderDetails.shippingAddress.country || 'India'}</div>
                   </>
                 ) : (
-                  <div className="text-slate-400 italic">No shipping address recorded.</div>
+                  <div className="text-white/40 italic">No shipping address recorded.</div>
                 )}
               </div>
             </div>
 
             {/* Line Items Snapshot */}
             <div className="space-y-2">
-              <h4 className="font-bold text-slate-900 uppercase text-xs tracking-wide">
+              <h4 className="font-bold text-white uppercase text-xs tracking-wide">
                 Items Snapshot & Customization
               </h4>
-              <div className="overflow-x-auto border border-slate-200 rounded-2xl">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+              <div className="overflow-x-auto border border-white/10 rounded-2xl bg-[#17181C]">
+                <table className="w-full text-left text-xs text-white/80">
+                  <thead className="bg-[#12141A] text-[#D5A34A] font-bold border-b border-white/10">
                     <tr>
                       <th className="p-3">Product / SKU</th>
                       <th className="p-3">HSN</th>
@@ -4542,55 +4730,55 @@ export const AdminDashboard: React.FC = () => {
                       <th className="p-3 text-right">Subtotal</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-white/5">
                     {selectedOrderDetails.items?.map((item: any) => (
                       <tr key={item.id}>
                         <td className="p-3">
-                          <div className="font-semibold text-slate-900">{item.productName}</div>
-                          <div className="font-mono text-[10px] text-slate-400">SKU: {item.sku}</div>
+                          <div className="font-semibold text-white">{item.productName}</div>
+                          <div className="font-mono text-[10px] text-white/40">SKU: {item.sku}</div>
                           {item.customizationNote && (
-                            <div className="text-[11px] text-rose-800 bg-rose-50 p-1.5 rounded-lg mt-1 border border-slate-200">
+                            <div className="text-[11px] text-[#F5BD48] bg-[#D5A34A]/10 p-1.5 rounded-lg mt-1 border border-[#D5A34A]/20">
                               <strong>Customization:</strong> {item.customizationNote}
                             </div>
                           )}
 
                           {/* Batch 7: Detailed Personalization Snapshot & Proof Review */}
                           {(item.personalization || item.customizationMeta) && (
-                            <div className="mt-2 p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-[10.5px] space-y-1.5">
+                            <div className="mt-2 p-2.5 rounded-xl bg-[#12141A] border border-[#D5A34A]/20 text-[10.5px] space-y-1.5 text-white/90">
                               <div className="flex items-center justify-between">
-                                <span className="font-bold text-amber-950 uppercase tracking-wide flex items-center gap-1">
+                                <span className="font-bold text-[#F5BD48] uppercase tracking-wide flex items-center gap-1">
                                   <span>✦ Bespoke Specs</span>
-                                  <span className="text-[9px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-mono">
+                                  <span className="text-[9px] bg-[#D5A34A]/20 text-[#F5BD48] px-1.5 py-0.5 rounded font-mono">
                                     {(item.personalization?.personalizationType || item.customizationMeta?.personalizationType || 'TEXT_ENGRAVING').replace('_', ' ')}
                                   </span>
                                 </span>
-                                <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase ${
+                                <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase border ${
                                   (item.personalization?.approvalStatus || 'APPROVED_BY_CUSTOMER') === 'ARTWORK_VERIFIED_BY_STAFF'
-                                    ? 'bg-blue-100 text-blue-800'
+                                    ? 'bg-sky-950/60 text-sky-400 border-sky-500/30'
                                     : (item.personalization?.approvalStatus || 'APPROVED_BY_CUSTOMER') === 'APPROVED_BY_CUSTOMER'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-rose-100 text-rose-800'
+                                    ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30'
+                                    : 'bg-rose-950/60 text-rose-400 border-rose-500/30'
                                 }`}>
                                   {(item.personalization?.approvalStatus || 'APPROVED_BY_CUSTOMER').replace('_', ' ')}
                                 </span>
                               </div>
 
                               {(item.personalization?.engravedText || item.customizationMeta?.engravedText) && (
-                                <div className="text-slate-800">
+                                <div className="text-white">
                                   <strong>Inscription:</strong> "{item.personalization?.engravedText || item.customizationMeta?.engravedText}"
-                                  <span className="text-slate-500 font-sans ml-1">
+                                  <span className="text-white/50 font-sans ml-1">
                                     ({item.personalization?.fontFamily || item.customizationMeta?.fontFamily || 'Calligraphy Romance'})
                                   </span>
                                 </div>
                               )}
 
                               {(item.personalization?.giftNote || item.customizationMeta?.giftNote) && (
-                                <div className="text-slate-700 italic">
+                                <div className="text-white/80 italic">
                                   <strong>Card Note:</strong> "{item.personalization?.giftNote || item.customizationMeta?.giftNote}"
                                 </div>
                               )}
 
-                              <div className="text-slate-600 text-[10px] flex flex-wrap gap-2 pt-0.5 border-t border-amber-200/60">
+                              <div className="text-white/60 text-[10px] flex flex-wrap gap-2 pt-0.5 border-t border-white/5">
                                 {(item.personalization?.ribbonColor || item.customizationMeta?.ribbonColor) && (
                                   <span>Ribbon: <strong>{item.personalization?.ribbonColor || item.customizationMeta?.ribbonColor}</strong></span>
                                 )}
@@ -4601,12 +4789,12 @@ export const AdminDashboard: React.FC = () => {
 
                               {/* Artwork Proof Asset Link */}
                               {(item.proofImageUrl || item.personalization?.proofImageUrl || item.personalization?.artworkUploadId) && (
-                                <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between">
+                                <div className="pt-1.5 border-t border-white/5 flex items-center justify-between">
                                   <a
                                     href={item.proofImageUrl || item.personalization?.proofImageUrl || `/api/personalization/uploads/${item.personalization?.artworkUploadId}/file`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-[#A21D32] hover:underline font-bold text-[10.5px]"
+                                    className="inline-flex items-center gap-1 text-[#F5BD48] hover:underline font-bold text-[10.5px]"
                                   >
                                     <span>Inspect Customer Artwork File</span>
                                     <ExternalLink className="w-2.5 h-2.5" />
@@ -4617,7 +4805,7 @@ export const AdminDashboard: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => handleReviewProof(item.id, 'ARTWORK_VERIFIED_BY_STAFF')}
-                                      className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[9.5px]"
+                                      className="px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-700 text-white font-semibold text-[9.5px]"
                                       title="Mark artwork proof verified for crafting"
                                     >
                                       Verify Artwork
@@ -4636,13 +4824,13 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                           )}
                         </td>
-                        <td className="p-3 font-mono text-[11px] text-slate-600">{item.hsnCode || '—'}</td>
+                        <td className="p-3 font-mono text-[11px] text-white/60">{item.hsnCode || '—'}</td>
                         <td className="p-3 text-center font-mono text-[11px]">{item.taxRatePercent != null ? `${item.taxRatePercent}%` : '18%'}</td>
-                        <td className="p-3 text-center font-bold">{item.quantity}</td>
-                        <td className="p-3 text-right font-mono text-slate-700">
+                        <td className="p-3 text-center font-bold text-white">{item.quantity}</td>
+                        <td className="p-3 text-right font-mono text-white/80">
                           ₹{((item.unitPricePaise ? item.unitPricePaise / 100 : item.unitPrice) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="p-3 text-right font-mono font-bold text-slate-900">
+                        <td className="p-3 text-right font-mono font-bold text-[#F5BD48]">
                           ₹{((item.subtotalPaise ? item.subtotalPaise / 100 : item.subtotal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
@@ -4653,49 +4841,49 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Financial Breakdown */}
-            <div className="p-4 rounded-2xl bg-rose-50/50 border border-slate-200 space-y-1.5 text-xs">
-              <h4 className="font-bold text-slate-900 uppercase text-[11px] tracking-wide mb-2">GST Financial Breakdown</h4>
-              <div className="flex justify-between text-slate-600">
+            <div className="p-4 rounded-2xl bg-[#17181C] border border-[#D5A34A]/20 space-y-1.5 text-xs text-white">
+              <h4 className="font-bold text-[#D5A34A] uppercase text-[11px] tracking-wide mb-2">GST Financial Breakdown</h4>
+              <div className="flex justify-between text-white/70">
                 <span>Items Subtotal:</span>
-                <span className="font-mono">₹{((selectedOrderDetails.itemsSubtotalPaise ? selectedOrderDetails.itemsSubtotalPaise / 100 : selectedOrderDetails.subtotal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <span className="font-mono text-white">₹{((selectedOrderDetails.itemsSubtotalPaise ? selectedOrderDetails.itemsSubtotalPaise / 100 : selectedOrderDetails.subtotal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
               {selectedOrderDetails.customizationTotalPaise > 0 && (
-                <div className="flex justify-between text-slate-600">
+                <div className="flex justify-between text-white/70">
                   <span>Customization Charges:</span>
-                  <span className="font-mono">₹{(selectedOrderDetails.customizationTotalPaise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono text-white">₹{(selectedOrderDetails.customizationTotalPaise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
               )}
               {selectedOrderDetails.discountTotalPaise > 0 && (
-                <div className="flex justify-between text-emerald-700 font-semibold">
+                <div className="flex justify-between text-emerald-400 font-semibold">
                   <span>Discount Applied:</span>
                   <span className="font-mono">-₹{(selectedOrderDetails.discountTotalPaise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
               )}
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-white/70">
                 <span>Shipping Charges:</span>
-                <span className="font-mono">₹{((selectedOrderDetails.shippingTotalPaise ? selectedOrderDetails.shippingTotalPaise / 100 : selectedOrderDetails.shippingTotal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <span className="font-mono text-[#F5BD48]">₹{((selectedOrderDetails.shippingTotalPaise ? selectedOrderDetails.shippingTotalPaise / 100 : selectedOrderDetails.shippingTotal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-white/70">
                 <span>Total GST (CGST+SGST / IGST):</span>
-                <span className="font-mono">₹{((selectedOrderDetails.taxTotalPaise ? selectedOrderDetails.taxTotalPaise / 100 : selectedOrderDetails.taxTotal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <span className="font-mono text-white">₹{((selectedOrderDetails.taxTotalPaise ? selectedOrderDetails.taxTotalPaise / 100 : selectedOrderDetails.taxTotal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
-              <div className="flex justify-between font-bold text-sm text-slate-900 pt-2 border-t border-rose-200">
+              <div className="flex justify-between font-bold text-sm text-white pt-2 border-t border-white/10">
                 <span>Grand Total (Paise reconciled):</span>
-                <span className="font-mono text-rose-950 font-bold">
+                <span className="font-mono text-[#F5BD48] font-bold">
                   ₹{((selectedOrderDetails.grandTotalPaise ? selectedOrderDetails.grandTotalPaise / 100 : selectedOrderDetails.grandTotal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
 
             {/* Batch 8: GST Tax Invoices & Fulfillment Documents */}
-            <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3">
+            <div className="p-4 rounded-2xl bg-[#0D0F14] text-white border border-[#D5A34A]/25 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="font-bold text-xs uppercase tracking-wide flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-rose-400" />
+                    <FileText className="w-4 h-4 text-[#F5BD48]" />
                     <span>GST Invoices & Fulfillment Documents</span>
                   </h4>
-                  <p className="text-[11px] text-slate-300">
+                  <p className="text-[11px] text-white/60">
                     Official tax invoices and privacy-compliant packing slips (zero price/tax disclosure)
                   </p>
                 </div>
@@ -4704,7 +4892,7 @@ export const AdminDashboard: React.FC = () => {
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button
                   onClick={() => handleDownloadInvoice(selectedOrderDetails.orderNumber)}
-                  className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-[#D5A34A]/20"
                 >
                   <FileText className="w-4 h-4" />
                   <span>Download Tax Invoice (PDF)</span>
@@ -4712,7 +4900,7 @@ export const AdminDashboard: React.FC = () => {
 
                 <button
                   onClick={() => handleDownloadPackingSlip(selectedOrderDetails.id, selectedOrderDetails.orderNumber)}
-                  className="px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                  className="px-3.5 py-2 rounded-xl bg-[#181A22] hover:bg-[#20232D] text-white border border-white/15 text-xs font-semibold flex items-center gap-1.5 transition-all"
                 >
                   <Printer className="w-4 h-4" />
                   <span>Download Packing Slip (PDF)</span>
@@ -4721,7 +4909,7 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   onClick={() => handleReissueInvoice(selectedOrderDetails.orderNumber)}
                   disabled={isIssuingInvoice}
-                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  className="px-3 py-2 rounded-xl bg-[#181A22] hover:bg-[#20232D] border border-[#D5A34A]/30 text-[#D5A34A] text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isIssuingInvoice ? 'animate-spin' : ''}`} />
                   <span>Reissue / Refresh Invoice</span>
@@ -4732,21 +4920,21 @@ export const AdminDashboard: React.FC = () => {
             {/* Shipment History */}
             {selectedOrderDetails.shipments && selectedOrderDetails.shipments.length > 0 && (
               <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 uppercase text-xs tracking-wide">Shipment Records</h4>
+                <h4 className="font-bold text-white uppercase text-xs tracking-wide">Shipment Records</h4>
                 <div className="space-y-2">
                   {selectedOrderDetails.shipments.map((shipment: any) => (
-                    <div key={shipment.id || shipment.awbNumber} className="p-3.5 rounded-2xl bg-blue-50/50 border border-blue-100 text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div key={shipment.id || shipment.awbNumber} className="p-3.5 rounded-2xl bg-[#17181C] border border-white/10 text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
                       <div>
-                        <div className="font-bold text-slate-900 flex items-center gap-2">
-                          <Truck className="w-4 h-4 text-blue-700" />
+                        <div className="font-bold text-white flex items-center gap-2">
+                          <Truck className="w-4 h-4 text-sky-400" />
                           <span>{shipment.carrierPartner}</span>
-                          <span className="font-mono text-slate-700">AWB: {shipment.awbNumber}</span>
-                          <span className="text-[10px] bg-blue-200 text-blue-900 font-bold px-2 py-0.5 rounded uppercase">
+                          <span className="font-mono text-white/70">AWB: {shipment.awbNumber}</span>
+                          <span className="text-[10px] bg-sky-950 text-sky-400 border border-sky-500/30 font-bold px-2 py-0.5 rounded uppercase">
                             {shipment.dispatchStatus}
                           </span>
                         </div>
                         {shipment.dispatchedAt && (
-                          <div className="text-[11px] text-slate-500 mt-1">
+                          <div className="text-[11px] text-white/50 mt-1">
                             Dispatched: {new Date(shipment.dispatchedAt).toLocaleString('en-IN')}
                             {shipment.deliveredAt && ` • Delivered: ${new Date(shipment.deliveredAt).toLocaleString('en-IN')}`}
                           </div>
@@ -4757,7 +4945,7 @@ export const AdminDashboard: React.FC = () => {
                           href={shipment.trackingUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1.5 self-start md:self-center"
+                          className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold flex items-center gap-1.5 self-start md:self-center"
                         >
                           <span>Track with Carrier</span>
                           <ExternalLink className="w-3.5 h-3.5" />
@@ -4772,20 +4960,20 @@ export const AdminDashboard: React.FC = () => {
             {/* Payment Records */}
             {selectedOrderDetails.payments && selectedOrderDetails.payments.length > 0 && (
               <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 uppercase text-xs tracking-wide">Payment Records</h4>
+                <h4 className="font-bold text-white uppercase text-xs tracking-wide">Payment Records</h4>
                 <div className="space-y-2">
                   {selectedOrderDetails.payments.map((p: any) => (
-                    <div key={p.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between">
+                    <div key={p.id} className="p-3 rounded-2xl bg-[#17181C] border border-white/10 text-xs flex items-center justify-between">
                       <div>
-                        <div className="font-bold text-slate-900">{p.gateway} — <span className="font-mono">{p.gatewayOrderId || p.id}</span></div>
-                        {p.gatewayPaymentId && <div className="text-[11px] font-mono text-slate-500">Payment ID: {p.gatewayPaymentId}</div>}
-                        {p.capturedAt && <div className="text-[11px] text-slate-500">Captured At: {new Date(p.capturedAt).toLocaleString('en-IN')}</div>}
+                        <div className="font-bold text-white">{p.gateway} — <span className="font-mono">{p.gatewayOrderId || p.id}</span></div>
+                        {p.gatewayPaymentId && <div className="text-[11px] font-mono text-white/50">Payment ID: {p.gatewayPaymentId}</div>}
+                        {p.capturedAt && <div className="text-[11px] text-white/50">Captured At: {new Date(p.capturedAt).toLocaleString('en-IN')}</div>}
                       </div>
                       <div className="text-right">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${p.status === 'CAPTURED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${p.status === 'CAPTURED' ? 'bg-emerald-950 text-emerald-400 border-emerald-500/30' : 'bg-amber-950 text-amber-300 border-amber-500/30'}`}>
                           {p.status}
                         </span>
-                        <div className="font-mono font-bold text-slate-900 mt-1">₹{(p.amountPaise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                        <div className="font-mono font-bold text-[#F5BD48] mt-1">₹{(p.amountPaise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                       </div>
                     </div>
                   ))}
@@ -4795,12 +4983,12 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Order Status Audit Trail */}
             <div className="space-y-2">
-              <h4 className="font-bold text-slate-900 uppercase text-xs tracking-wide">
+              <h4 className="font-bold text-white uppercase text-xs tracking-wide">
                 Order Status Audit Trail
               </h4>
-              <div className="overflow-x-auto border border-slate-200 rounded-2xl">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+              <div className="overflow-x-auto border border-white/10 rounded-2xl bg-[#17181C]">
+                <table className="w-full text-left text-xs text-white/80">
+                  <thead className="bg-[#12141A] text-[#D5A34A] font-bold border-b border-white/10">
                     <tr>
                       <th className="p-2.5">From</th>
                       <th className="p-2.5">To</th>
@@ -4809,22 +4997,22 @@ export const AdminDashboard: React.FC = () => {
                       <th className="p-2.5 text-right">Timestamp</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-white/5">
                     {selectedOrderDetails.statusHistory && selectedOrderDetails.statusHistory.length > 0 ? (
                       selectedOrderDetails.statusHistory.map((hist: any) => (
                         <tr key={hist.id}>
-                          <td className="p-2.5 font-mono text-slate-500">{hist.fromStatus || 'INIT'}</td>
-                          <td className="p-2.5 font-bold font-mono text-slate-900">{hist.toStatus}</td>
-                          <td className="p-2.5 text-slate-600">{hist.changedBy || 'SYSTEM'}</td>
-                          <td className="p-2.5 text-slate-700 italic max-w-xs">{hist.notes || '—'}</td>
-                          <td className="p-2.5 text-right text-slate-500 text-[11px] whitespace-nowrap">
+                          <td className="p-2.5 font-mono text-white/50">{hist.fromStatus || 'INIT'}</td>
+                          <td className="p-2.5 font-bold font-mono text-white">{hist.toStatus}</td>
+                          <td className="p-2.5 text-white/70">{hist.changedBy || 'SYSTEM'}</td>
+                          <td className="p-2.5 text-white/70 italic max-w-xs">{hist.notes || '—'}</td>
+                          <td className="p-2.5 text-right text-white/50 text-[11px] whitespace-nowrap">
                             {new Date(hist.createdAt).toLocaleString('en-IN')}
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="p-3 text-center text-slate-400 italic">
+                        <td colSpan={5} className="p-3 text-center text-white/40 italic">
                           No audit trail records logged yet.
                         </td>
                       </tr>
@@ -4835,10 +5023,10 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end pt-3 border-t border-slate-200">
+            <div className="flex justify-end pt-3 border-t border-white/10">
               <button
                 onClick={() => setSelectedOrderDetails(null)}
-                className="px-5 py-2 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 text-xs"
+                className="px-5 py-2 rounded-xl bg-[#181A22] text-[#D5A34A] border border-[#D5A34A]/30 hover:bg-[#20232D] font-semibold text-xs transition-colors"
               >
                 Close Audit View
               </button>
@@ -4849,28 +5037,28 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Batch 6: Dispatch Courier Modal */}
       {dispatchModalOrder && (
-        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div>
-                <h3 className="font-serif font-bold text-lg text-slate-900 flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-blue-600" />
+                <h3 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-sky-400" />
                   <span>Assign Courier & Dispatch</span>
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[#94A3B8]">
                   Order {dispatchModalOrder.orderNumber} • {dispatchModalOrder.customerName}
                 </p>
               </div>
               <button
                 onClick={() => setDispatchModalOrder(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl"
+                className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {dispatchError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{dispatchError}</span>
               </div>
@@ -4878,11 +5066,11 @@ export const AdminDashboard: React.FC = () => {
 
             <form onSubmit={handleSubmitDispatch} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Carrier Partner *</label>
+                <label className="block font-bold text-[#D5A34A] mb-1">Carrier Partner *</label>
                 <select
                   value={dispatchCarrier}
                   onChange={(e) => setDispatchCarrier(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden"
                 >
                   <option value="BlueDart Air Express">BlueDart Air Express</option>
                   <option value="Delhivery Surface Express">Delhivery Surface Express</option>
@@ -4893,73 +5081,73 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">AWB Tracking Number *</label>
+                <label className="block font-bold text-[#D5A34A] mb-1">AWB Tracking Number *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. BD-8923019283"
                   value={dispatchAwb}
                   onChange={(e) => setDispatchAwb(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono"
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Public Carrier Tracking URL <span className="text-slate-400 font-normal">(Optional, must be http/https)</span>
+                <label className="block font-bold text-[#D5A34A] mb-1">
+                  Public Carrier Tracking URL <span className="text-white/40 font-normal">(Optional, must be http/https)</span>
                 </label>
                 <input
                   type="url"
                   placeholder="https://www.bluedart.com/tracking?awb=..."
                   value={dispatchTrackingUrl}
                   onChange={(e) => setDispatchTrackingUrl(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono text-[11px]"
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono text-[11px] focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Dispatch Staff Notes <span className="text-slate-400 font-normal">(Optional internal note)</span>
+                <label className="block font-bold text-[#D5A34A] mb-1">
+                  Dispatch Staff Notes <span className="text-white/40 font-normal">(Optional internal note)</span>
                 </label>
                 <textarea
                   rows={2}
                   placeholder="Packed in secure corrugated box with bubble wrap from Central Hub..."
                   value={dispatchNotes}
                   onChange={(e) => setDispatchNotes(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white text-xs focus:outline-hidden"
                 />
               </div>
 
-              <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-200/80">
+              <div className="p-3 rounded-2xl bg-amber-950/40 border border-amber-500/30">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={dispatchPhysicalSignatureConfirmed}
                     onChange={(e) => setDispatchPhysicalSignatureConfirmed(e.target.checked)}
-                    className="mt-0.5 rounded border-amber-300 text-amber-600 focus:ring-amber-500 w-4 h-4"
+                    className="mt-0.5 rounded border-amber-300 text-amber-500 focus:ring-amber-500 w-4 h-4"
                   />
-                  <div className="text-[11px] text-amber-900 leading-snug">
-                    <span className="font-bold">Physical Tax Invoice Signed (CGST Rule 46(q))</span>
-                    <p className="text-amber-800/90 text-[10.5px] mt-0.5">
+                  <div className="text-[11px] text-amber-200 leading-snug">
+                    <span className="font-bold text-[#F5BD48]">Physical Tax Invoice Signed (CGST Rule 46(q))</span>
+                    <p className="text-amber-200/80 text-[10.5px] mt-0.5">
                       I confirm that the statutory tax invoice for this order has been physically printed, inspected, and physically signed by an authorized signatory before handing goods to the courier partner.
                     </p>
                   </div>
                 </label>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setDispatchModalOrder(null)}
                   disabled={dispatchSubmitting}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold"
+                  className="px-4 py-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 font-semibold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={dispatchSubmitting}
-                  className="px-5 py-2 rounded-xl bg-blue-700 text-white font-semibold hover:bg-blue-800 disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold hover:brightness-110 disabled:opacity-50 flex items-center gap-1.5 transition-all shadow-md shadow-sky-500/20"
                 >
                   {dispatchSubmitting ? (
                     <>
@@ -4981,56 +5169,55 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Batch 10: Edit User Role Modal */}
       {editingUserRole && (
-        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="font-serif font-bold text-lg text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-indigo-600" />
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-indigo-400" />
                 <span>Modify System Role</span>
               </h3>
               <button
                 onClick={() => setEditingUserRole(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl"
+                className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="text-xs text-slate-600 space-y-2">
+            <div className="text-xs text-white/70 space-y-2">
               <p>
-                Updating role permissions for: <strong className="text-slate-900">{editingUserRole.name}</strong>
+                Updating role permissions for: <strong className="text-white">{editingUserRole.name}</strong>
               </p>
-              <p className="text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-[11px]">
+              <p className="text-amber-200 bg-amber-950/40 p-2.5 rounded-xl border border-amber-500/30 text-[11px]">
                 <strong>Security Policy:</strong> All active sessions for this user will be revoked immediately. The user will be required to log in again with their updated privileges.
               </p>
             </div>
 
             <div className="space-y-1 text-xs">
-              <label className="block font-bold text-slate-700">Assign Role</label>
+              <label className="block font-bold text-[#D5A34A]">Assign Role</label>
               <select
                 value={newUserRole}
                 onChange={(e) => setNewUserRole(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
+                className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden"
               >
                 <option value="CUSTOMER">CUSTOMER (Standard retail buyer)</option>
-
                 <option value="STAFF">STAFF (Fulfillment, stock & operations management)</option>
                 <option value="ADMIN">ADMIN (Full platform ownership & configuration)</option>
               </select>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 text-xs">
+            <div className="flex justify-end gap-2 pt-3 border-t border-white/10 text-xs">
               <button
                 type="button"
                 onClick={() => setEditingUserRole(null)}
-                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold"
+                className="px-4 py-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 font-semibold transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleUpdateUserRole}
-                className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700"
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:brightness-110 shadow-md shadow-indigo-500/20"
               >
                 Confirm Role Update
               </button>
@@ -5041,64 +5228,64 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Batch 10: View User Details Modal */}
       {selectedUserDetail && (
-        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="font-serif font-bold text-lg text-slate-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-cyan-600" />
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-cyan-400" />
                 <span>Account Profile & History</span>
               </h3>
               <button
                 onClick={() => setSelectedUserDetail(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl"
+                className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+              <div className="p-3 rounded-2xl bg-[#17181C] border border-white/10 space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Full Name:</span>
-                  <span className="font-bold text-slate-900">{selectedUserDetail.name || '—'}</span>
+                  <span className="text-white/50">Full Name:</span>
+                  <span className="font-bold text-white">{selectedUserDetail.name || '—'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Email Address:</span>
-                  <span className="font-mono text-slate-800">{selectedUserDetail.email}</span>
+                  <span className="text-white/50">Email Address:</span>
+                  <span className="font-mono text-white/90">{selectedUserDetail.email}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Contact Phone:</span>
-                  <span className="font-mono text-slate-800">{selectedUserDetail.phone || '—'}</span>
+                  <span className="text-white/50">Contact Phone:</span>
+                  <span className="font-mono text-white/90">{selectedUserDetail.phone || '—'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">System Role:</span>
-                  <span className="font-bold text-indigo-700">{selectedUserDetail.role}</span>
+                  <span className="text-white/50">System Role:</span>
+                  <span className="font-bold text-[#F5BD48]">{selectedUserDetail.role}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Account Status:</span>
-                  <span className={`font-bold ${selectedUserDetail.isActive ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  <span className="text-white/50">Account Status:</span>
+                  <span className={`font-bold ${selectedUserDetail.isActive ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {selectedUserDetail.isActive ? 'ACTIVE' : 'DEACTIVATED'}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Registered On:</span>
-                  <span className="text-slate-800">{new Date(selectedUserDetail.createdAt).toLocaleString('en-IN')}</span>
+                  <span className="text-white/50">Registered On:</span>
+                  <span className="text-white/80">{new Date(selectedUserDetail.createdAt).toLocaleString('en-IN')}</span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-amber-50/50 border border-amber-100 text-[10.5px] text-amber-900 flex items-center gap-2">
-                <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+              <div className="p-3 rounded-2xl bg-amber-950/40 border border-amber-500/30 text-[10.5px] text-amber-200 flex items-center gap-2">
+                <Lock className="w-4 h-4 text-[#F5BD48] shrink-0" />
                 <span>
                   Security Notice: Passwords, hashed credentials, active bearer tokens, and OTP secrets are never readable or exposed in client administration.
                 </span>
               </div>
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-slate-200">
+            <div className="flex justify-end pt-3 border-t border-white/10">
               <button
                 type="button"
                 onClick={() => setSelectedUserDetail(null)}
-                className="px-5 py-2 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 text-xs"
+                className="px-5 py-2 rounded-xl bg-[#181A22] text-[#D5A34A] border border-[#D5A34A]/30 hover:bg-[#20232D] font-semibold text-xs transition-colors"
               >
                 Close Profile
               </button>
@@ -5109,34 +5296,328 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Batch 10: Audit Payload Inspector Modal */}
       {selectedAuditPayload && (
-        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-xl bg-white rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="font-serif font-bold text-lg text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-teal-600" />
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-xl bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-[#F5BD48]" />
                 <span>Audit Log Metadata Payload</span>
               </h3>
               <button
                 onClick={() => setSelectedAuditPayload(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl"
+                className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="max-h-96 overflow-y-auto p-4 rounded-2xl bg-slate-900 text-emerald-400 font-mono text-[11px] leading-relaxed">
+            <div className="max-h-96 overflow-y-auto p-4 rounded-2xl bg-[#0D0F14] text-emerald-400 font-mono text-[11px] leading-relaxed border border-white/10">
               <pre>{JSON.stringify(selectedAuditPayload, null, 2)}</pre>
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-slate-200">
+            <div className="flex justify-end pt-3 border-t border-white/10">
               <button
                 type="button"
                 onClick={() => setSelectedAuditPayload(null)}
-                className="px-5 py-2 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 text-xs"
+                className="px-5 py-2 rounded-xl bg-[#181A22] text-[#D5A34A] border border-[#D5A34A]/30 hover:bg-[#20232D] font-semibold text-xs transition-colors"
               >
                 Close Inspector
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch 11: Dedicated Owner Delivery Charge Workflow Modal (Part 3.5) */}
+      {deliveryChargeModalOrder && (
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h3 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-[#F5BD48]" />
+                  <span>Set Manual Delivery Charge</span>
+                </h3>
+                <p className="text-xs text-[#94A3B8]">
+                  Order {deliveryChargeModalOrder.orderNumber} • {deliveryChargeModalOrder.customerName}
+                </p>
+              </div>
+              <button
+                onClick={() => setDeliveryChargeModalOrder(null)}
+                className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              {/* Destination Summary */}
+              <div className="p-3.5 rounded-2xl bg-[#17181C] border border-white/10 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-[#D5A34A] tracking-wider block">
+                  Delivery Destination
+                </span>
+                <p className="text-white font-medium">
+                  {deliveryChargeModalOrder.shippingAddress?.street || deliveryChargeModalOrder.shippingAddress?.addressLine1 || 'Street Address'}
+                </p>
+                <p className="text-white/60">
+                  {[
+                    deliveryChargeModalOrder.shippingAddress?.city,
+                    deliveryChargeModalOrder.shippingAddress?.state,
+                    deliveryChargeModalOrder.shippingAddress?.pincode || deliveryChargeModalOrder.shippingAddress?.postalCode,
+                  ].filter(Boolean).join(', ')}
+                </p>
+                <div className="text-[10px] text-white/40 pt-1">
+                  Base Hub: A S Rao Nagar, Hyderabad 500062 (Max 20km delivery radius)
+                </div>
+              </div>
+
+              {/* Order Cost Breakdown Preview */}
+              <div className="p-3.5 rounded-2xl bg-[#17181C] border border-white/10 space-y-1.5">
+                <div className="flex justify-between text-white/70">
+                  <span>Items Subtotal:</span>
+                  <span className="font-mono text-white">
+                    ₹{((deliveryChargeModalOrder.itemsSubtotalPaise ? deliveryChargeModalOrder.itemsSubtotalPaise / 100 : deliveryChargeModalOrder.subtotal) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                {(deliveryChargeModalOrder.customizationTotalPaise || 0) > 0 && (
+                  <div className="flex justify-between text-white/70">
+                    <span>Personalization Fee:</span>
+                    <span className="font-mono text-white">
+                      ₹{((deliveryChargeModalOrder.customizationTotalPaise || 0) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+                {(deliveryChargeModalOrder.giftWrapTotalPaise || 0) > 0 && (
+                  <div className="flex justify-between text-white/70">
+                    <span>Gift Wrapping:</span>
+                    <span className="font-mono text-white">
+                      ₹{((deliveryChargeModalOrder.giftWrapTotalPaise || 0) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between text-white/70">
+                  <span>Delivery Fee:</span>
+                  <span className="font-mono text-[#F5BD48]">
+                    ₹{(parseFloat(deliveryChargeInputRupees) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between text-white/70">
+                  <span>GST (18% inclusive/calculated):</span>
+                  <span className="font-mono text-white">
+                    ₹{(
+                      Math.round(
+                        (((deliveryChargeModalOrder.itemsSubtotalPaise || 0) +
+                          (deliveryChargeModalOrder.customizationTotalPaise || 0) +
+                          (deliveryChargeModalOrder.giftWrapTotalPaise || 0) +
+                          Math.round((parseFloat(deliveryChargeInputRupees) || 0) * 100)) * 0.18) / 1.18
+                      ) / 100
+                    ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between font-bold text-sm text-white pt-2 border-t border-white/10">
+                  <span>Updated Grand Total:</span>
+                  <span className="font-mono text-[#F5BD48] font-bold">
+                    ₹{(
+                      ((deliveryChargeModalOrder.itemsSubtotalPaise || 0) +
+                        (deliveryChargeModalOrder.customizationTotalPaise || 0) +
+                        (deliveryChargeModalOrder.giftWrapTotalPaise || 0) +
+                        Math.round((parseFloat(deliveryChargeInputRupees) || 0) * 100)) / 100
+                    ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Delivery Fee Input Form */}
+              <form onSubmit={handleSubmitDeliveryChargeModal} className="space-y-3 pt-1">
+                <div>
+                  <label className="block font-bold text-[#D5A34A] mb-1">
+                    Enter Owner Delivery Charge (₹) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 font-bold text-white/50">₹</span>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      required
+                      value={deliveryChargeInputRupees}
+                      onChange={(e) => setDeliveryChargeInputRupees(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono font-bold focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
+                      placeholder="e.g. 100"
+                    />
+                  </div>
+                  <span className="text-[10.5px] text-white/40 block mt-1">
+                    Enter the calculated delivery cost for this destination. Amount is stored in integer paise.
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-amber-950/40 border border-amber-500/30 text-[11px] text-amber-200">
+                  <strong>Workflow Transition Notice:</strong> Submitting will transition this order to{' '}
+                  <span className="font-mono font-bold text-[#F5BD48]">AWAITING_CUSTOMER_APPROVAL</span> and trigger a customer notification email with the final bill breakdown.
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryChargeModalOrder(null)}
+                    disabled={isSubmittingDeliveryCharge}
+                    className="px-4 py-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 font-semibold transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingDeliveryCharge}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold hover:brightness-110 disabled:opacity-50 flex items-center gap-1.5 shadow-md shadow-[#D5A34A]/25 transition-all"
+                  >
+                    {isSubmittingDeliveryCharge ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending Quote...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Confirm & Notify Customer</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch 11: Edit Product Modal */}
+      {showEditProductModal && editingProduct && (
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="font-serif font-bold text-xl text-white flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-[#F5BD48]" />
+                <span>Edit Product Details</span>
+              </h3>
+              <button
+                onClick={() => setShowEditProductModal(false)}
+                className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProductEdit} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-[#D5A34A] mb-1">Product Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingProduct.name || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-[#D5A34A] mb-1">Category *</label>
+                  <select
+                    value={editingProduct.category || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden"
+                  >
+                    <option value="Personalized Gifts">Personalized Gifts</option>
+                    <option value="Home Decor">Home Decor</option>
+                    <option value="Soft Toys">Soft Toys</option>
+                    <option value="Luxury Gifts">Luxury Gifts</option>
+                    <option value="Gift Hampers">Gift Hampers</option>
+                    <option value="Corporate Kits">Corporate Kits</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#D5A34A] mb-1">Stock Units</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingProduct.stock ?? 0}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, stock: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#D5A34A] mb-1">Selling Price (₹) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingProduct.basePrice ?? 0}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, basePrice: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#D5A34A] mb-1">MRP (₹) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingProduct.mrp ?? 0}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, mrp: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#D5A34A] mb-1">Product Badge</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Best Seller, Handcrafted, Limited"
+                  value={editingProduct.badge || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, badge: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-xl bg-[#17181C] border border-white/10">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(editingProduct.isCustomizable)}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, isCustomizable: e.target.checked })}
+                    className="rounded border-white/20 text-[#D5A34A] focus:ring-[#D5A34A]"
+                  />
+                  <span className="text-white/90 font-medium">Allow Personalization</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-xl bg-[#17181C] border border-white/10">
+                  <input
+                    type="checkbox"
+                    checked={editingProduct.isGiftWrapAvailable !== false}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, isGiftWrapAvailable: e.target.checked })}
+                    className="rounded border-white/20 text-[#D5A34A] focus:ring-[#D5A34A]"
+                  />
+                  <span className="text-white/90 font-medium">Allow ₹20 Gift Wrap</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowEditProductModal(false)}
+                  className="px-4 py-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold hover:brightness-110 shadow-md shadow-[#D5A34A]/25 transition-all"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

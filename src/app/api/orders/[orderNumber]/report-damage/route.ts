@@ -5,6 +5,7 @@ import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
 import { BUSINESS_CONFIG } from '@/config/business';
 import { prisma } from '@/lib/prisma';
 import { DEV_ORDERS_STORE } from '@/lib/orders/order.service';
+import { registerDamageClaim } from '@/lib/damage-reports/damage-report.service';
 
 export async function POST(
   req: Request,
@@ -114,24 +115,14 @@ export async function POST(
       customerPhone: order.customerPhone,
       description: description.trim(),
       photoUrls: Array.isArray(photoUrls) ? photoUrls : [],
-      requestedResolution: requestedResolution === 'REFUND' ? 'REFUND' : 'REPLACEMENT',
+      requestedResolution: (requestedResolution === 'REFUND' ? 'REFUND' : 'REPLACEMENT') as 'REFUND' | 'REPLACEMENT',
       submittedAt: new Date().toISOString(),
-      status: 'PENDING_OWNER_REVIEW',
+      deliveredAt: new Date(deliveredAtTime).toISOString(),
+      elapsedHoursAtSubmission: Math.round(elapsedHours),
     };
 
-    // Store claim in audit logs or order metadata if DB available
-    try {
-      await prisma.auditLog.create({
-        data: {
-          action: 'DAMAGED_PRODUCT_REPORTED',
-          resource: `ORDER:${order.id || order.orderNumber}`,
-          details: claimData,
-          userId: user?.id || null,
-        },
-      });
-    } catch {
-      // In-memory / dev fallback
-    }
+    // Register into shared claims store and audit log
+    await registerDamageClaim(claimData);
 
     // 6. Alert Owner & Admin Account (phoenixnot13@gmail.com)
     await enqueueTransactionalEmail({
