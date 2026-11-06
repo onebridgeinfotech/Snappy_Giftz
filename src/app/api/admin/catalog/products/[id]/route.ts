@@ -87,7 +87,13 @@ export async function PATCH(
       }
       updateData.mrpPaise = body.mrpPaise;
     }
-    if (body.isCustomizable !== undefined) updateData.isCustomizable = !!body.isCustomizable;
+    if (body.productType !== undefined) {
+      updateData.productType = body.productType;
+      updateData.isCustomizable = body.productType === 'CUSTOMIZABLE';
+    } else if (body.isCustomizable !== undefined) {
+      updateData.isCustomizable = !!body.isCustomizable;
+      updateData.productType = body.isCustomizable ? 'CUSTOMIZABLE' : 'REGULAR';
+    }
     if (body.customizationType !== undefined) updateData.customizationType = body.customizationType;
     if (body.customizationFeePaise !== undefined) updateData.customizationFeePaise = body.customizationFeePaise;
     if (body.isB2BRecommended !== undefined) updateData.isB2BRecommended = !!body.isB2BRecommended;

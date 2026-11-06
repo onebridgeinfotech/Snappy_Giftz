@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { HeroBanner } from './components/HeroBanner';
 import { ProductCard } from './components/ProductCard';
+import { CustomizableProductCard } from './components/CustomizableProductCard';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { PersonalizationStudio } from './components/PersonalizationStudio';
 import { CartDrawer } from './components/CartDrawer';
@@ -30,12 +31,14 @@ import {
   Search,
   Filter,
   ArrowRight,
-  X
+  X,
+  Home
 } from 'lucide-react';
 
 const MainContent: React.FC = () => {
   const {
     mode,
+    setMode,
     products,
     selectedProduct,
     setSelectedProduct,
@@ -57,7 +60,7 @@ const MainContent: React.FC = () => {
   const [visibleCount, setVisibleCount] = useState<number>(8);
 
   // Reset pagination when search or filters change
-  React.useEffect(() => {
+  useEffect(() => {
     setVisibleCount(8);
   }, [searchQuery, activeCategory, activeOccasion, sortBy]);
 
@@ -82,6 +85,14 @@ const MainContent: React.FC = () => {
     if (sortBy === 'newest') return b.id.localeCompare(a.id);
     return (b.rating || 0) - (a.rating || 0);
   });
+
+  // Separate sorted products into Customizable and Regular gift collections
+  const customizableProducts = sortedProducts.filter(
+    (p) => p.productType === 'CUSTOMIZABLE' || p.isCustomizable
+  );
+  const regularProducts = sortedProducts.filter(
+    (p) => p.productType !== 'CUSTOMIZABLE' && !p.isCustomizable
+  );
 
   const displayedProducts = sortedProducts.slice(0, visibleCount);
 
@@ -146,12 +157,8 @@ const MainContent: React.FC = () => {
       {/* Persistent Global Header */}
       <Header />
 
-      {/* Main Mode View Routing */}
-      {mode === 'admin' ? (
-        <AdminDashboard />
-      ) : (
-        /* B2C STOREFRONT */
-        <main className="flex-1">
+      {/* Storefront Main Content */}
+      <main className="flex-1">
           {/* Hero Banner matching SNAPPY GIFTZ visual inspiration */}
           <HeroBanner />
 
@@ -337,22 +344,89 @@ const MainContent: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-6">
-                    {displayedProducts.map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        onOpenDetail={(prod) => {
-                          setSelectedProduct(prod);
-                          setActiveModal('product_detail');
-                        }}
-                        onOpenPersonalize={(prod) => {
-                          setSelectedProduct(prod);
-                          setActiveModal('personalize');
-                        }}
-                      />
-                    ))}
-                  </div>
+                <div className="space-y-16">
+                  {/* Section B: Customizable Gifts ("Make It Personal") */}
+                  {customizableProducts.length > 0 && (
+                    <div id="customizable-gifts-section" className="space-y-6">
+                      {/* Section B Header */}
+                      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#17181C] via-[#1E2027] to-[#17181C] border border-[#D5A34A]/40 p-6 sm:p-8 md:p-10 shadow-[0_8px_32px_rgba(213,163,74,0.12)]">
+                        <div className="absolute top-0 right-0 w-96 h-96 bg-[#D5A34A]/10 rounded-full blur-3xl pointer-events-none" />
+                        <div className="relative z-10 max-w-3xl space-y-3">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#08090B] border border-[#D5A34A]/50 text-[#F5BD48] text-[10px] font-bold uppercase tracking-widest font-mono shadow-xs">
+                            <Sparkles className="w-3 h-3 text-[#F5BD48] animate-pulse" />
+                            <span>BESPOKE ATELIER • HANDCRAFTED CUSTOMIZATION</span>
+                          </div>
+                          <h3 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight leading-tight">
+                            Make It <span className="text-gold-gradient italic font-serif">Personal</span>
+                          </h3>
+                          <p className="text-xs sm:text-sm md:text-base text-[#CBD5E1] font-light leading-relaxed">
+                            Turn meaningful moments into unforgettable gifts. Add names, messages, photos and personal touches to make every gift uniquely yours.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Section B Grid: Larger, Prominent Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                        {customizableProducts.slice(0, visibleCount).map((product) => (
+                          <CustomizableProductCard
+                            key={product.id}
+                            product={product}
+                            onOpenDetail={(prod) => {
+                              setSelectedProduct(prod);
+                              setActiveModal('product_detail');
+                            }}
+                            onOpenPersonalize={(prod) => {
+                              setSelectedProduct(prod);
+                              setActiveModal('personalize');
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section A: Regular Gifts */}
+                  {regularProducts.length > 0 && (
+                    <div id="regular-gifts-section" className="space-y-6 pt-10 border-t border-[#D5A34A]/20">
+                      {/* Section A Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                        <div>
+                          <div className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-[#D5A34A] uppercase tracking-wider font-mono mb-1">
+                            <Gift className="w-3.5 h-3.5 text-[#D5A34A]" />
+                            <span>READY-TO-SHIP CURATIONS</span>
+                          </div>
+                          <h3 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                            Regular Gifts &amp; Ready Hampers
+                          </h3>
+                          <p className="text-xs sm:text-sm text-[#94A3B8] font-light mt-1 max-w-xl">
+                            Exquisite ready-to-ship artisanal hampers, luxury timepieces, and gourmet collections delivered without customization delays.
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold text-[#F5BD48] whitespace-nowrap bg-[#17181C] px-3.5 py-1.5 rounded-full border border-[#D5A34A]/25 self-start sm:self-auto">
+                          {regularProducts.length} {regularProducts.length === 1 ? 'Gift' : 'Gifts'} Available
+                        </span>
+                      </div>
+
+                      {/* Section A Grid: Standard Cards */}
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-6">
+                        {regularProducts.slice(0, visibleCount).map((product) => (
+                          <ProductCard
+                            key={product.id}
+                            product={product}
+                            onOpenDetail={(prod) => {
+                              setSelectedProduct(prod);
+                              setActiveModal('product_detail');
+                            }}
+                            onOpenPersonalize={(prod) => {
+                              setSelectedProduct(prod);
+                              setActiveModal('personalize');
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                   {/* Pagination / Load More Button */}
                   {visibleCount < sortedProducts.length && (
@@ -627,7 +701,6 @@ const MainContent: React.FC = () => {
           </section>
 
         </main>
-      )}
 
       {/* Global Modals Manager */}
       

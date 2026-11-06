@@ -1,6 +1,9 @@
-if (!process.env.CI && process.env.NODE_ENV !== 'production') {
+Object.assign(process.env, { NODE_ENV: 'test' });
+process.env.ALLOW_DEMO_FALLBACK = 'true';
+if (!process.env.CI) {
   process.env.DATABASE_URL = 'mysql://127.0.0.1:3306/dev_fallback';
 }
+process.env.TEST_SUITE_RUNNING = 'true';
 
 import assert from 'node:assert/strict';
 import { INITIAL_PRODUCTS } from '../data/initialData';

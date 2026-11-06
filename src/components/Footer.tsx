@@ -171,7 +171,9 @@ export const Footer: React.FC = () => {
 
           {/* Legal & Business Links */}
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[10.5px] sm:text-[11px] text-[#CBD5E1]/80">
-            <a href="/login" className="hover:text-[#F5BD48] text-[#F5BD48] font-semibold transition-colors focus-visible:outline-hidden">Sign In</a>
+            <a href="/" onClick={() => setMode('b2c')} className="hover:text-[#F5BD48] text-[#F5BD48] font-bold transition-colors focus-visible:outline-hidden">Home (Storefront)</a>
+            <span className="text-[#D5A34A]/40">•</span>
+            <a href="/login" className="hover:text-[#F5BD48] text-[#CBD5E1] font-semibold transition-colors focus-visible:outline-hidden">Sign In</a>
             <span className="text-[#D5A34A]/40">•</span>
             <a href="/account" className="hover:text-[#F5BD48] text-[#CBD5E1] transition-colors focus-visible:outline-hidden">My Account</a>
             <span className="text-[#D5A34A]/40">•</span>

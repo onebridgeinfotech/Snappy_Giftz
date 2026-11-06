@@ -7,6 +7,7 @@ export interface GetPublicProductsParams {
   search?: string;
   category?: string;
   occasion?: string;
+  productType?: 'REGULAR' | 'CUSTOMIZABLE';
   sort?: 'featured' | 'price_asc' | 'price_desc' | 'newest';
   page?: number;
   limit?: number;
@@ -40,6 +41,7 @@ export interface PublicProduct {
   recipients: string[];
   basePricePaise: number;
   mrpPaise: number;
+  productType: 'REGULAR' | 'CUSTOMIZABLE';
   isCustomizable: boolean;
   customizationType: string | null;
   customizationFeePaise: number;
@@ -135,8 +137,9 @@ export function sanitizePublicQuery(params: GetPublicProductsParams) {
   
   const validSorts = ['featured', 'price_asc', 'price_desc', 'newest'];
   const sort = params.sort && validSorts.includes(params.sort) ? params.sort : 'featured';
+  const productType = (params.productType === 'REGULAR' || params.productType === 'CUSTOMIZABLE') ? params.productType : undefined;
 
-  return { page, limit, search, category, occasion, sort };
+  return { page, limit, search, category, occasion, sort, productType };
 }
 
 /**
@@ -147,7 +150,7 @@ export function sanitizePublicQuery(params: GetPublicProductsParams) {
 export async function getPublicProducts(
   rawParams: GetPublicProductsParams
 ): Promise<PublicProductsResult> {
-  const { page, limit, search, category, occasion, sort } = sanitizePublicQuery(rawParams);
+  const { page, limit, search, category, occasion, sort, productType } = sanitizePublicQuery(rawParams);
 
   try {
     // 1. Attempt database query with strict public filters
@@ -155,6 +158,10 @@ export async function getPublicProducts(
       isActive: true,
       isArchived: false,
     };
+
+    if (productType) {
+      where.productType = productType;
+    }
 
     if (category) {
       where.OR = [
@@ -205,6 +212,7 @@ export async function getPublicProducts(
           description: true,
           basePricePaise: true,
           mrpPaise: true,
+          productType: true,
           isCustomizable: true,
           customizationType: true,
           customizationFeePaise: true,
@@ -243,19 +251,26 @@ export async function getPublicProducts(
     ]);
 
     // Query succeeded against real database!
-    const sanitized: PublicProduct[] = dbProducts.map((p) => ({
-      ...p,
-      isB2BRecommended: false,
-      occasions: Array.isArray(p.occasions) ? (p.occasions as string[]) : [],
-      recipients: Array.isArray(p.recipients) ? (p.recipients as string[]) : [],
-      images: Array.isArray(p.images) ? (p.images as string[]) : [],
-      rating: 0,
-      reviewsCount: 0,
-      variants: p.variants.map((v) => ({
-        ...v,
-        attributes: (v.attributes as Record<string, any>) || {},
-      })),
-    }));
+    const sanitized: PublicProduct[] = dbProducts.map((p) => {
+      const pType = (p.productType === 'CUSTOMIZABLE' || p.productType === 'REGULAR')
+        ? (p.productType as 'REGULAR' | 'CUSTOMIZABLE')
+        : (p.isCustomizable ? 'CUSTOMIZABLE' : 'REGULAR');
+      return {
+        ...p,
+        productType: pType,
+        isCustomizable: pType === 'CUSTOMIZABLE',
+        isB2BRecommended: false,
+        occasions: Array.isArray(p.occasions) ? (p.occasions as string[]) : [],
+        recipients: Array.isArray(p.recipients) ? (p.recipients as string[]) : [],
+        images: Array.isArray(p.images) ? (p.images as string[]) : [],
+        rating: 0,
+        reviewsCount: 0,
+        variants: p.variants.map((v) => ({
+          ...v,
+          attributes: (v.attributes as Record<string, any>) || {},
+        })),
+      };
+    });
 
     const totalPages = Math.ceil(totalCount / limit);
     return {
@@ -276,7 +291,7 @@ export async function getPublicProducts(
   }
 
   // 2. Curated Storefront Fallback (Only in development/test environments when DB is offline)
-  return getFallbackPublicProducts({ page, limit, search, category, occasion, sort });
+  return getFallbackPublicProducts({ page, limit, search, category, occasion, sort, productType });
 }
 
 /**
@@ -289,10 +304,19 @@ function getFallbackPublicProducts(params: {
   category?: string;
   occasion?: string;
   sort: string;
+  productType?: 'REGULAR' | 'CUSTOMIZABLE';
 }): PublicProductsResult {
-  const { page, limit, search, category, occasion, sort } = params;
+  const { page, limit, search, category, occasion, sort, productType } = params;
 
   let filtered = INITIAL_PRODUCTS.filter((p) => {
+    // Product Type filter
+    if (productType) {
+      const pType = (p.productType === 'CUSTOMIZABLE' || p.productType === 'REGULAR')
+        ? p.productType
+        : (p.isCustomizable ? 'CUSTOMIZABLE' : 'REGULAR');
+      if (pType !== productType) return false;
+    }
+
     // Search match
     if (search) {
       const q = search.toLowerCase();
@@ -333,27 +357,33 @@ function getFallbackPublicProducts(params: {
   const offset = (page - 1) * limit;
   const paginated = filtered.slice(offset, offset + limit);
 
-  const mapped: PublicProduct[] = paginated.map((p) => ({
-    id: p.id,
-    slug: p.slug || slugify(p.name),
-    name: p.name,
-    tagline: p.tagline || null,
-    description: p.description,
-    category: p.category,
-    occasions: p.occasion || [],
-    recipients: p.recipient || [],
-    basePricePaise: p.basePrice * 100,
-    mrpPaise: p.mrp * 100,
-    isCustomizable: p.isCustomizable,
-    customizationType: p.customizationType || null,
-    customizationFeePaise: 0,
-    isB2BRecommended: false,
-    minOrderQty: p.minOrderQty || 1,
-    images: p.images,
-    rating: p.rating || 4.9,
-    reviewsCount: p.reviewsCount || 100,
-    badge: p.badge,
-  }));
+  const mapped: PublicProduct[] = paginated.map((p) => {
+    const pType = (p.productType === 'CUSTOMIZABLE' || p.productType === 'REGULAR')
+      ? (p.productType as 'REGULAR' | 'CUSTOMIZABLE')
+      : (p.isCustomizable ? 'CUSTOMIZABLE' : 'REGULAR');
+    return {
+      id: p.id,
+      slug: p.slug || slugify(p.name),
+      name: p.name,
+      tagline: p.tagline || null,
+      description: p.description,
+      category: p.category,
+      occasions: p.occasion || [],
+      recipients: p.recipient || [],
+      basePricePaise: p.basePrice * 100,
+      mrpPaise: p.mrp * 100,
+      productType: pType,
+      isCustomizable: pType === 'CUSTOMIZABLE',
+      customizationType: p.customizationType || null,
+      customizationFeePaise: 0,
+      isB2BRecommended: false,
+      minOrderQty: p.minOrderQty || 1,
+      images: p.images,
+      rating: p.rating || 4.9,
+      reviewsCount: p.reviewsCount || 100,
+      badge: p.badge,
+    };
+  });
 
   return {
     products: mapped,
@@ -392,6 +422,7 @@ export async function getPublicProductBySlug(slugOrId: string): Promise<PublicPr
         description: true,
         basePricePaise: true,
         mrpPaise: true,
+        productType: true,
         isCustomizable: true,
         customizationType: true,
         customizationFeePaise: true,
@@ -427,8 +458,13 @@ export async function getPublicProductBySlug(slugOrId: string): Promise<PublicPr
     });
 
     if (p) {
+      const pType = (p.productType === 'CUSTOMIZABLE' || p.productType === 'REGULAR')
+        ? (p.productType as 'REGULAR' | 'CUSTOMIZABLE')
+        : (p.isCustomizable ? 'CUSTOMIZABLE' : 'REGULAR');
       return {
         ...p,
+        productType: pType,
+        isCustomizable: pType === 'CUSTOMIZABLE',
         isB2BRecommended: false,
         occasions: Array.isArray(p.occasions) ? (p.occasions as string[]) : [],
         recipients: Array.isArray(p.recipients) ? (p.recipients as string[]) : [],
@@ -457,6 +493,10 @@ export async function getPublicProductBySlug(slugOrId: string): Promise<PublicPr
 
   if (!fallback) return null;
 
+  const fallbackType = (fallback.productType === 'CUSTOMIZABLE' || fallback.productType === 'REGULAR')
+    ? (fallback.productType as 'REGULAR' | 'CUSTOMIZABLE')
+    : (fallback.isCustomizable ? 'CUSTOMIZABLE' : 'REGULAR');
+
   return {
     id: fallback.id,
     slug: fallback.slug || slugify(fallback.name),
@@ -468,7 +508,8 @@ export async function getPublicProductBySlug(slugOrId: string): Promise<PublicPr
     recipients: fallback.recipient || [],
     basePricePaise: fallback.basePrice * 100,
     mrpPaise: fallback.mrp * 100,
-    isCustomizable: fallback.isCustomizable,
+    productType: fallbackType,
+    isCustomizable: fallbackType === 'CUSTOMIZABLE',
     customizationType: fallback.customizationType || null,
     customizationFeePaise: 0,
     isB2BRecommended: !!fallback.isB2BRecommended,

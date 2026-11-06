@@ -31,6 +31,24 @@ export async function POST(req: Request) {
       folder: 'proofs', // default folder for catalog assets
     });
 
+    // Optional Google Drive sync if connected
+    let googleDriveFileId: string | undefined;
+    try {
+      const { googleDriveService } = await import('@/services/storage/google-drive.service');
+      const gDriveStatus = await googleDriveService.getConnectionStatus();
+      if (gDriveStatus.isConnected) {
+        const driveUpload = await googleDriveService.uploadFile({
+          fileBuffer: buffer,
+          fileName,
+          mimeType,
+          folderType: 'product',
+        });
+        googleDriveFileId = driveUpload.fileId;
+      }
+    } catch (gdriveErr) {
+      console.warn('[CATALOG_IMAGE_UPLOAD] Google Drive sync skipped/failed:', gdriveErr);
+    }
+
     let productImageRecord = null;
 
     // If productId provided, attach to Product gallery
@@ -99,6 +117,7 @@ export async function POST(req: Request) {
           fileKey: uploadResult.fileKey,
           storedUrl: uploadResult.storedUrl,
           sizeBytes: uploadResult.sizeBytes,
+          googleDriveFileId,
           productImage: productImageRecord,
         },
       },

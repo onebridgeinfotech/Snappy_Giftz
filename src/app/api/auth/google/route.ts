@@ -1,0 +1,105 @@
+import { NextResponse } from 'next/server';
+import crypto from 'node:crypto';
+import { getSafeRedirectUrl } from '@/lib/auth/redirect';
+
+/**
+ * Google Customer OAuth Entrypoint Handler
+ *
+ * Verifies whether GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are configured.
+ * Generates an HMAC-signed CSRF state and redirects customers to Google's consent screen.
+ * When unconfigured, safely returns a 501 status or redirects to login with informative status.
+ */
+export async function GET(req: Request) {
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
+
+  const reqUrl = new URL(req.url);
+  let appUrl: string;
+  if (reqUrl.hostname === 'localhost' || reqUrl.hostname === '127.0.0.1') {
+    const port = reqUrl.port ? `:${reqUrl.port}` : '';
+    appUrl = `http://localhost${port}`;
+  } else if (process.env.APP_URL) {
+    appUrl = process.env.APP_URL.replace(/\/$/, '');
+  } else if (process.env.NEXT_PUBLIC_APP_URL) {
+    appUrl = process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  } else {
+    appUrl = 'https://snappygiftz.com';
+  }
+
+  const acceptsJson = req.headers.get('accept')?.includes('application/json');
+
+  if (!clientId || !clientSecret) {
+    const errorPayload = {
+      configured: false,
+      status: 'UNVERIFIED_PENDING_CREDENTIALS',
+      provider: 'google',
+      message:
+        'Google OAuth is awaiting GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET configuration in Hostinger environment variables by the technical lead.',
+    };
+
+    if (acceptsJson) {
+      return NextResponse.json(errorPayload, { status: 501 });
+    }
+
+    // If accessed directly via browser redirect without JSON header, redirect to /login with error query
+    const loginUrl = new URL('/login', appUrl);
+    loginUrl.searchParams.set('oauth_error', 'google_pending_credentials');
+    return NextResponse.redirect(loginUrl.toString());
+  }
+
+  // Extract optional safe redirect target
+  const rawRedirect = reqUrl.searchParams.get('redirect');
+  const safeRedirect = getSafeRedirectUrl(rawRedirect, '/');
+
+  // Generate cryptographically secure CSRF state token
+  const stateNonce = crypto.randomBytes(24).toString('hex');
+  const timestamp = Date.now();
+  const secretKey = process.env.SESSION_SECRET || 'snappy-oauth-secret-fallback';
+  const signature = crypto
+    .createHmac('sha256', secretKey)
+    .update(`${stateNonce}:${timestamp}:${safeRedirect}`)
+    .digest('hex');
+
+  const state = Buffer.from(
+    JSON.stringify({ nonce: stateNonce, timestamp, redirect: safeRedirect, signature })
+  ).toString('base64url');
+
+  // When credentials exist, redirect to Google OAuth 2.0 consent screen
+  const redirectUri = `${appUrl}/api/auth/google/callback`;
+  const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  googleAuthUrl.searchParams.set('client_id', clientId.trim());
+  googleAuthUrl.searchParams.set('redirect_uri', redirectUri);
+  googleAuthUrl.searchParams.set('response_type', 'code');
+  googleAuthUrl.searchParams.set('scope', 'openid email profile');
+  googleAuthUrl.searchParams.set('state', state);
+  googleAuthUrl.searchParams.set('prompt', 'select_account');
+
+  const cookieSecure = reqUrl.protocol === 'https:' && process.env.NODE_ENV === 'production';
+
+  if (acceptsJson) {
+    const jsonRes = NextResponse.json({
+      configured: true,
+      provider: 'google',
+      url: googleAuthUrl.toString(),
+    });
+    jsonRes.cookies.set('snappy_customer_oauth_state', state, {
+      httpOnly: true,
+      secure: cookieSecure,
+      sameSite: 'lax',
+      maxAge: 15 * 60, // 15 minutes
+      path: '/',
+    });
+    return jsonRes;
+  }
+
+  const response = NextResponse.redirect(googleAuthUrl.toString());
+  response.cookies.set('snappy_customer_oauth_state', state, {
+    httpOnly: true,
+    secure: cookieSecure,
+    sameSite: 'lax',
+    maxAge: 15 * 60, // 15 minutes
+    path: '/',
+  });
+
+  return response;
+}

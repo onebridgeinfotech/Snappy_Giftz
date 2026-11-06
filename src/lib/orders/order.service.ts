@@ -73,6 +73,8 @@ export interface SanitizedOrderResult {
   destinationStateCode: string;
   shippingPincode?: string;
   customizationTotalPaise?: number;
+  deliveryChargeAssigned?: boolean;
+  deliveryChargeCustomerApproved?: boolean;
   items: Array<{
     id: string;
     productName: string;
@@ -696,6 +698,8 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       igstPaise: pricing.igstPaise,
       shippingTotalPaise: pricing.shippingTotalPaise,
       grandTotalPaise: pricing.grandTotalPaise,
+      deliveryChargeAssigned: false,
+      deliveryChargeCustomerApproved: false,
       reservationExpiresAt: reservationExpiresAt.toISOString(),
       guestLookupToken,
       createdAt: new Date().toISOString(),

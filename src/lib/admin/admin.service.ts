@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { DEV_ORDERS_STORE } from '@/lib/orders/order.service';
 import { INITIAL_PRODUCTS } from '@/data/initialData';
+import { resolveOrderApprovalStage } from '@/lib/orders/order-approval.service';
+import { getDamageReports } from '@/lib/damage-reports/damage-report.service';
 
 export function serializeBigInts<T>(obj: T): T {
   return JSON.parse(
@@ -115,7 +117,24 @@ export function resetAdminDevStores() {
 
 // Initialize initial dev users
 (function initDevUsers() {
+  const envAdminEmail = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
   const users = [
+    ...(envAdminEmail
+      ? [
+          {
+            id: 'usr-admin-env',
+            name: 'SNAPPY GIFTZ Administrator',
+            email: envAdminEmail,
+            phone: '9876543210',
+            role: 'ADMIN',
+            isActive: true,
+            isEmailVerified: true,
+            organizationId: null,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+            updatedAt: new Date('2026-01-01T00:00:00Z'),
+          },
+        ]
+      : []),
     {
       id: 'usr-admin-1',
       name: 'Dev Admin',
@@ -448,6 +467,11 @@ export interface AdminOverviewMetrics {
     pendingCorporateRfqs: number;
     outstandingQuotations: number;
     failedEmailsCount: number;
+    ordersAwaitingOwnerReview: number;
+    ordersAwaitingCustomerApproval: number;
+    cancelledOrders: number;
+    pendingDamageReportsCount: number;
+    codTotalOrders: number;
   };
   orders: {
     total: number;
@@ -519,6 +543,9 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
   let dispatched = 0;
   let delivered = 0;
   let cancelled = 0;
+  let awaitingOwnerReview = 0;
+  let awaitingCustomerApproval = 0;
+  let codTotal = 0;
 
   // Financial metrics (Strict integer paise from CAPTURED payments only)
   let capturedRevenuePaise = 0;
@@ -542,6 +569,11 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
     else if (st === 'DISPATCHED') dispatched++;
     else if (st === 'DELIVERED') delivered++;
     else if (st === 'CANCELLED') cancelled++;
+
+    const stage = resolveOrderApprovalStage(o);
+    if (stage === 'ORDER_AWAITING_OWNER_REVIEW') awaitingOwnerReview++;
+    if (stage === 'AWAITING_CUSTOMER_APPROVAL') awaitingCustomerApproval++;
+    if (o.paymentMethod === 'COD') codTotal++;
 
     const pSt = (o.paymentStatus || '').toUpperCase();
     const amount = Number(o.grandTotalPaise || Math.round((o.grandTotal || 0) * 100));
@@ -671,6 +703,14 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
     .sort((a, b) => b.units - a.units)
     .slice(0, 5);
 
+  let pendingDamageReportsCount = 0;
+  try {
+    const claims = await getDamageReports({ status: 'PENDING_OWNER_REVIEW' });
+    pendingDamageReportsCount = claims.length;
+  } catch {
+    pendingDamageReportsCount = 0;
+  }
+
   return {
     kpis: {
       totalOrders: total,
@@ -692,6 +732,11 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
       pendingCorporateRfqs: 0,
       outstandingQuotations: 0,
       failedEmailsCount,
+      ordersAwaitingOwnerReview: awaitingOwnerReview,
+      ordersAwaitingCustomerApproval: awaitingCustomerApproval,
+      cancelledOrders: cancelled,
+      pendingDamageReportsCount,
+      codTotalOrders: codTotal,
     },
     orders: {
       total,

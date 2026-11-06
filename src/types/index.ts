@@ -59,6 +59,8 @@ export interface BulkPricingTier {
   pricePerUnit: number;
 }
 
+export type ProductType = 'REGULAR' | 'CUSTOMIZABLE';
+
 export interface Product {
   id: string;
   slug?: string;
@@ -67,6 +69,7 @@ export interface Product {
   description: string;
   category: string;
   subCategory?: string;
+  productType?: 'REGULAR' | 'CUSTOMIZABLE';
   occasion: string[];
   recipient: string[];
   basePrice: number;

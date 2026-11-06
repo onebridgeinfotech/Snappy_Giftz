@@ -21,6 +21,7 @@ export const INITIAL_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1577937927133-66ef06acdf18?auto=format&fit=crop&w=800&q=80'
     ],
+    productType: 'CUSTOMIZABLE',
     isCustomizable: true,
     customizationType: 'engraving',
     customizationFields: [
@@ -62,6 +63,7 @@ export const INITIAL_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1585336261026-6b2f155990ee?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'
     ],
+    productType: 'CUSTOMIZABLE',
     isCustomizable: true,
     customizationType: 'logo',
     customizationFields: [
@@ -103,12 +105,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1603006905003-be475563bc59?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=800&q=80'
     ],
-    isCustomizable: true,
-    customizationType: 'engraving',
-    customizationFields: [
-      { label: 'Custom Brass Plate Message', type: 'text', placeholder: 'e.g. With Love from The Singhania Family', maxLength: 40 },
-      { label: 'Personalized Wax Seal Card', type: 'text', placeholder: 'Your warm message for the gift recipient' }
-    ],
+    productType: 'REGULAR',
+    isCustomizable: false,
     isB2BRecommended: true,
     minOrderQty: 1,
     bulkTiers: [
@@ -142,6 +140,7 @@ export const INITIAL_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=800&q=80'
     ],
+    productType: 'CUSTOMIZABLE',
     isCustomizable: true,
     customizationType: 'photo',
     customizationFields: [
@@ -179,6 +178,7 @@ export const INITIAL_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=800&q=80'
     ],
+    productType: 'CUSTOMIZABLE',
     isCustomizable: true,
     customizationType: 'combo',
     customizationFields: [
@@ -219,11 +219,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1563861826100-9cb868fdbe1c?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80'
     ],
-    isCustomizable: true,
-    customizationType: 'engraving',
-    customizationFields: [
-      { label: 'Back Plate Engraving Message', type: 'text', placeholder: 'e.g. In appreciation of 25 golden years', maxLength: 35 }
-    ],
+    productType: 'REGULAR',
+    isCustomizable: false,
     isB2BRecommended: true,
     minOrderQty: 1,
     bulkTiers: [
@@ -257,6 +254,7 @@ export const INITIAL_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1559454403-b8fb88521f11?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=800&q=80'
     ],
+    productType: 'CUSTOMIZABLE',
     isCustomizable: true,
     customizationType: 'engraving',
     customizationFields: [
@@ -291,11 +289,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=800&q=80',
       'https://images.unsplash.com/photo-1512909006721-3d6018887383?auto=format&fit=crop&w=800&q=80'
     ],
-    isCustomizable: true,
-    customizationType: 'engraving',
-    customizationFields: [
-      { label: 'Sender Family / Company Greeting Ribbon', type: 'text', placeholder: 'e.g. Shubh Deepavali from Mehta Exports', maxLength: 35 }
-    ],
+    productType: 'REGULAR',
+    isCustomizable: false,
     isB2BRecommended: true,
     minOrderQty: 2,
     bulkTiers: [

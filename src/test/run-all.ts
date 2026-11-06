@@ -1,5 +1,7 @@
-// Ensure local test runs fail-fast on unreachable remote host into dev stores
-if (!process.env.CI && process.env.NODE_ENV !== 'production') {
+// Ensure local test runs execute in test environment and fail-fast into dev stores when remote DB is offline
+Object.assign(process.env, { NODE_ENV: 'test' });
+process.env.ALLOW_DEMO_FALLBACK = 'true';
+if (!process.env.CI) {
   process.env.DATABASE_URL = 'mysql://127.0.0.1:3306/dev_fallback';
 }
 
@@ -15,6 +17,10 @@ import { runCorporateTestSuite } from './corporate.test';
 import { runAdminTestSuite } from './admin.test';
 import { runSecurityTestSuite } from './security.test';
 import { runE2EJourneysTestSuite } from './e2e-journeys.test';
+import { runLoginPageTests } from './login-page.test';
+import { runPasswordResetTestSuite } from './password-reset.test';
+import { runGoogleDriveTestSuite } from './google-drive.test';
+import { runAdminPortalTestSuite } from './admin-portal.test';
 
 async function main() {
   console.log('====================================================');
@@ -57,6 +63,18 @@ async function main() {
   // Run E2E User Journeys Suite (Batch 11)
   const e2eResults = await runE2EJourneysTestSuite();
 
+  // Run Customer Login Page & OAuth Architecture Suite
+  const loginResults = await runLoginPageTests();
+
+  // Run Forgot Password & Password Reset Suite (Batch 14)
+  const passwordResetResults = await runPasswordResetTestSuite();
+
+  // Run Google Drive Integration Suite (Batch 15)
+  const googleDriveResults = await runGoogleDriveTestSuite();
+
+  // Run Admin Portal & Logistics Suite (Phase 3)
+  const adminPortalResults = await runAdminPortalTestSuite();
+
   const totalPassed =
     authResults.passed +
     catalogResults.passed +
@@ -69,7 +87,12 @@ async function main() {
     corporateResults.passed +
     adminResults.passed +
     securityResults.passed +
-    e2eResults.passed;
+    e2eResults.passed +
+    loginResults.passed +
+    passwordResetResults.passed +
+    googleDriveResults.passed +
+    adminPortalResults.passed;
+
   const totalFailed =
     authResults.failed +
     catalogResults.failed +
@@ -82,7 +105,11 @@ async function main() {
     corporateResults.failed +
     adminResults.failed +
     securityResults.failed +
-    e2eResults.failed;
+    e2eResults.failed +
+    loginResults.failed +
+    passwordResetResults.failed +
+    googleDriveResults.failed +
+    adminPortalResults.failed;
 
   console.log('====================================================');
   console.log('            MASTER TEST EXECUTION SUMMARY           ');
@@ -99,6 +126,10 @@ async function main() {
   console.log(` 10. Admin & Business Ops (10): ${adminResults.passed} passed, ${adminResults.failed} failed`);
   console.log(` 11. Security Audit & QA (11):  ${securityResults.passed} passed, ${securityResults.failed} failed`);
   console.log(` 12. E2E User Journeys (11):   ${e2eResults.passed} passed, ${e2eResults.failed} failed`);
+  console.log(` 13. Customer Login & OAuth:    ${loginResults.passed} passed, ${loginResults.failed} failed`);
+  console.log(` 14. Password Reset & OTP (14): ${passwordResetResults.passed} passed, ${passwordResetResults.failed} failed`);
+  console.log(` 15. Google Drive Cloud Storage:${googleDriveResults.passed} passed, ${googleDriveResults.failed} failed`);
+  console.log(` 16. Admin Portal & Logistics:  ${adminPortalResults.passed} passed, ${adminPortalResults.failed} failed`);
   console.log('----------------------------------------------------');
   console.log(`  TOTAL VERIFIED TESTS:         ${totalPassed} passed, ${totalFailed} failed`);
   console.log('====================================================\n');
@@ -114,4 +145,3 @@ main().catch((err) => {
   console.error('\n❌ Test suite failed:', err.message);
   process.exit(1);
 });
-

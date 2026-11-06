@@ -86,7 +86,7 @@ export const DEFAULT_SAMPLE_SELLER_CONFIG: SellerConfigData = {
   stateCode: BUSINESS_CONFIG.address.stateCode,
   pincode: BUSINESS_CONFIG.address.pincode,
   contactEmail: BUSINESS_CONFIG.officialEmail,
-  contactPhone: '+91 145 299 1000',
+  contactPhone: BUSINESS_CONFIG.whatsappFormatted,
   invoicePrefix: 'SG',
   authorizedSignatoryName: 'Authorized Signatory',
   authorizedSignatoryDesignation: 'Authorized Signatory',

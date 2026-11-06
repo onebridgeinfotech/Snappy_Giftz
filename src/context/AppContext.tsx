@@ -111,50 +111,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [mode, setMode] = useState<'b2c' | 'b2b' | 'admin'>('b2c');
   const [currentRole, setCurrentRole] = useState<UserRole>('b2c_customer');
   
-  const [products, setProducts] = useState<Product[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PRODUCTS);
-      return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-    } catch {
-      return INITIAL_PRODUCTS;
-    }
-  });
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Safe initial state matching server-rendered markup (prevents hydration mismatch)
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [wishlist, setWishlist] = useState<string[]>(['prod-1', 'prod-3']);
+  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [quotations, setQuotations] = useState<CorporateQuotation[]>(INITIAL_QUOTATIONS);
 
-  const [cart, setCart] = useState<CartItem[]>(() => {
+  // Restore persisted state from localStorage once client has hydrated (prevents SSR hydration errors)
+  useEffect(() => {
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_CART);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+      const savedProducts = localStorage.getItem(LOCAL_STORAGE_KEY_PRODUCTS);
+      if (savedProducts) setProducts(JSON.parse(savedProducts));
 
-  const [wishlist, setWishlist] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_WISHLIST);
-      return saved ? JSON.parse(saved) : ['prod-1', 'prod-3'];
-    } catch {
-      return ['prod-1', 'prod-3'];
-    }
-  });
+      const savedCart = localStorage.getItem(LOCAL_STORAGE_KEY_CART);
+      if (savedCart) setCart(JSON.parse(savedCart));
 
-  const [orders, setOrders] = useState<Order[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_ORDERS);
-      return saved ? JSON.parse(saved) : INITIAL_ORDERS;
-    } catch {
-      return INITIAL_ORDERS;
-    }
-  });
+      const savedWishlist = localStorage.getItem(LOCAL_STORAGE_KEY_WISHLIST);
+      if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
 
-  const [quotations, setQuotations] = useState<CorporateQuotation[]>(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_QUOTATIONS);
-      return saved ? JSON.parse(saved) : INITIAL_QUOTATIONS;
-    } catch {
-      return INITIAL_QUOTATIONS;
+      const savedOrders = localStorage.getItem(LOCAL_STORAGE_KEY_ORDERS);
+      if (savedOrders) setOrders(JSON.parse(savedOrders));
+
+      const savedQuotations = localStorage.getItem(LOCAL_STORAGE_KEY_QUOTATIONS);
+      if (savedQuotations) setQuotations(JSON.parse(savedQuotations));
+    } catch (e) {
+      console.warn('[APP_CONTEXT] Error restoring from localStorage:', e);
+    } finally {
+      setIsHydrated(true);
     }
-  });
+  }, []);
 
   const [tickets, setTickets] = useState<SupportTicket[]>(INITIAL_TICKETS);
   
@@ -196,46 +184,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4000);
   };
 
-  // Sync state to localStorage
+  // Sync state to localStorage only after client hydration
   useEffect(() => {
+    if (!isHydrated) return;
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY_PRODUCTS, JSON.stringify(products));
     } catch (e) {
       console.error(e);
     }
-  }, [products]);
+  }, [products, isHydrated]);
 
   useEffect(() => {
+    if (!isHydrated) return;
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY_CART, JSON.stringify(cart));
     } catch (e) {
       console.error(e);
     }
-  }, [cart]);
+  }, [cart, isHydrated]);
 
   useEffect(() => {
+    if (!isHydrated) return;
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY_WISHLIST, JSON.stringify(wishlist));
     } catch (e) {
       console.error(e);
     }
-  }, [wishlist]);
+  }, [wishlist, isHydrated]);
 
   useEffect(() => {
+    if (!isHydrated) return;
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY_ORDERS, JSON.stringify(orders));
     } catch (e) {
       console.error(e);
     }
-  }, [orders]);
+  }, [orders, isHydrated]);
 
   useEffect(() => {
+    if (!isHydrated) return;
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY_QUOTATIONS, JSON.stringify(quotations));
     } catch (e) {
       console.error(e);
     }
-  }, [quotations]);
+  }, [quotations, isHydrated]);
 
   // Product mutations
   const addProduct = (p: Omit<Product, 'id'>) => {

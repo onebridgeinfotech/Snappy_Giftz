@@ -15,7 +15,8 @@
     "test:e2e": "npx tsx src/test/e2e-journeys.test.ts",
     "test:a11y": "npx tsx src/test/security.test.ts",
     "test:playwright": "npx playwright test",
-    "seed:catalog": "npx tsx scripts/seed-storefront-catalog.ts"
+    "seed:catalog": "npx tsx scripts/seed-storefront-catalog.ts",
+    "bootstrap:admin": "npx tsx scripts/bootstrap-admin.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -30,6 +31,7 @@
     "canvas-confetti": "^1.9.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "googleapis": "^189.0.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "next": "^16.4.3",

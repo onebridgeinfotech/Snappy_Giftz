@@ -3,12 +3,27 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Package, Download, AlertTriangle, ArrowLeft, Clock, CheckCircle, ShieldAlert, FileText, ChevronRight } from 'lucide-react';
+import {
+  Package,
+  Download,
+  AlertTriangle,
+  ArrowLeft,
+  Clock,
+  CheckCircle2,
+  ShieldAlert,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Truck,
+  CreditCard,
+  Sparkles,
+} from 'lucide-react';
 
 export default function CustomerOrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [damageReportingOrder, setDamageReportingOrder] = useState<string | null>(null);
   const [damageDescription, setDamageDescription] = useState('');
   const [damageSubmitting, setDamageSubmitting] = useState(false);
@@ -45,7 +60,7 @@ export default function CustomerOrdersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           description: damageDescription.trim(),
-          photos: [], // Uploads can be handled via private storage
+          photos: [],
         }),
       });
 
@@ -76,13 +91,14 @@ export default function CustomerOrdersPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#08090B] flex items-center justify-center text-[#D5A34A] text-sm font-semibold">
+        <Sparkles className="w-5 h-5 mr-2 animate-spin text-[#F5BD48]" />
         Loading your order history...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#08090B] text-[#F1F5F9] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#08090B] text-[#F1F5F9] py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Navigation Breadcrumb */}
@@ -128,6 +144,10 @@ export default function CustomerOrdersPage() {
                 year: 'numeric',
               });
               const totalAmount = ((Number(order.grandTotalPaise) || 0) / 100).toFixed(2);
+              const itemsSubtotal = ((Number(order.itemsSubtotalPaise) || 0) / 100).toFixed(2);
+              const taxTotal = ((Number(order.taxTotalPaise) || 0) / 100).toFixed(2);
+              const shippingTotal = ((Number(order.shippingTotalPaise) || 0) / 100).toFixed(2);
+              const isExpanded = expandedOrderId === (order.id || order.orderNumber);
 
               return (
                 <div
@@ -150,7 +170,7 @@ export default function CustomerOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Items */}
+                  {/* Items summary */}
                   <div className="space-y-2">
                     {order.items &&
                       order.items.map((item: any, idx: number) => (
@@ -160,9 +180,9 @@ export default function CustomerOrdersPage() {
                               {item.quantity}x
                             </span>
                             <span>{item.productName}</span>
-                            {item.isGiftWrapped && (
-                              <span className="text-[10px] text-[#D5A34A] font-semibold bg-[#D5A34A]/10 px-1.5 py-0.5 rounded">
-                                Gift Wrapped (+₹20)
+                            {item.customizationNote && (
+                              <span className="text-[10px] text-[#D5A34A] bg-[#D5A34A]/10 px-1.5 py-0.5 rounded">
+                                Customized
                               </span>
                             )}
                           </div>
@@ -173,9 +193,90 @@ export default function CustomerOrdersPage() {
                       ))}
                   </div>
 
+                  {/* Expandable Order Details */}
+                  {isExpanded && (
+                    <div className="p-4 rounded-xl bg-[#08090B] border border-[#D5A34A]/15 space-y-3 text-xs animate-in fade-in duration-150">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-3 border-b border-[#D5A34A]/10">
+                        <div>
+                          <span className="text-[#64748B] block text-[11px] mb-1">Payment Information</span>
+                          <div className="text-white font-medium flex items-center gap-1.5">
+                            <CreditCard className="w-3.5 h-3.5 text-[#D5A34A]" />
+                            <span>Method: {order.paymentMethod || 'Online'}</span>
+                          </div>
+                          <div className="text-[#94A3B8] text-[11px] mt-0.5">
+                            Status: <span className="text-[#F5BD48] font-bold">{order.paymentStatus}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[#64748B] block text-[11px] mb-1">Fulfillment & Courier</span>
+                          {order.shipment ? (
+                            <div className="text-white font-medium space-y-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <Truck className="w-3.5 h-3.5 text-[#D5A34A]" />
+                                <span>Carrier: {order.shipment.carrierPartner}</span>
+                              </div>
+                              <div className="text-[11px] text-[#94A3B8]">
+                                AWB: <span className="font-mono text-white">{order.shipment.awbNumber}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-[#94A3B8] text-[11px]">
+                              Order is being hand-crafted in our Hyderabad Atelier.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Pricing breakdown */}
+                      <div className="space-y-1.5 text-[11px] text-[#94A3B8] pt-1">
+                        <div className="flex justify-between">
+                          <span>Items Subtotal:</span>
+                          <span className="text-white font-medium">₹{itemsSubtotal}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Tax (GST):</span>
+                          <span className="text-white font-medium">₹{taxTotal}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Insured Shipping:</span>
+                          <span className="text-white font-medium">
+                            {Number(shippingTotal) === 0 ? 'Free' : `₹${shippingTotal}`}
+                          </span>
+                        </div>
+                        <div className="flex justify-between font-bold text-white text-xs pt-1 border-t border-[#D5A34A]/10">
+                          <span>Grand Total:</span>
+                          <span className="text-[#F5BD48]">₹{totalAmount}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Actions Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#D5A34A]/15 text-xs">
                     <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedOrderId(
+                            isExpanded ? null : (order.id || order.orderNumber)
+                          )
+                        }
+                        className="inline-flex items-center gap-1 text-[#CBD5E1] hover:text-[#F5BD48] font-medium"
+                      >
+                        {isExpanded ? (
+                          <>
+                            <span>Hide Details</span>
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          </>
+                        ) : (
+                          <>
+                            <span>View Breakdown</span>
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </>
+                        )}
+                      </button>
+
                       {/* Invoice Link */}
                       <a
                         href={`/api/orders/${order.orderNumber}/invoice`}
@@ -264,4 +365,3 @@ export default function CustomerOrdersPage() {
     </div>
   );
 }
-

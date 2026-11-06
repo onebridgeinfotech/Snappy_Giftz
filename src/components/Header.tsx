@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useApp } from '../context/AppContext';
 import {
   Search,
@@ -17,7 +18,9 @@ import {
   MapPin,
   Clock,
   Package,
-  User
+  User,
+  Home,
+  ShieldCheck
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { AuthModal } from './AuthModal';
@@ -37,6 +40,7 @@ export const Header: React.FC = () => {
     currentPincode,
     setActiveCategory,
     activeCategory,
+    setActiveOccasion,
     navigateToCatalog
   } = useApp();
 
@@ -88,7 +92,14 @@ export const Header: React.FC = () => {
 
   const totalCartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  const isStaffOrAdmin = Boolean(authenticatedUser && (authenticatedUser.role === 'ADMIN' || authenticatedUser.role === 'STAFF'));
+  // Server-verified administrator roles (ADMIN or SUPER_ADMIN or STAFF)
+  const isAdminUser = Boolean(
+    authenticatedUser &&
+      (authenticatedUser.role === 'ADMIN' ||
+       authenticatedUser.role === 'SUPER_ADMIN' ||
+       authenticatedUser.role === 'STAFF')
+  );
+  const isStaffOrAdmin = isAdminUser;
 
   const handleRoleSelect = (role: UserRole) => {
     if (role === 'admin' || role === 'warehouse_staff') {
@@ -255,11 +266,18 @@ export const Header: React.FC = () => {
           
           {/* Left: Original SNAPPY GIFTZ Logo Artwork (Visually Prominent) */}
           <div className="flex items-center shrink-0">
-            <button
-              type="button"
-              onClick={() => { setMode('b2c'); }}
-              className="text-left group flex items-center py-0.5 focus:outline-hidden"
-              title="Snappy Giftz — Back to Storefront"
+            <Link
+              href="/"
+              id="nav-home-logo"
+              data-testid="nav-home-logo"
+              onClick={() => {
+                setMode('b2c');
+                setActiveCategory('All');
+                setActiveOccasion('All');
+                setSearchQuery('');
+              }}
+              className="text-left group flex items-center py-0.5 focus:outline-hidden cursor-pointer"
+              title="Snappy Giftz — Back to Storefront Home"
               aria-label="Snappy Giftz Home"
             >
               {/* Authentic Trimmed Artwork: Perfectly scaled without padding obstruction */}
@@ -268,7 +286,7 @@ export const Header: React.FC = () => {
                 alt="Snappy Giftz — Turning Moments Into Memories"
                 className="h-12 sm:h-14 md:h-15 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.03]"
               />
-            </button>
+            </Link>
           </div>
 
           {/* Center: Refined Pill Search Bar with Trending Suggestions */}
@@ -355,6 +373,40 @@ export const Header: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Direct Home Navigation Button */}
+            <Link
+              href="/"
+              id="nav-home-desktop"
+              data-testid="nav-home-desktop"
+              onClick={() => {
+                setMode('b2c');
+                setActiveCategory('All');
+                setActiveOccasion('All');
+                setSearchQuery('');
+              }}
+              className="flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-4 rounded-full border border-[#D5A34A]/50 bg-gradient-to-r from-[#24252A] to-[#17181C] hover:border-[#D5A34A] text-[#F1F5F9] hover:text-[#F5BD48] text-xs font-bold transition-all shadow-xs cursor-pointer group"
+              title="Return to Starting Page / Storefront Home"
+              aria-label="Return to Storefront Home"
+            >
+              <Home className="w-3.5 h-3.5 text-[#F5BD48] group-hover:scale-110 transition-transform" />
+              <span>Home</span>
+            </Link>
+
+            {/* Role-Based Admin Portal Navigation (ADMIN & SUPER_ADMIN) */}
+            {isAdminUser && (
+              <Link
+                href="/admin"
+                id="nav-admin-portal-desktop"
+                data-testid="nav-admin-portal-desktop"
+                className="flex items-center gap-1.5 h-10 sm:h-11 px-3.5 sm:px-4 rounded-full border border-[#D5A34A] bg-gradient-to-r from-[#D5A34A]/25 via-[#F5BD48]/20 to-[#D5A34A]/25 hover:bg-[#D5A34A]/35 text-[#F5BD48] hover:text-white text-xs font-bold transition-all shadow-md cursor-pointer group animate-in fade-in duration-200"
+                title="Open Admin Operations Portal"
+                aria-label="Admin Portal"
+              >
+                <ShieldCheck className="w-4 h-4 text-[#F5BD48] group-hover:scale-110 transition-transform" />
+                <span>Admin Portal</span>
+              </Link>
+            )}
 
             {/* Track Order Direct Action */}
             <button
@@ -467,7 +519,39 @@ export const Header: React.FC = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between overflow-x-auto gap-4 no-scrollbar">
           
           {/* Category Quick Links */}
-          <div className="flex items-center gap-6 sm:gap-7 text-[#CBD5E1] font-medium whitespace-nowrap text-[12px]">
+          <div className="flex items-center gap-4 sm:gap-6 text-[#CBD5E1] font-medium whitespace-nowrap text-[12px]">
+            <Link
+              href="/"
+              id="nav-home-strip"
+              data-testid="nav-home-strip"
+              onClick={() => {
+                setMode('b2c');
+                setActiveCategory('All');
+                setActiveOccasion('All');
+                setSearchQuery('');
+              }}
+              className={`transition-all flex items-center gap-1.5 px-3 py-1 rounded-full border cursor-pointer font-bold ${
+                activeCategory === 'All' && mode === 'b2c'
+                  ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] border-[#F5BD48] shadow-xs'
+                  : 'bg-[#24252A] text-white/90 border-[#D5A34A]/30 hover:border-[#D5A34A] hover:text-[#F5BD48]'
+              }`}
+              title="Return to Starting Page / Storefront Home"
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </Link>
+            {isAdminUser && (
+              <Link
+                href="/admin"
+                id="nav-admin-portal-strip"
+                data-testid="nav-admin-portal-strip"
+                className="transition-all flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#D5A34A] bg-[#D5A34A]/20 text-[#F5BD48] hover:bg-[#D5A34A]/30 text-[12px] font-bold shadow-xs cursor-pointer"
+                title="Open Admin Operations Portal"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#F5BD48]" />
+                <span>Admin Portal</span>
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => navigateToCatalog({ category: 'Personalized Gifts' })}
@@ -579,6 +663,46 @@ export const Header: React.FC = () => {
             )}
           </div>
 
+          {/* Mobile Home Storefront Link */}
+          <Link
+            href="/"
+            id="nav-home-mobile"
+            data-testid="nav-home-mobile"
+            onClick={() => {
+              setMode('b2c');
+              setActiveCategory('All');
+              setActiveOccasion('All');
+              setSearchQuery('');
+              setMobileMenuOpen(false);
+            }}
+            className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#08090B] bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] flex items-center justify-between shadow-sm cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              <Home className="w-4 h-4" />
+              <span>Return to Storefront Home</span>
+            </span>
+            <span>→</span>
+          </Link>
+
+          {/* Mobile Admin Portal Link (ADMIN & SUPER_ADMIN) */}
+          {isAdminUser && (
+            <Link
+              href="/admin"
+              id="nav-admin-portal-mobile"
+              data-testid="nav-admin-portal-mobile"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#854d0e] via-[#a16207] to-[#854d0e] border border-[#D5A34A] flex items-center justify-between shadow-md cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#F5BD48]" />
+                <span>Admin Operations Portal</span>
+              </span>
+              <span className="text-[10px] font-mono bg-black/40 px-2 py-0.5 rounded text-[#F5BD48] border border-[#D5A34A]/40 uppercase tracking-wider">
+                ADMIN
+              </span>
+            </Link>
+          )}
+
           {/* Quick Category List */}
           <div className="space-y-1">
             <div className="text-[10.5px] font-bold text-[#D5A34A] uppercase tracking-wider px-2 py-1">
@@ -637,11 +761,13 @@ export const Header: React.FC = () => {
       {/* ========================================================================= */}
       {/* 5. SECURE AUTH & PERSONA MODAL                                            */}
       {/* ========================================================================= */}
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        onAuthSuccess={(user) => setAuthenticatedUser(user)}
-      />
+      {authModalOpen && (
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          onAuthSuccess={(user) => setAuthenticatedUser(user)}
+        />
+      )}
 
     </header>
   );

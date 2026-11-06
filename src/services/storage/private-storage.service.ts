@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import { verifyImageMagicBytes, StorageValidationError } from './local-storage.service';
+import { googleDriveService } from './google-drive.service';
 
 export interface PrivateUploadResult {
   fileKey: string;
@@ -9,6 +10,7 @@ export interface PrivateUploadResult {
   mimeType: string;
   sizeBytes: number;
   fileHash: string;
+  googleDriveFileId?: string;
 }
 
 const MAX_ARTWORK_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -86,12 +88,32 @@ export class PrivateStorageService {
     // Sanitize original filename (remove path components)
     const sanitizedOriginalName = path.basename(fileName || 'artwork' + ext).replace(/[^a-zA-Z0-9._-]/g, '_');
 
+    // 7. Optional sync to Google Drive if connected
+    let googleDriveFileId: string | undefined;
+    try {
+      const gDriveStatus = await googleDriveService.getConnectionStatus();
+      if (gDriveStatus.isConnected) {
+        const driveFolderType = folder === 'customer-artwork' ? 'customer' : 'attachment';
+        const driveUpload = await googleDriveService.uploadFile({
+          fileBuffer,
+          fileName: sanitizedOriginalName,
+          mimeType: detectedMime,
+          folderType: driveFolderType,
+        });
+        googleDriveFileId = driveUpload.fileId;
+      }
+    } catch (gDriveErr) {
+      // Soft-fail: Google Drive background sync should not block customer flow
+      console.warn('[PrivateStorageService] Google Drive sync skipped/failed:', gDriveErr);
+    }
+
     return {
       fileKey: safeKey,
       originalFilename: sanitizedOriginalName,
       mimeType: detectedMime,
       sizeBytes: fileBuffer.length,
       fileHash,
+      googleDriveFileId,
     };
   }
 
@@ -99,6 +121,15 @@ export class PrivateStorageService {
    * Retrieves a private file buffer with strict path traversal verification.
    */
   async getPrivateFileBuffer(fileKey: string): Promise<Buffer> {
+    if (fileKey.startsWith('gdrive:')) {
+      const fileId = fileKey.replace('gdrive:', '').trim();
+      const stream = await googleDriveService.getFileStream(fileId);
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      return Buffer.concat(chunks);
+    }
     const cleanKey = fileKey.replace(/\\/g, '/');
     const resolvedBase = path.resolve(this.baseDir);
     const targetPath = path.join(this.baseDir, cleanKey);
@@ -167,20 +198,42 @@ export class PrivateStorageService {
 
     const sanitizedOriginalName = path.basename(fileName || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
 
+    let googleDriveFileId: string | undefined;
+    try {
+      const gDriveStatus = await googleDriveService.getConnectionStatus();
+      if (gDriveStatus.isConnected) {
+        const driveFolderType = folder === 'invoices' ? 'invoice' : 'attachment';
+        const driveUpload = await googleDriveService.uploadFile({
+          fileBuffer,
+          fileName: sanitizedOriginalName,
+          mimeType: 'application/pdf',
+          folderType: driveFolderType,
+        });
+        googleDriveFileId = driveUpload.fileId;
+      }
+    } catch (gDriveErr) {
+      console.warn('[PrivateStorageService] Google Drive document sync skipped/failed:', gDriveErr);
+    }
+
     return {
       fileKey: safeKey,
       originalFilename: sanitizedOriginalName,
       mimeType: 'application/pdf',
       sizeBytes: fileBuffer.length,
       fileHash,
+      googleDriveFileId,
     };
   }
 
   /**
-   * Safely deletes a private file.
+   * Safely deletes a private file (local disk or Google Drive).
    */
   async deletePrivateFile(fileKey: string): Promise<boolean> {
     try {
+      if (fileKey.startsWith('gdrive:')) {
+        const fileId = fileKey.replace('gdrive:', '').trim();
+        return await googleDriveService.deleteFile(fileId);
+      }
       const cleanKey = fileKey.replace(/\\/g, '/');
       const resolvedBase = path.resolve(this.baseDir);
       const targetPath = path.join(this.baseDir, cleanKey);

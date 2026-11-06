@@ -165,7 +165,7 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
   // Per business rules: The owner manually enters delivery charges for each order.
   // Customer must see and approve the final delivery charge and total before initiating payment.
   if (
-    (order.deliveryChargeCustomerApproved === false || input.customerAcceptedDeliveryCharge === false) &&
+    order.deliveryChargeCustomerApproved !== true &&
     input.customerAcceptedDeliveryCharge !== true
   ) {
     throw new DeliveryChargeNotApprovedError(

@@ -16,6 +16,7 @@ import {
 import { getSellerConfig } from '@/lib/invoices/seller-config.service';
 import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
 import { renderShipmentDispatchedTemplate } from '@/lib/email/email-templates';
+import { INITIAL_PRODUCTS } from '@/data/initialData';
 
 export class OrderTransitionError extends Error {
   constructor(message: string) {
@@ -102,6 +103,7 @@ export interface AdminOrderListOptions {
   search?: string;
   orderStatus?: OrderStatus;
   paymentStatus?: PaymentStatus;
+  paymentMethod?: string;
   startDate?: string | Date;
   endDate?: string | Date;
   sortBy?: 'createdAt' | 'grandTotalPaise' | 'orderNumber';
@@ -153,6 +155,10 @@ export async function listOrdersForAdmin(options: AdminOrderListOptions = {}) {
 
   if (options.paymentStatus) {
     where.paymentStatus = options.paymentStatus;
+  }
+
+  if (options.paymentMethod) {
+    where.paymentMethod = options.paymentMethod;
   }
 
   if (options.startDate || options.endDate) {
@@ -227,6 +233,9 @@ export async function listOrdersForAdmin(options: AdminOrderListOptions = {}) {
     }
     if (options.paymentStatus) {
       devList = devList.filter((o) => o.paymentStatus === options.paymentStatus);
+    }
+    if (options.paymentMethod) {
+      devList = devList.filter((o) => o.paymentMethod === options.paymentMethod);
     }
     if (options.search) {
       const s = options.search.trim().toLowerCase();
@@ -607,6 +616,15 @@ export async function recordOrderDispatch(
   }
 
   if (!order) {
+    for (const devOrd of DEV_ORDERS_STORE.values()) {
+      if (devOrd.id === cleanKey || devOrd.orderNumber === cleanKey) {
+        order = devOrd;
+        break;
+      }
+    }
+  }
+
+  if (!order) {
     if (isStorefrontFallbackAllowed() && DEV_ORDERS_STORE.has(cleanKey)) {
       order = DEV_ORDERS_STORE.get(cleanKey)!;
     } else {
@@ -842,6 +860,15 @@ export async function confirmOrderDelivery(
   }
 
   if (!order) {
+    for (const devOrd of DEV_ORDERS_STORE.values()) {
+      if (devOrd.id === cleanKey || devOrd.orderNumber === cleanKey) {
+        order = devOrd;
+        break;
+      }
+    }
+  }
+
+  if (!order) {
     if (isStorefrontFallbackAllowed() && DEV_ORDERS_STORE.has(cleanKey)) {
       order = DEV_ORDERS_STORE.get(cleanKey)!;
     } else {
@@ -892,6 +919,46 @@ export async function confirmOrderDelivery(
         },
       });
 
+      // Deduct inventory exactly once upon confirmed delivery
+      for (const item of updatedOrder.items || []) {
+        if (item.variantId) {
+          const alreadyDeducted = await tx.inventoryAdjustment.findFirst({
+            where: {
+              variantId: item.variantId,
+              referenceId: order.orderNumber,
+              reason: 'ORDER_FULFILLMENT',
+            },
+          });
+          if (!alreadyDeducted) {
+            const variant = await tx.productVariant.findUnique({
+              where: { id: item.variantId },
+              include: { product: true },
+            });
+            if (variant) {
+              const previousStock = variant.stockQuantity;
+              const newStock = Math.max(0, previousStock - item.quantity);
+              await tx.productVariant.update({
+                where: { id: item.variantId },
+                data: { stockQuantity: newStock },
+              });
+              await tx.inventoryAdjustment.create({
+                data: {
+                  variantId: item.variantId,
+                  sku: variant.sku,
+                  productName: variant.product.name,
+                  previousStock,
+                  adjustedQty: -item.quantity,
+                  newStock,
+                  reason: 'ORDER_FULFILLMENT',
+                  referenceId: order.orderNumber,
+                  notes: `Stock deducted on delivery confirmation for order #${order.orderNumber}`,
+                },
+              });
+            }
+          }
+        }
+      }
+
       // Audit Record
       await tx.orderStatusHistory.create({
         data: {
@@ -918,6 +985,15 @@ export async function confirmOrderDelivery(
       order.shipment.deliveredAt = deliveryTimestamp.toISOString();
     }
     order.orderStatus = OrderStatus.DELIVERED;
+    if (!order.inventoryDeductedOnDelivery) {
+      order.inventoryDeductedOnDelivery = true;
+      for (const item of order.items || []) {
+        const prod = INITIAL_PRODUCTS.find((p) => p.id === item.productId || p.name === item.productName);
+        if (prod && typeof prod.stock === 'number') {
+          prod.stock = Math.max(0, prod.stock - item.quantity);
+        }
+      }
+    }
     DEV_ORDERS_STORE.set(order.orderNumber, order);
 
     const history = DEV_STATUS_HISTORY_STORE.get(order.orderNumber) || [];

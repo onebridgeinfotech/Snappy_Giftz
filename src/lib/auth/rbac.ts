@@ -15,17 +15,22 @@ export class AuthError extends Error {
 }
 
 /**
- * Checks whether a given user role satisfies any of the required roles
+ * Checks whether a given user role satisfies any of the required roles.
+ * ADMIN and SUPER_ADMIN roles have implicit access to all operations.
  */
-export function hasRole(userRole: Role, allowedRoles: Role[]): boolean {
+export function hasRole(userRole: Role | string, allowedRoles: (Role | string)[]): boolean {
   if (!userRole || !Array.isArray(allowedRoles) || allowedRoles.length === 0) {
     return false;
   }
-  // ADMIN role has implicit access to all staff and customer operations
-  if (userRole === Role.ADMIN) {
+  const normalized = typeof userRole === 'string' ? userRole.toUpperCase() : userRole;
+  // ADMIN and SUPER_ADMIN roles have implicit access to all operations
+  if (normalized === Role.ADMIN || normalized === 'SUPER_ADMIN' || normalized === 'ADMIN') {
     return true;
   }
-  return allowedRoles.includes(userRole);
+  return allowedRoles.some((r) => {
+    const normAllowed = typeof r === 'string' ? r.toUpperCase() : r;
+    return normAllowed === normalized;
+  });
 }
 
 /**

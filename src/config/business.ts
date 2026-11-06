@@ -8,6 +8,7 @@ export const BUSINESS_CONFIG = {
   legalName: 'SNAPPY GIFTZ',
   tradeName: 'SNAPPY GIFTZ',
   officialEmail: 'info@snappygiftz.com',
+  businessEmail: 'info@snappygiftz.com',
   adminEmail: 'phoenixnot13@gmail.com',
   /** Operations inboxes that receive new-order and signup alerts */
   adminEmails: ['phoenixnot13@gmail.com', 'onebridgeinfotech@gmail.com'] as const,
@@ -52,4 +53,9 @@ export function getAdminNotificationEmails(): string[] {
     .filter(Boolean);
   const merged = [...BUSINESS_CONFIG.adminEmails, ...fromEnv];
   return [...new Set(merged.map((e) => e.toLowerCase()))];
+}
+
+/** Primary operations administrator email address from env or default config. */
+export function getPrimaryAdminEmail(): string {
+  return (process.env.ADMIN_EMAIL || BUSINESS_CONFIG.adminEmail).trim().toLowerCase();
 }

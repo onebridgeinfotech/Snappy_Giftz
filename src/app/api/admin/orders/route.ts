@@ -14,6 +14,7 @@ export async function GET(req: Request) {
     const search = searchParams.get('search') || undefined;
     const orderStatus = searchParams.get('orderStatus') as OrderStatus | undefined;
     const paymentStatus = searchParams.get('paymentStatus') as PaymentStatus | undefined;
+    const paymentMethod = searchParams.get('paymentMethod') || undefined;
     const startDate = searchParams.get('startDate') || undefined;
     const endDate = searchParams.get('endDate') || undefined;
     const sortBy = (searchParams.get('sortBy') as any) || 'createdAt';
@@ -25,6 +26,7 @@ export async function GET(req: Request) {
       search,
       orderStatus,
       paymentStatus,
+      paymentMethod,
       startDate,
       endDate,
       sortBy,
