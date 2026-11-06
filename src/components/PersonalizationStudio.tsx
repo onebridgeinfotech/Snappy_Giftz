@@ -47,41 +47,9 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
   const [ribbonColor, setRibbonColor] = useState(
     initialCustomization?.ribbonColor || 'Rose Gold Silk'
   );
-  const [isCrateApproved, setIsCrateApproved] = useState<boolean>(() => {
-    return (
-      (typeof process !== 'undefined' &&
-        (process.env.NEXT_PUBLIC_WOODEN_CRATE_SURCHARGE_APPROVED === 'true' ||
-          process.env.WOODEN_CRATE_SURCHARGE_APPROVED === 'true')) ||
-      false
-    );
-  });
-
-  // Query server authoritative configuration endpoint to guarantee frontend/backend consistency
-  useEffect(() => {
-    let isMounted = true;
-    fetch('/api/personalization/config')
-      .then((res) => res.json())
-      .then((payload) => {
-        if (isMounted && payload?.success && payload?.data?.packaging?.woodenCrate) {
-          setIsCrateApproved(Boolean(payload.data.packaging.woodenCrate.available));
-        }
-      })
-      .catch(() => {
-        // Safe fail-closed fallback
-        if (isMounted) setIsCrateApproved(false);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const [boxWrapStyle, setBoxWrapStyle] = useState(() => {
-    const initial = initialCustomization?.boxWrapStyle || 'Blush Pink with Gold Foil';
-    if (initial.toLowerCase().includes('wooden') && !isCrateApproved) {
-      return 'Blush Pink with Gold Foil';
-    }
-    return initial;
-  });
+  const [boxWrapStyle, setBoxWrapStyle] = useState(
+    initialCustomization?.boxWrapStyle || 'Blush Pink with Gold Foil'
+  );
   const [waxSealColor, setWaxSealColor] = useState<'crimson' | 'gold' | 'navy' | 'emerald'>('gold');
   const [giftWrap, setGiftWrap] = useState(Boolean(initialCustomization?.giftWrap));
   const [activeTab, setActiveTab] = useState<'engrave' | 'artwork' | 'giftnote' | 'packaging'>('engrave');
@@ -177,14 +145,6 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
       label: 'Midnight Matte Royal Case',
       desc: 'High-density luxury magnetic closure case with satin bed',
       available: true,
-    },
-    {
-      id: 'Vintage Wooden Keepsake Crate',
-      label: 'Artisanal Pine Wood Crate',
-      desc: isCrateApproved
-        ? 'Sustainably sourced pine wood slider box with brass latch (+₹150)'
-        : 'Artisanal pine wood crate (+₹150) — Unavailable pending store owner price approval',
-      available: isCrateApproved,
     },
   ];
 
@@ -399,11 +359,6 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
   };
 
   const handleApply = async () => {
-    let finalBoxWrap = boxWrapStyle;
-    if (finalBoxWrap.toLowerCase().includes('wooden') && !isCrateApproved) {
-      finalBoxWrap = 'Blush Pink with Gold Foil';
-    }
-
     const clientProofDataUrl = await generateCanvasPreviewProof();
 
     onSave({
@@ -414,7 +369,7 @@ export const PersonalizationStudio: React.FC<PersonalizationStudioProps> = ({
       fontFamily,
       giftNote,
       ribbonColor,
-      boxWrapStyle: finalBoxWrap,
+      boxWrapStyle,
       waxSealColor,
       giftWrap,
       artworkUploadId: uploadedArtworks[0]?.id || undefined,

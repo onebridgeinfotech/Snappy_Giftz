@@ -10,7 +10,7 @@ async function bootstrapAdmin() {
   const email = (
     process.env.ADMIN_EMAIL ||
     process.env.ADMIN_BOOTSTRAP_EMAIL ||
-    'phoenixnot13@gmail.com'
+    'ezonetechnologies2124@gmail.com'
   ).trim().toLowerCase();
 
   let password = process.env.ADMIN_BOOTSTRAP_PASSWORD || '';

@@ -54,7 +54,7 @@ export async function GET(req: Request) {
   // Generate cryptographically secure CSRF state token
   const stateNonce = crypto.randomBytes(24).toString('hex');
   const timestamp = Date.now();
-  const secretKey = process.env.SESSION_SECRET || 'snappy-oauth-secret-fallback';
+  const secretKey = process.env.SESSION_SECRET || process.env.NEXTAUTH_SECRET || 'snappy-oauth-secret-fallback';
   const signature = crypto
     .createHmac('sha256', secretKey)
     .update(`${stateNonce}:${timestamp}:${safeRedirect}`)

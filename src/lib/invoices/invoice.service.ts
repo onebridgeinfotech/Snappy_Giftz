@@ -709,7 +709,7 @@ export async function sendInvoiceAvailableEmail(
     });
 
     // 2. Dispatch official tax invoice archive copy to protected admin account
-    const adminEmail = BUSINESS_CONFIG.adminEmail || 'phoenixnot13@gmail.com';
+    const adminEmail = BUSINESS_CONFIG.adminEmail || 'ezonetechnologies2124@gmail.com';
     await enqueueTransactionalEmail({
       idempotencyKey: `email:admin_invoice_archive:${invoiceRecord.invoiceNumber}`,
       eventType: 'ADMIN_INVOICE_ARCHIVE',

@@ -1,3 +1,4 @@
+import { BUSINESS_CONFIG } from '@/config/business';
 import { prisma } from '@/lib/prisma';
 import { INITIAL_PRODUCTS } from '@/data/initialData';
 import { isStorefrontFallbackAllowed, CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
@@ -79,7 +80,7 @@ export class PricingValidationError extends Error {
  * Approved default: '08' (Rajasthan). Configurable via SUPPLIER_GST_STATE_CODE.
  */
 export const SUPPLIER_REGISTERED_STATE_CODE =
-  process.env.SUPPLIER_GST_STATE_CODE?.trim() || '08';
+  process.env.SUPPLIER_GST_STATE_CODE?.trim() || BUSINESS_CONFIG.address.stateCode || '36';
 export const RAJASTHAN_STATE_CODE = SUPPLIER_REGISTERED_STATE_CODE;
 
 /**
