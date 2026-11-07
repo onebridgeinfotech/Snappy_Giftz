@@ -2,6 +2,9 @@ import { prisma } from '@/lib/prisma';
 import { isStorefrontFallbackAllowed, CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
 import { DEV_ORDERS_STORE } from '@/lib/orders/order.service';
 
+/** How long a customer has to approve and pay once the owner sets the delivery charge. */
+export const CUSTOMER_APPROVAL_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 export class DeliveryError extends Error {
   statusCode: number;
   constructor(message: string, statusCode: number = 400) {
@@ -99,6 +102,18 @@ export async function checkHyderabadServiceability(pincode: string): Promise<{
         message: `Personal delivery available in ${record.areaName || record.city} within ${record.deliveryDays} day(s).`,
       };
     }
+    if (record && !record.isActive) {
+      // Owner paused this PIN code: it must not fall back to the built-in list below.
+      return {
+        serviceable: false,
+        pincode: clean,
+        city: record.city,
+        state: record.state,
+        stateCode: record.stateCode,
+        deliveryDays: 0,
+        message: `Delivery to PIN code ${clean} is currently paused.`,
+      };
+    }
   } catch {
     // DB fallback
   }
@@ -187,28 +202,57 @@ export async function calculateAuthoritativeDeliveryFee(orderSubtotalPaise: numb
 /**
  * Lists all serviceable PIN codes (Admin).
  */
+function toPincodeDTO(r: any): ServiceablePincodeDTO {
+  return {
+    id: r.id,
+    pincode: r.pincode,
+    areaName: r.areaName,
+    city: r.city,
+    state: r.state,
+    stateCode: r.stateCode,
+    zoneId: r.zoneId,
+    zoneName: r.zone?.name || null,
+    isActive: r.isActive,
+    deliveryDays: r.deliveryDays,
+    notes: r.notes,
+  };
+}
+
+/**
+ * Lists every PIN code checkout knows about: the built-in Hyderabad list, overridden by any
+ * owner-saved database entries (which can add new PIN codes or pause existing ones).
+ */
 export async function listServiceablePincodes(): Promise<ServiceablePincodeDTO[]> {
+  const merged = new Map<string, ServiceablePincodeDTO>();
+  for (const [pin, rec] of DEV_PINCODES.entries()) merged.set(pin, rec);
   try {
     const records = await prisma.serviceablePincode.findMany({
       include: { zone: true },
       orderBy: { pincode: 'asc' },
     });
-
-    return records.map((r) => ({
-      id: r.id,
-      pincode: r.pincode,
-      areaName: r.areaName,
-      city: r.city,
-      state: r.state,
-      stateCode: r.stateCode,
-      zoneId: r.zoneId,
-      zoneName: r.zone?.name || null,
-      isActive: r.isActive,
-      deliveryDays: r.deliveryDays,
-      notes: r.notes,
-    }));
+    for (const r of records) {
+      const dto = toPincodeDTO(r);
+      merged.set(dto.pincode, dto);
+      DEV_PINCODES.set(dto.pincode, dto);
+    }
   } catch {
-    return Array.from(DEV_PINCODES.values());
+    // Database unavailable: the in-memory registry is all we have.
+  }
+  return Array.from(merged.values()).sort((a, b) => a.pincode.localeCompare(b.pincode));
+}
+
+/**
+ * Loads the owner's saved setting for one PIN code (if any) into the in-memory registry that
+ * checkout's serviceability checks read, so admin changes take effect on every server instance.
+ */
+export async function primePincodeFromDatabase(pincode: string): Promise<void> {
+  const clean = (pincode || '').trim();
+  if (!/^[1-9][0-9]{5}$/.test(clean)) return;
+  try {
+    const r = await prisma.serviceablePincode.findUnique({ where: { pincode: clean }, include: { zone: true } });
+    if (r) DEV_PINCODES.set(clean, toPincodeDTO(r));
+  } catch {
+    // Keep the built-in registry when the database is unreachable.
   }
 }
 
@@ -252,19 +296,9 @@ export async function upsertServiceablePincode(data: {
       include: { zone: true },
     });
 
-    return {
-      id: result.id,
-      pincode: result.pincode,
-      areaName: result.areaName,
-      city: result.city,
-      state: result.state,
-      stateCode: result.stateCode,
-      zoneId: result.zoneId,
-      zoneName: result.zone?.name || null,
-      isActive: result.isActive,
-      deliveryDays: result.deliveryDays,
-      notes: result.notes,
-    };
+    const dto = toPincodeDTO(result);
+    DEV_PINCODES.set(cleanPin, dto);
+    return dto;
   } catch {
     const existing: ServiceablePincodeDTO = DEV_PINCODES.get(cleanPin) || {
       id: `dev-pin-${cleanPin}`,
@@ -463,6 +497,11 @@ export async function updateOrderDeliveryCharge(
       data: {
         shippingTotalPaise: BigInt(cleanCharge),
         grandTotalPaise: BigInt(newGrandTotal),
+        // A changed charge needs the customer's approval again (clears AUTO_DISTANCE / OWNER_SET).
+        deliveryFeeRuleId: null,
+        // The customer can only review and pay after the owner sets the charge, so the
+        // original short checkout hold must restart from here or it expires before payment.
+        reservationExpiresAt: new Date(Date.now() + CUSTOMER_APPROVAL_WINDOW_MS),
       },
     });
 
@@ -476,6 +515,10 @@ export async function updateOrderDeliveryCharge(
       },
     });
 
+    await notifyCustomerDeliveryChargeReady(updated).catch((err) =>
+      console.warn(`[DELIVERY_CHARGE] Customer notification failed for #${updated.orderNumber}:`, err)
+    );
+
     return updated;
   } catch (err: any) {
     if (err instanceof DeliveryError) throw err;
@@ -487,9 +530,58 @@ export async function updateOrderDeliveryCharge(
         devOrd.grandTotalPaise = (devOrd.grandTotalPaise || 0) - oldShipping + cleanCharge;
         (devOrd as any).deliveryChargeAssigned = true;
         (devOrd as any).deliveryChargeCustomerApproved = false;
+        devOrd.reservationExpiresAt = new Date(Date.now() + CUSTOMER_APPROVAL_WINDOW_MS).toISOString();
         return devOrd;
       }
     }
     throw new DeliveryError('Order not found.', 404);
   }
+}
+
+/**
+ * Emails the customer a link back to checkout once the delivery charge is set, so they can
+ * approve and pay even if they closed the checkout page. Guest links carry the order token
+ * in the URL fragment (#t=...), which browsers never send to the server or in Referer headers.
+ */
+async function notifyCustomerDeliveryChargeReady(order: any): Promise<void> {
+  if (!order?.customerEmail) return;
+  if (order.orderStatus === 'CANCELLED' || order.orderStatus === 'REJECTED') return;
+
+  const [{ getSellerConfig }, { enqueueTransactionalEmail }, { renderDeliveryChargeReadyTemplate }, { SNAPPY_EMAIL_BRAND }] =
+    await Promise.all([
+      import('@/lib/invoices/seller-config.service'),
+      import('@/lib/email/email-outbox.service'),
+      import('@/lib/email/email-templates'),
+      import('@/lib/email/snappy-email-brand'),
+    ]);
+
+  const base = `${SNAPPY_EMAIL_BRAND.siteUrl}/checkout?order=${encodeURIComponent(order.orderNumber)}`;
+  const continueUrl = !order.userId && order.guestLookupToken
+    ? `${base}#t=${encodeURIComponent(order.guestLookupToken)}`
+    : base;
+
+  const seller = await getSellerConfig();
+  const shippingPaise = Number(order.shippingTotalPaise || 0);
+  const totalPaise = Number(order.grandTotalPaise || 0);
+  const email = renderDeliveryChargeReadyTemplate(seller, {
+    orderNumber: order.orderNumber,
+    customerName: order.customerName,
+    deliveryChargeInr: `₹${(shippingPaise / 100).toFixed(2)}`,
+    grandTotalInr: `₹${(totalPaise / 100).toFixed(2)}`,
+    paymentMethod: order.paymentMethod || 'RAZORPAY',
+    continueUrl,
+  });
+
+  await enqueueTransactionalEmail({
+    // A revised charge must send a fresh email, so the key includes the amount and time.
+    idempotencyKey: `email:delivery_charge_ready:${order.orderNumber}:${shippingPaise}:${Date.now()}`,
+    eventType: 'DELIVERY_CHARGE_READY',
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    recipientEmail: order.customerEmail,
+    recipientName: order.customerName,
+    subject: email.subject,
+    htmlBody: email.html,
+    textBody: email.text,
+  });
 }

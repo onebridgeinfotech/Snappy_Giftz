@@ -1,3 +1,5 @@
+// Tests use the built-in demo catalog when the database is offline.
+if (!process.env.SHOW_DEMO_PRODUCTS) process.env.SHOW_DEMO_PRODUCTS = 'true';
 import assert from 'node:assert/strict';
 import {
   validateProductInput,

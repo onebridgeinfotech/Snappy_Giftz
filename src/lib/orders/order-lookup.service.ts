@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { buildTrackingTimeline } from '@/lib/shipping/courier-tracking.service';
 import { SanitizedOrderResult, DEV_ORDERS_STORE } from '@/lib/orders/order.service';
 import { DEV_PERSONALIZATION_STORE } from '@/lib/personalization/personalization.service';
 import { isStorefrontFallbackAllowed, CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
@@ -74,7 +75,8 @@ export async function getOrderForUser(
             personalization: true,
           },
         },
-        shipments: true,
+        shipments: { include: { trackingEvents: { orderBy: { eventAt: 'desc' } } } },
+        statusHistory: { orderBy: { createdAt: 'asc' } },
       },
     });
 
@@ -147,7 +149,8 @@ export async function lookupGuestOrder(
             personalization: true,
           },
         },
-        shipments: true,
+        shipments: { include: { trackingEvents: { orderBy: { eventAt: 'desc' } } } },
+        statusHistory: { orderBy: { createdAt: 'asc' } },
       },
     });
 
@@ -264,6 +267,7 @@ function formatOrderView(order: any): SanitizedOrderResult {
       dispatchedAt: order.shipments[0].dispatchedAt ? new Date(order.shipments[0].dispatchedAt).toISOString() : null,
       deliveredAt: order.shipments[0].deliveredAt ? new Date(order.shipments[0].deliveredAt).toISOString() : null,
     } : (order.shipment || null),
+    trackingTimeline: buildTrackingTimeline(order),
   };
 }
 

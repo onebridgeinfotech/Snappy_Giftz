@@ -372,7 +372,7 @@ export async function queryAuditLogs(options: {
 
   try {
     const where: any = {};
-    if (options.action) where.action = { contains: options.action, mode: 'insensitive' };
+    if (options.action) where.action = { contains: options.action };
     if (options.userId) where.userId = options.userId;
     if (options.from || options.to) {
       where.createdAt = {};
@@ -513,6 +513,39 @@ export interface AdminOverviewMetrics {
   recentActivity: any[];
   stockAlerts: any[];
   bestSellers: any[];
+  /** Last 7 days (Asia/Kolkata), oldest first: orders placed and captured revenue per day. */
+  trend7d: Array<{ date: string; label: string; orders: number; revenuePaise: number }>;
+  /** This 7 days vs the 7 days before, for the KPI cards. Percentages are null when there is no baseline. */
+  comparison: {
+    ordersLast7: number;
+    ordersPrev7: number;
+    ordersChangePct: number | null;
+    revenueLast7Paise: number;
+    revenueLast7Formatted: string;
+    revenuePrev7Paise: number;
+    revenueChangePct: number | null;
+    totalCustomers: number;
+    customersLast7: number;
+    customersPrev7: number;
+    customersChangePct: number | null;
+    productsLast7: number;
+    productsPrev7: number;
+    productsChangePct: number | null;
+  };
+  /** Order status donut. */
+  statusBreakdown: { delivered: number; inTransit: number; processing: number; pending: number; cancelled: number };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function pctChange(current: number, previous: number): number | null {
+  if (!previous) return current > 0 ? null : 0;
+  return Math.round(((current - previous) / previous) * 1000) / 10;
+}
+
+/** YYYY-MM-DD for a date in Asia/Kolkata. */
+function kolkataDayKey(d: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 }
 
 export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
@@ -608,10 +641,13 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
   let productsList: any[] = [];
   try {
     productsList = await prisma.product.findMany({
-      include: { variants: true },
+      where: { isArchived: false },
+      include: { variants: true, galleryImages: { orderBy: [{ isPrimary: 'desc' }, { displayOrder: 'asc' }], take: 1 } },
     });
-  } catch {
-    productsList = INITIAL_PRODUCTS as any[];
+  } catch (err) {
+    console.warn('[ADMIN_OVERVIEW] Product query failed:', err instanceof Error ? err.message.trim().split(String.fromCharCode(10)).pop() : err);
+    // Demo products only for the offline test suite, never on a real store.
+    productsList = process.env.SHOW_DEMO_PRODUCTS === 'true' ? (INITIAL_PRODUCTS as any[]) : [];
   }
 
   const lowStockThreshold = DEV_STORE_CONFIG.lowStockThreshold || 100;
@@ -620,27 +656,24 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
   const stockAlerts: any[] = [];
 
   for (const p of productsList) {
-    const stock = Number(p.stock ?? p.inventory ?? 0);
+    // Database products keep stock on their variants; demo/test products carry a flat `stock`.
+    const stock = Array.isArray(p.variants) && p.variants.length > 0
+      ? p.variants.reduce((sum: number, v: any) => sum + Number(v.stockQuantity || 0), 0)
+      : Number(p.stock ?? p.inventory ?? 0);
+    const sku = (Array.isArray(p.variants) && p.variants[0]?.sku) || p.sku || 'SKU-NA';
+    const imageUrl =
+      p.galleryImages?.[0]?.url ||
+      (Array.isArray(p.images) ? (typeof p.images[0] === 'string' ? p.images[0] : p.images[0]?.url) : null) ||
+      null;
     if (stock <= 0) {
       outOfStockCount++;
-      stockAlerts.push({
-        id: p.id,
-        name: p.name,
-        sku: p.sku || 'SKU-NA',
-        stock: 0,
-        status: 'OUT_OF_STOCK',
-      });
+      stockAlerts.push({ id: p.id, name: p.name, sku, stock: 0, status: 'OUT_OF_STOCK', imageUrl });
     } else if (stock < lowStockThreshold) {
       lowStockCount++;
-      stockAlerts.push({
-        id: p.id,
-        name: p.name,
-        sku: p.sku || 'SKU-NA',
-        stock,
-        status: 'LOW_STOCK',
-      });
+      stockAlerts.push({ id: p.id, name: p.name, sku, stock, status: 'LOW_STOCK', imageUrl });
     }
   }
+  stockAlerts.sort((a, b) => a.stock - b.stock);
 
   // Personalization pending proofs
   let pendingProofReviewsCount = 0;
@@ -695,8 +728,74 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
     grandTotalPaise: o.grandTotalPaise ? Number(o.grandTotalPaise) : Math.round((o.grandTotal || 0) * 100),
     orderStatus: o.orderStatus || o.status,
     paymentStatus: o.paymentStatus,
+    paymentMethod: o.paymentMethod,
+    itemsCount: Array.isArray(o.items) ? o.items.reduce((n: number, i: any) => n + Number(i.quantity || 1), 0) : 0,
     createdAt: o.createdAt || o.date,
   }));
+
+  // 7-day trend + week-over-week comparison (Asia/Kolkata calendar days)
+  const now = Date.now();
+  const dayKeys: string[] = [];
+  for (let i = 6; i >= 0; i--) dayKeys.push(kolkataDayKey(new Date(now - i * DAY_MS)));
+  const trendMap = new Map(dayKeys.map((k) => [k, { orders: 0, revenuePaise: 0 }]));
+  let ordersLast7 = 0;
+  let ordersPrev7 = 0;
+  let revenueLast7Paise = 0;
+  let revenuePrev7Paise = 0;
+  const statusBreakdown = { delivered: 0, inTransit: 0, processing: 0, pending: 0, cancelled: 0 };
+  for (const o of allOrders) {
+    const created = new Date(o.createdAt || o.date).getTime();
+    const age = now - created;
+    const captured = String(o.paymentStatus || '').toUpperCase() === 'CAPTURED';
+    const amount = Number(o.grandTotalPaise || Math.round((o.grandTotal || 0) * 100));
+    if (age >= 0 && age < 7 * DAY_MS) {
+      ordersLast7++;
+      if (captured) revenueLast7Paise += amount;
+    } else if (age >= 7 * DAY_MS && age < 14 * DAY_MS) {
+      ordersPrev7++;
+      if (captured) revenuePrev7Paise += amount;
+    }
+    const bucket = trendMap.get(kolkataDayKey(new Date(created)));
+    if (bucket) {
+      bucket.orders++;
+      if (captured) bucket.revenuePaise += amount;
+    }
+    const st = String(o.orderStatus || o.status || '').toUpperCase();
+    if (st === 'DELIVERED') statusBreakdown.delivered++;
+    else if (st === 'DISPATCHED' || st === 'OUT_FOR_DELIVERY') statusBreakdown.inTransit++;
+    else if (['CONFIRMED', 'PROCESSING', 'IN_CUSTOMIZATION', 'QUALITY_CHECK'].includes(st)) statusBreakdown.processing++;
+    else if (['CANCELLED', 'REJECTED', 'EXPIRED'].includes(st)) statusBreakdown.cancelled++;
+    else statusBreakdown.pending++;
+  }
+  const trend7d = dayKeys.map((k) => {
+    const d = new Date(`${k}T12:00:00+05:30`);
+    return {
+      date: k,
+      label: d.toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'Asia/Kolkata' }),
+      ...(trendMap.get(k) || { orders: 0, revenuePaise: 0 }),
+    };
+  });
+
+  let totalCustomers = 0;
+  let customersLast7 = 0;
+  let customersPrev7 = 0;
+  try {
+    const since7 = new Date(now - 7 * DAY_MS);
+    const since14 = new Date(now - 14 * DAY_MS);
+    [totalCustomers, customersLast7, customersPrev7] = await Promise.all([
+      prisma.user.count({ where: { role: 'CUSTOMER' } }),
+      prisma.user.count({ where: { role: 'CUSTOMER', createdAt: { gte: since7 } } }),
+      prisma.user.count({ where: { role: 'CUSTOMER', createdAt: { gte: since14, lt: since7 } } }),
+    ]);
+  } catch {
+    totalCustomers = new Set(allOrders.map((o) => o.customerEmail).filter(Boolean)).size;
+  }
+  const productsLast7 = productsList.filter((p) => p.createdAt && now - new Date(p.createdAt).getTime() < 7 * DAY_MS).length;
+  const productsPrev7 = productsList.filter((p) => {
+    if (!p.createdAt) return false;
+    const age = now - new Date(p.createdAt).getTime();
+    return age >= 7 * DAY_MS && age < 14 * DAY_MS;
+  }).length;
 
   // Best Sellers (Top 5)
   const bestSellers = Array.from(productSalesMap.values())
@@ -725,7 +824,7 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
       capturedRevenueFormatted: formatInrPaise(capturedRevenuePaise),
       pendingRevenuePaise: pendingPaymentPaise + authorizedPaymentPaise,
       pendingRevenueFormatted: formatInrPaise(pendingPaymentPaise + authorizedPaymentPaise),
-      totalProducts: productsList.length || 10,
+      totalProducts: productsList.length,
       lowStockProductsCount: stockAlerts.filter((s) => s.status === 'LOW_STOCK').length,
       outOfStockProductsCount: stockAlerts.filter((s) => s.status === 'OUT_OF_STOCK').length,
       pendingCustomizationApprovals: pendingProofReviewsCount,
@@ -759,7 +858,7 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
       failedPaymentsCount,
     },
     catalogue: {
-      totalProducts: productsList.length || 10,
+      totalProducts: productsList.length,
       lowStockCount: stockAlerts.filter((s) => s.status === 'LOW_STOCK').length,
       outOfStockCount: stockAlerts.filter((s) => s.status === 'OUT_OF_STOCK').length,
     },
@@ -778,6 +877,24 @@ export async function getAdminOverviewMetrics(): Promise<AdminOverviewMetrics> {
     recentActivity: [],
     stockAlerts,
     bestSellers,
+    trend7d,
+    comparison: {
+      ordersLast7,
+      ordersPrev7,
+      ordersChangePct: pctChange(ordersLast7, ordersPrev7),
+      revenueLast7Paise,
+      revenueLast7Formatted: formatInrPaise(revenueLast7Paise),
+      revenuePrev7Paise,
+      revenueChangePct: pctChange(revenueLast7Paise, revenuePrev7Paise),
+      totalCustomers,
+      customersLast7,
+      customersPrev7,
+      customersChangePct: pctChange(customersLast7, customersPrev7),
+      productsLast7,
+      productsPrev7,
+      productsChangePct: pctChange(productsLast7, productsPrev7),
+    },
+    statusBreakdown,
   };
 }
 
@@ -808,8 +925,8 @@ export async function listAdminUsers(options: ListUsersOptions): Promise<{
     if (typeof options.isActive === 'boolean') where.isActive = options.isActive;
     if (options.search) {
       where.OR = [
-        { name: { contains: options.search, mode: 'insensitive' } },
-        { email: { contains: options.search, mode: 'insensitive' } },
+        { name: { contains: options.search } },
+        { email: { contains: options.search } },
         { phone: { contains: options.search } },
       ];
     }

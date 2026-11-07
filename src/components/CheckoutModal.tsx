@@ -47,8 +47,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     mode,
     organization,
     currentRole,
-    appliedCoupon,
-    couponDiscount,
     currentPincode,
     checkPincode,
     setSelectedOrder,
@@ -88,7 +86,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const subtotal = cart.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
   const hasGiftWrap = cart.some((item) => Boolean(item.isGiftWrapped || item.customization?.giftWrap));
   const giftWrapFee = hasGiftWrap ? 20 : 0;
-  const discountTotal = couponDiscount;
+  const discountTotal = 0; // promo codes are priced on the server only
   const grandTotal = Math.max(0, subtotal + giftWrapFee - discountTotal);
 
   // Handle address submit

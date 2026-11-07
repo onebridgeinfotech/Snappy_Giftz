@@ -28,6 +28,34 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
+const PENDING_ORDER_STORAGE_KEY = 'snappy_pending_checkout_order';
+
+interface PendingCheckoutOrder {
+  orderNumber: string;
+  guestToken?: string;
+  paymentMethod?: 'RAZORPAY' | 'COD';
+}
+
+function readPendingOrder(): PendingCheckoutOrder | null {
+  try {
+    const raw = window.localStorage.getItem(PENDING_ORDER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed.orderNumber === 'string' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePendingOrder(order: PendingCheckoutOrder | null) {
+  try {
+    if (order) window.localStorage.setItem(PENDING_ORDER_STORAGE_KEY, JSON.stringify(order));
+    else window.localStorage.removeItem(PENDING_ORDER_STORAGE_KEY);
+  } catch {
+    // Storage unavailable (private mode etc.) - resume simply won't be offered.
+  }
+}
+
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') return resolve(false);
@@ -49,8 +77,6 @@ export default function CheckoutPage() {
     clearCart,
     removeFromCart,
     currentPincode,
-    appliedCoupon,
-    couponDiscount,
     showToast
   } = useApp();
 
@@ -81,10 +107,50 @@ export default function CheckoutPage() {
 
   // Active Order State after creation
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null);
+  // Guest checkouts must present this token to view, approve or pay for their order.
+  const [activeGuestToken, setActiveGuestToken] = useState<string | null>(null);
+  // A previously started order found in this browser, offered for resuming.
+  const [savedPendingOrder, setSavedPendingOrder] = useState<PendingCheckoutOrder | null>(null);
+  const [resumeChecked, setResumeChecked] = useState(false);
   const [orderStageDetails, setOrderStageDetails] = useState<any | null>(null);
   const [isPollingStage, setIsPollingStage] = useState(false);
   const [isProcessingApproval, setIsProcessingApproval] = useState(false);
   const [serverQuotePaise, setServerQuotePaise] = useState<number | null>(null);
+  // "Use my current location": only when delivering to where the customer is right now.
+  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  // GST from the server quote (per-product rates set in Admin > Tax & Delivery)
+  const [serverTaxPaise, setServerTaxPaise] = useState<number | null>(null);
+
+  const useCurrentLocation = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocationError('Your browser cannot share location. We will use your PIN code instead.');
+      return;
+    }
+    setLocating(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        setCurrentLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      },
+      () => {
+        setLocating(false);
+        setLocationError('Location permission was not given. We will use your PIN code instead.');
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
+  };
+
+  // Automatic delivery charge for the entered PIN (from the server quote)
+  const [deliveryQuote, setDeliveryQuote] = useState<{
+    serviceable: boolean;
+    isAutomatic: boolean;
+    distanceKm: number | null;
+    feePaise: number | null;
+    message: string;
+  } | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
   // Minimum delivery date is 2 days from today (preparation time invariant)
@@ -94,23 +160,70 @@ export default function CheckoutPage() {
   const subtotal = cart.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
   const isOrderGiftWrapped = cart.some((item) => Boolean(item.isGiftWrapped || item.customization?.giftWrap));
   const giftWrapFee = isOrderGiftWrapped ? 20 : 0;
-  const discountTotal = couponDiscount;
+  const discountTotal = 0; // promo codes are priced on the server only
   const taxableAmount = Math.max(0, subtotal + giftWrapFee - discountTotal);
   const estimatedGst = Math.round(taxableAmount * 0.18);
   const subtotalExclDelivery = taxableAmount + estimatedGst;
   const displayPreDeliveryTotal =
     serverQuotePaise !== null ? serverQuotePaise / 100 : subtotalExclDelivery;
 
+  const orderAuthHeaders = (token: string | null = activeGuestToken): Record<string, string> =>
+    token ? { 'x-order-token': token } : {};
+
+  // Resume a pending order: from an email link (/checkout?order=SG-...#t=<token>)
+  // or from the order saved in this browser when it was placed.
   useEffect(() => {
-    if (cart.length === 0 && currentStep === 'details') {
+    const url = new URL(window.location.href);
+    const linkedOrder = url.searchParams.get('order')?.trim() || null;
+    const hashToken = new URLSearchParams(url.hash.replace(/^#/, '')).get('t');
+    const saved = readPendingOrder();
+
+    if (linkedOrder) {
+      const token = hashToken || (saved?.orderNumber === linkedOrder ? saved.guestToken : undefined) || null;
+      if (hashToken) {
+        // Keep the token out of the visible URL / history once captured.
+        window.history.replaceState(null, '', `${url.pathname}?order=${encodeURIComponent(linkedOrder)}`);
+      }
+      savePendingOrder({ orderNumber: linkedOrder, guestToken: token || undefined, paymentMethod: saved?.paymentMethod });
+      setActiveOrderNumber(linkedOrder);
+      setActiveGuestToken(token);
+      setCurrentStep('approval');
+      checkOrderStage(linkedOrder, token);
+    } else if (saved) {
+      setSavedPendingOrder(saved);
+    }
+    setResumeChecked(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const resumeSavedOrder = () => {
+    if (!savedPendingOrder) return;
+    setActiveOrderNumber(savedPendingOrder.orderNumber);
+    setActiveGuestToken(savedPendingOrder.guestToken || null);
+    if (savedPendingOrder.paymentMethod) setPaymentMethod(savedPendingOrder.paymentMethod);
+    setSavedPendingOrder(null);
+    setCurrentStep('approval');
+    checkOrderStage(savedPendingOrder.orderNumber, savedPendingOrder.guestToken || null);
+  };
+
+  const dismissSavedOrder = () => {
+    savePendingOrder(null);
+    setSavedPendingOrder(null);
+  };
+
+  useEffect(() => {
+    if (!resumeChecked) return;
+    if (cart.length === 0 && currentStep === 'details' && !activeOrderNumber && !savedPendingOrder) {
       router.replace('/cart');
       return;
     }
     if (cart.length === 0) {
       setServerQuotePaise(null);
+      setDeliveryQuote(null);
       setQuoteError(null);
       return;
     }
+    const quotePin = (pincode || '').trim();
     const stateCode =
       state.toLowerCase().includes('telangana') || state.toLowerCase().includes('hyderabad')
         ? '36'
@@ -122,6 +235,10 @@ export default function CheckoutPage() {
       signal: controller.signal,
       body: JSON.stringify({
         destinationStateCode: stateCode,
+        pincode: /^[1-9][0-9]{5}$/.test(quotePin) ? quotePin : undefined,
+        address: [street, city, quotePin].filter(Boolean).join(', ') || undefined,
+        latitude: currentLocation?.latitude,
+        longitude: currentLocation?.longitude,
         items: cart.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,
@@ -141,6 +258,8 @@ export default function CheckoutPage() {
       .then((json) => {
         if (json.success && json.data?.grandTotalPaise != null) {
           setServerQuotePaise(json.data.grandTotalPaise);
+          setServerTaxPaise(typeof json.data.taxTotalPaise === 'number' ? json.data.taxTotalPaise : null);
+          setDeliveryQuote(json.data.delivery || null);
           setQuoteError(null);
         } else if (json.error) {
           setQuoteError(json.error);
@@ -148,14 +267,17 @@ export default function CheckoutPage() {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [cart, state]);
+  }, [cart, state, pincode, street, city, currentLocation, resumeChecked, activeOrderNumber, savedPendingOrder]);
 
   // Validate Delivery PIN code & Distance when PIN changes
   useEffect(() => {
     const cleanPin = (pincode || '').trim();
     if (cleanPin.length === 6 && /^[1-9][0-9]{5}$/.test(cleanPin)) {
       setIsValidatingPin(true);
-      fetch(`/api/shipping/distance?pincode=${cleanPin}`)
+      fetch(
+        `/api/shipping/distance?pincode=${cleanPin}` +
+          (currentLocation ? `&lat=${currentLocation.latitude}&lng=${currentLocation.longitude}` : '')
+      )
         .then((res) => res.json())
         .then((data) => {
           setIsValidatingPin(false);
@@ -198,7 +320,7 @@ export default function CheckoutPage() {
     } else {
       setDistanceInfo(null);
     }
-  }, [pincode]);
+  }, [pincode, currentLocation]);
 
   // Set default delivery date (2 days from now)
   useEffect(() => {
@@ -208,16 +330,34 @@ export default function CheckoutPage() {
   }, [deliveryDate, minDeliveryDate]);
 
   // Stage Polling for submitted order
-  const checkOrderStage = async (orderNum: string) => {
+  const checkOrderStage = async (orderNum: string, token: string | null = activeGuestToken) => {
     if (!orderNum) return;
     try {
       setIsPollingStage(true);
-      const res = await fetch(`/api/orders/${orderNum}/approve-final-amount`);
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderNum)}/approve-final-amount`, {
+        headers: orderAuthHeaders(token),
+      });
       const json = await res.json();
       setIsPollingStage(false);
+      if (res.status === 404) {
+        // Order missing or this browser can't access it - stop resuming it.
+        savePendingOrder(null);
+        setActiveOrderNumber(null);
+        setActiveGuestToken(null);
+        setCurrentStep('details');
+        setFormError('We could not open that order. If you placed it as a guest, use the link from your email.');
+        return;
+      }
       if (res.ok && json.success && json.data) {
         setOrderStageDetails(json.data);
+        if (json.data.paymentMethod === 'COD' || json.data.paymentMethod === 'RAZORPAY') {
+          setPaymentMethod(json.data.paymentMethod);
+        }
+        if (json.data.stage === 'CANCELLED') {
+          savePendingOrder(null);
+        }
         if (json.data.stage === 'CONFIRMED') {
+          savePendingOrder(null);
           setCurrentStep('confirmed');
         } else if (json.data.stage === 'CUSTOMER_APPROVED' || json.data.stage === 'PAYMENT_PENDING') {
           setCurrentStep('payment');
@@ -306,6 +446,7 @@ export default function CheckoutPage() {
             state: state.trim(),
             pincode: pincode.trim(),
             phone: cleanPhone,
+            ...(currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : {}),
           },
           items: cart.map((i) => ({
             productId: i.productId,
@@ -336,9 +477,25 @@ export default function CheckoutPage() {
       }
 
       const orderData = json.data;
+      const guestToken: string | null = orderData.guestLookupToken || null;
       setActiveOrderNumber(orderData.orderNumber);
-      setCurrentStep('approval');
-      checkOrderStage(orderData.orderNumber);
+      setActiveGuestToken(guestToken);
+
+      // Automatic delivery charge + COD: the order is confirmed immediately.
+      if (String(orderData.orderStatus).toUpperCase() === 'CONFIRMED') {
+        clearCart();
+        setCurrentStep('confirmed');
+        checkOrderStage(orderData.orderNumber, guestToken);
+        try {
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        } catch {}
+        return;
+      }
+
+      savePendingOrder({ orderNumber: orderData.orderNumber, guestToken: guestToken || undefined, paymentMethod });
+      // Automatic charge: the stage check moves straight to payment. Manual charge: waits for the owner.
+      setCurrentStep(orderData.deliveryChargeCustomerApproved ? 'payment' : 'approval');
+      checkOrderStage(orderData.orderNumber, guestToken);
     } catch (err: any) {
       setIsSubmitting(false);
       setFormError(err.message || 'An unexpected error occurred while submitting your order.');
@@ -352,9 +509,9 @@ export default function CheckoutPage() {
     setFormError(null);
 
     try {
-      const res = await fetch(`/api/orders/${activeOrderNumber}/approve-final-amount`, {
+      const res = await fetch(`/api/orders/${encodeURIComponent(activeOrderNumber)}/approve-final-amount`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...orderAuthHeaders() },
         body: JSON.stringify({
           action,
           notes: action === 'REJECT' ? 'Customer opted to decline delivery charge' : undefined,
@@ -374,6 +531,7 @@ export default function CheckoutPage() {
         checkOrderStage(activeOrderNumber);
       } else {
         // Declined
+        savePendingOrder(null);
         alert('Order has been cancelled as requested.');
         router.push('/cart');
       }
@@ -393,6 +551,7 @@ export default function CheckoutPage() {
       // Cash on Delivery confirmed
       setIsSubmitting(false);
       clearCart();
+      savePendingOrder(null);
       setCurrentStep('confirmed');
       try {
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
@@ -406,6 +565,7 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderNumber: activeOrderNumber,
+          guestToken: activeGuestToken || undefined,
           customerAcceptedDeliveryCharge: true,
         }),
       });
@@ -429,9 +589,9 @@ export default function CheckoutPage() {
           description: `Order ${activeOrderNumber}`,
           order_id: pmtConfig.gatewayOrderId,
           prefill: {
-            name: customerName,
-            email: customerEmail,
-            contact: customerPhone,
+            name: customerName || pmtConfig.customerName,
+            email: customerEmail || pmtConfig.customerEmail,
+            contact: customerPhone || pmtConfig.customerPhone,
           },
           theme: { color: '#D5A34A' },
           handler: async function (rzpResp: any) {
@@ -444,12 +604,14 @@ export default function CheckoutPage() {
                   gatewayOrderId: rzpResp.razorpay_order_id,
                   gatewayPaymentId: rzpResp.razorpay_payment_id,
                   gatewaySignature: rzpResp.razorpay_signature,
+                  guestToken: activeGuestToken || undefined,
                 }),
               });
               const verifyJson = await verifyRes.json();
               setIsSubmitting(false);
               if (verifyRes.ok && verifyJson.success) {
                 clearCart();
+                savePendingOrder(null);
                 setCurrentStep('confirmed');
                 try {
                   confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
@@ -479,12 +641,14 @@ export default function CheckoutPage() {
             gatewayOrderId: pmtConfig.gatewayOrderId,
             gatewayPaymentId: `pay_mock_${Date.now()}`,
             gatewaySignature: 'mock_signature_valid',
+            guestToken: activeGuestToken || undefined,
           }),
         });
         const verifyJson = await verifyRes.json();
         setIsSubmitting(false);
         if (verifyRes.ok && verifyJson.success) {
           clearCart();
+          savePendingOrder(null);
           setCurrentStep('confirmed');
           try {
             confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
@@ -573,6 +737,39 @@ export default function CheckoutPage() {
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div>
               <strong className="font-semibold">Notice:</strong> {formError || quoteError}
+            </div>
+          </div>
+        )}
+
+        {/* Resume an order started earlier in this browser */}
+        {currentStep === 'details' && savedPendingOrder && (
+          <div className="mb-6 rounded-2xl border border-[#D5A34A]/40 bg-[#17181C] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Clock className="w-5 h-5 text-[#F5BD48] shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-[#F1F5F9]">
+                  You have an unfinished order #{savedPendingOrder.orderNumber}
+                </p>
+                <p className="text-xs text-[#CBD5E1] mt-0.5">
+                  Continue to see the delivery charge, approve the final amount, and pay.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={resumeSavedOrder}
+                className="px-4 py-2 rounded-full bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] text-xs font-bold uppercase tracking-wider cursor-pointer"
+              >
+                Continue order
+              </button>
+              <button
+                type="button"
+                onClick={dismissSavedOrder}
+                className="px-4 py-2 rounded-full border border-[#D5A34A]/30 text-[#CBD5E1] text-xs font-semibold cursor-pointer hover:text-[#F5BD48]"
+              >
+                Dismiss
+              </button>
             </div>
           </div>
         )}
@@ -686,11 +883,47 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
+                {/* Optional: measure distance from the customer's current location */}
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {currentLocation ? (
+                    <>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] font-semibold">
+                        <MapPin className="w-3.5 h-3.5" />
+                        Using your current location for distance
+                      </span>
+                      <button type="button" onClick={() => setCurrentLocation(null)} className="text-[#94A3B8] hover:text-[#F5BD48] underline">
+                        Use PIN code instead
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={useCurrentLocation}
+                        disabled={locating}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#D5A34A]/40 text-[#F5BD48] font-semibold hover:bg-[#D5A34A]/10 disabled:opacity-60"
+                      >
+                        {locating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
+                        {locating ? 'Finding your location...' : 'Use my current location'}
+                      </button>
+                      <span className="text-[#94A3B8]">Only if the gift is delivered where you are now.</span>
+                    </>
+                  )}
+                  {locationError && <span className="w-full text-[#F59E0B]">{locationError}</span>}
+                  <span className="w-full text-[10px] text-[#64748B]">
+                    Distance uses your PIN code, address and location data from{' '}
+                    <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="underline hover:text-[#94A3B8]">
+                      © OpenStreetMap contributors
+                    </a>
+                    .
+                  </span>
+                </div>
+
                 {/* Distance & 20km Verification Card */}
                 {isValidatingPin && (
                   <div className="p-3 rounded-xl bg-[#08090B] border border-[#24252A] flex items-center gap-2 text-xs text-[#94A3B8]">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#D5A34A]" />
-                    <span>Checking distance from A S Rao Nagar hub...</span>
+                    <span>Checking distance from our studio...</span>
                   </div>
                 )}
 
@@ -704,12 +937,22 @@ export default function CheckoutPage() {
                       {distanceInfo.eligible ? (
                         <>
                           <CheckCircle2 className="w-4 h-4" />
-                          <span>Eligible for Studio Delivery ({distanceInfo.distanceKm} km from hub)</span>
+                          <span>
+                            Eligible for delivery
+                            {typeof distanceInfo.distanceKm === 'number' && distanceInfo.distanceKm >= 0
+                              ? ` (about ${distanceInfo.distanceKm} km from our studio)`
+                              : ''}
+                          </span>
                         </>
                       ) : (
                         <>
                           <XCircle className="w-4 h-4" />
-                          <span>Delivery Unavailable: Exceeds 20km Coverage ({distanceInfo.distanceKm} km)</span>
+                          <span>
+                            Delivery Unavailable
+                            {typeof distanceInfo.distanceKm === 'number' && distanceInfo.distanceKm >= 0
+                              ? ` (${distanceInfo.distanceKm} km from hub)`
+                              : ''}
+                          </span>
                         </>
                       )}
                     </div>
@@ -791,11 +1034,15 @@ export default function CheckoutPage() {
                   {isSubmitting ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Submitting Order for Studio Review...
+                      Placing your order...
                     </>
                   ) : (
                     <>
-                      Submit Order for Studio Assessment
+                      {deliveryQuote?.isAutomatic
+                        ? paymentMethod === 'COD'
+                          ? 'Place Order (Cash on Delivery)'
+                          : 'Place Order & Pay'
+                        : 'Submit Order for Delivery Charge'}
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -878,12 +1125,36 @@ export default function CheckoutPage() {
                   )}
 
                   <div className="flex justify-between text-[#94A3B8]">
-                    <span>Estimated GST (18%)</span>
-                    <span className="text-[#F1F5F9]">₹{estimatedGst.toLocaleString('en-IN')}</span>
+                    <span>GST</span>
+                    <span className="text-[#F1F5F9]">
+                      ₹{(serverTaxPaise !== null ? serverTaxPaise / 100 : estimatedGst).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-[#94A3B8]">
+                    <span>
+                      Delivery
+                      {deliveryQuote?.isAutomatic && typeof deliveryQuote.distanceKm === 'number'
+                        ? ` (${deliveryQuote.distanceKm} km)`
+                        : ''}
+                    </span>
+                    <span className={deliveryQuote?.isAutomatic ? 'text-[#F1F5F9]' : 'text-[#F5BD48]'}>
+                      {deliveryQuote?.isAutomatic && typeof deliveryQuote.feePaise === 'number'
+                        ? deliveryQuote.feePaise === 0
+                          ? 'Free'
+                          : `₹${(deliveryQuote.feePaise / 100).toLocaleString('en-IN')}`
+                        : deliveryQuote && !deliveryQuote.serviceable
+                          ? 'Not available'
+                          : (pincode || '').trim().length === 6
+                            ? 'Confirmed by our team'
+                            : 'Enter PIN code'}
+                    </span>
                   </div>
 
                   <div className="pt-2 border-t border-[#24252A] flex justify-between font-bold text-sm">
-                    <span className="text-[#F1F5F9]">Initial Total (Excl. Delivery)</span>
+                    <span className="text-[#F1F5F9]">
+                      {deliveryQuote?.isAutomatic ? 'Total to Pay' : 'Initial Total (Excl. Delivery)'}
+                    </span>
                     <span className="text-[#F5BD48]">₹{displayPreDeliveryTotal.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
@@ -892,11 +1163,14 @@ export default function CheckoutPage() {
                 <div className="p-4 rounded-xl bg-[#08090B] border border-[#D5A34A]/30 text-xs text-[#94A3B8] space-y-2">
                   <div className="flex items-center gap-1.5 font-semibold text-[#D5A34A]">
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Bespoke Delivery Approval Flow</span>
+                    <span>{deliveryQuote?.isAutomatic ? 'Delivery charge included' : 'Delivery charge'}</span>
                   </div>
                   <p className="leading-relaxed text-[11px]">
-                    Delivery charges are personally assessed by the studio owner based on your exact location (~20km from A S Rao Nagar).
-                    <strong> No payment is taken until you review and explicitly approve the final delivery charge.</strong>
+                    {deliveryQuote?.isAutomatic
+                      ? `Your delivery charge is calculated from the distance between our A S Rao Nagar studio and your PIN code. The total above is the final amount you pay.`
+                      : deliveryQuote && !deliveryQuote.serviceable
+                        ? deliveryQuote.message
+                        : 'For this address our team confirms the delivery charge first. No payment is taken until you approve the final amount.'}
                   </p>
                 </div>
               </div>

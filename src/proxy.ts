@@ -26,6 +26,7 @@ const PUBLIC_PAGE_PREFIXES = [
   '/reset-password',
   '/forgot-password',
   '/admin', // Admin portal handles its own authentication and RBAC independently
+  '/delivery', // Delivery-person OTP confirmation links (signed, single order, auto-expire)
 ];
 
 const PUBLIC_API_PREFIXES = [

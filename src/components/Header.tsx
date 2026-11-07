@@ -109,30 +109,35 @@ export const Header: React.FC = () => {
       {/* ========================================================================= */}
       {/* 1. TOP ANNOUNCEMENT BAR — Refined Dark Luxury Surface                      */}
       {/* ========================================================================= */}
-      <div className="bg-[#17181C] border-b border-[#D5A34A]/15 text-xs text-[#CBD5E1] py-1.5 sm:py-2 px-4 sm:px-6 lg:px-8 overflow-visible relative z-30 w-full">
+      <div className="bg-[#121316] border-b border-[#D5A34A]/20 text-xs text-[#CBD5E1] py-1.5 sm:py-2 px-4 sm:px-6 lg:px-8 overflow-visible relative z-30 w-full">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 min-w-0">
           
           {/* Left Announcement */}
           <div className="flex items-center gap-2 sm:gap-3 overflow-hidden text-ellipsis whitespace-nowrap min-w-0">
-            <span className="flex items-center gap-2 text-[11.5px] sm:text-xs font-medium text-[#CBD5E1] truncate">
-              <Sparkles className="w-3.5 h-3.5 text-[#F5BD48] shrink-0 animate-pulse" />
+            <span className="flex items-center gap-2 text-[11px] sm:text-xs font-medium text-[#CBD5E1] truncate">
+              <Gift className="w-3.5 h-3.5 text-[#F5BD48] shrink-0" />
               <span className="truncate">
-                Complimentary <strong className="text-[#D5A34A] font-semibold">24K Gold Personalization</strong> &amp; Hyderabad Insured Express Delivery
+                Complimentary <strong className="text-[#F5BD48] font-semibold">24K Gold Personalization</strong> &amp; Hyderabad Insured Express Delivery
               </span>
             </span>
           </div>
 
-          {/* Right Utilities: Delivery PIN, Mode Controls & Persona Selector */}
+          {/* Center Social Proof Badge */}
+          <div className="hidden md:flex items-center gap-1.5 text-xs text-[#CBD5E1]/90 font-medium">
+            <span className="text-[#F5BD48]">★</span>
+            <span className="text-[#F1F5F9] font-semibold">4.9/5</span>
+            <span className="text-[#CBD5E1]/80">(12K+ Happy Customers)</span>
+          </div>
+
+          {/* Right Utilities: Delivery PIN */}
           <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-            
-            {/* Delivery Pincode */}
-            <div className="hidden sm:flex items-center gap-1.5 text-[#CBD5E1] text-[11.5px] font-medium">
+            <div className="flex items-center gap-1.5 text-[#CBD5E1] text-[11px] sm:text-xs font-medium">
               <MapPin className="w-3.5 h-3.5 text-[#D5A34A]" />
               <span>
-                Deliver to <strong className="text-[#F1F5F9]">{currentPincode}</strong>
+                Deliver to <strong className="text-[#F1F5F9]">{currentPincode || '500062'}</strong>
               </span>
+              <span className="text-[10px] text-[#D5A34A]">▼</span>
             </div>
-
           </div>
         </div>
       </div>
@@ -264,11 +269,11 @@ export const Header: React.FC = () => {
                 setActiveOccasion('All');
                 setSearchQuery('');
               }}
-              className="flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-4 rounded-full border border-[#D5A34A]/50 bg-gradient-to-r from-[#24252A] to-[#17181C] hover:border-[#D5A34A] text-[#F1F5F9] hover:text-[#F5BD48] text-xs font-bold transition-all shadow-xs cursor-pointer group"
+              className="flex items-center gap-1.5 h-9 sm:h-10 px-4 rounded-full bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold text-xs transition-all shadow-md shadow-[#D5A34A]/20 hover:brightness-105 cursor-pointer group"
               title="Return to Starting Page / Storefront Home"
               aria-label="Return to Storefront Home"
             >
-              <Home className="w-3.5 h-3.5 text-[#F5BD48] group-hover:scale-110 transition-transform" />
+              <Home className="w-3.5 h-3.5 text-[#08090B]" />
               <span>Home</span>
             </Link>
 
@@ -401,7 +406,7 @@ export const Header: React.FC = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between overflow-x-auto gap-4 no-scrollbar">
           
           {/* Category Quick Links */}
-          <div className="flex items-center gap-4 sm:gap-6 text-[#CBD5E1] font-medium whitespace-nowrap text-[12px]">
+          <div className="flex items-center gap-3 sm:gap-5 text-[#CBD5E1] font-medium whitespace-nowrap text-[12px]">
             <Link
               href="/"
               id="nav-home-strip"
@@ -412,7 +417,7 @@ export const Header: React.FC = () => {
                 setActiveOccasion('All');
                 setSearchQuery('');
               }}
-              className={`transition-all flex items-center gap-1.5 px-3 py-1 rounded-full border cursor-pointer font-bold ${
+              className={`transition-all flex items-center gap-1.5 px-3.5 py-1 rounded-full border cursor-pointer font-bold ${
                 activeCategory === 'All' && mode === 'b2c'
                   ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] border-[#F5BD48] shadow-xs'
                   : 'bg-[#24252A] text-white/90 border-[#D5A34A]/30 hover:border-[#D5A34A] hover:text-[#F5BD48]'
@@ -441,54 +446,68 @@ export const Header: React.FC = () => {
                 activeCategory === 'Personalized Gifts' ? 'text-[#F5BD48] font-bold' : ''
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-[#D5A34A]" />
+              <span className="text-[13px]">🖼️</span>
               <span>Personalized Keepsakes</span>
             </button>
             <button
               type="button"
               onClick={() => navigateToCatalog({ category: 'Home Decor' })}
-              className={`hover:text-[#F5BD48] transition-colors cursor-pointer ${
+              className={`hover:text-[#F5BD48] transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeCategory === 'Home Decor' ? 'text-[#F5BD48] font-bold' : ''
               }`}
             >
-              Home Decor &amp; Lanterns
+              <span className="text-[13px]">🏮</span>
+              <span>Home Decor &amp; Lanterns</span>
             </button>
             <button
               type="button"
               onClick={() => navigateToCatalog({ category: 'Soft Toys' })}
-              className={`hover:text-[#F5BD48] transition-colors cursor-pointer ${
+              className={`hover:text-[#F5BD48] transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeCategory === 'Soft Toys' ? 'text-[#F5BD48] font-bold' : ''
               }`}
             >
-              Soft Plush Hugs
+              <span className="text-[13px]">🧸</span>
+              <span>Soft Plush Hugs</span>
             </button>
             <button
               type="button"
               onClick={() => navigateToCatalog({ category: 'Luxury Gifts' })}
-              className={`hover:text-[#F5BD48] transition-colors cursor-pointer ${
+              className={`hover:text-[#F5BD48] transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeCategory === 'Luxury Gifts' ? 'text-[#F5BD48] font-bold' : ''
               }`}
             >
-              Luxury Accessories
+              <span className="text-[13px]">💎</span>
+              <span>Luxury Accessories</span>
             </button>
             <button
               type="button"
               onClick={() => navigateToCatalog({ category: 'Gift Hampers' })}
-              className={`hover:text-[#F5BD48] transition-colors cursor-pointer ${
+              className={`hover:text-[#F5BD48] transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeCategory === 'Gift Hampers' ? 'text-[#F5BD48] font-bold' : ''
               }`}
             >
-              Curated Gift Hampers
+              <span className="text-[13px]">🎁</span>
+              <span>Curated Gift Hampers</span>
             </button>
             <button
               type="button"
               onClick={() => navigateToCatalog({ category: 'Stationery & Desk' })}
-              className={`hover:text-[#F5BD48] transition-colors cursor-pointer ${
+              className={`hover:text-[#F5BD48] transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeCategory === 'Stationery & Desk' ? 'text-[#F5BD48] font-bold' : ''
               }`}
             >
-              Stationery Essentials
+              <span className="text-[13px]">✒️</span>
+              <span>Stationery Essentials</span>
             </button>
+            <button
+              type="button"
+              onClick={() => navigateToCatalog({ category: 'Personalized Gifts' })}
+              className="hover:text-[#F5BD48] transition-colors flex items-center gap-1.5 cursor-pointer text-[#CBD5E1]"
+            >
+              <span className="text-[13px]">🌟</span>
+              <span>Laser Engraved &amp; Dispatches</span>
+            </button>
+            <span className="text-[#CBD5E1]/60 px-1 cursor-pointer hover:text-[#F5BD48]">•••</span>
           </div>
 
           {/* Right Status Indicator */}

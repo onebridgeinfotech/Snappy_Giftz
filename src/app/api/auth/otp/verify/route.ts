@@ -89,6 +89,34 @@ export async function POST(req: Request) {
           isEmailVerified: true,
         },
       });
+
+      // New account via email OTP: send the same welcome email as password sign-up (non-blocking).
+      const newUser = user;
+      void (async () => {
+        try {
+          const [{ getSellerConfig }, { renderCustomerRegistrationTemplate }, { enqueueTransactionalEmail }] = await Promise.all([
+            import('@/lib/invoices/seller-config.service'),
+            import('@/lib/email/email-templates'),
+            import('@/lib/email/email-outbox.service'),
+          ]);
+          const seller = await getSellerConfig();
+          const emailContent = renderCustomerRegistrationTemplate(seller, {
+            customerName: newUser.name,
+            customerEmail: newUser.email,
+          });
+          await enqueueTransactionalEmail({
+            idempotencyKey: `email:welcome:${newUser.id}`,
+            eventType: 'CUSTOMER_REGISTRATION',
+            recipientEmail: newUser.email,
+            recipientName: newUser.name,
+            subject: emailContent.subject,
+            htmlBody: emailContent.html,
+            textBody: emailContent.text,
+          });
+        } catch (err) {
+          console.warn('[OTP_SIGNUP] Welcome email not queued:', err);
+        }
+      })();
     } else {
       // Security Check: Block deactivated accounts from bypassing suspension via OTP
       if (!user.isActive) {

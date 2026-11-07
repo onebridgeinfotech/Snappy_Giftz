@@ -15,7 +15,8 @@ import { generatePackingSlipPdf, PackingSlipItem, PackingSlipPdfData } from '../
 import { privateStorageService } from '@/services/storage/private-storage.service';
 import { enqueueTransactionalEmail } from '../email/email-outbox.service';
 import { renderInvoiceAvailableTemplate } from '../email/email-templates';
-import { BUSINESS_CONFIG } from '@/config/business';
+import { BUSINESS_CONFIG, getPrimaryAdminEmail } from '@/config/business';
+import { SNAPPY_EMAIL_BRAND } from '../email/snappy-email-brand';
 
 export class InvoiceValidationError extends Error {
   constructor(message: string) {
@@ -86,8 +87,26 @@ export interface InvoiceRecord {
   physicalSignatureConfirmedBy?: string | null;
   physicalSignatureConfirmedAt?: Date | null;
 
+  /** Set by issueTaxInvoice: whether the PDF may be sent to the customer now (Rule 46(q) gate). */
+  customerReleasable?: boolean;
+
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Whether an issued invoice may be emailed to the customer now. Under CGST Rule 46(q)
+ * PHYSICAL_SIGNATURE_ON_PRINT, B2B invoices wait for the physical signature; paid B2C retail
+ * invoices are released as computer-generated documents.
+ */
+export function isInvoiceReleasableToCustomer(
+  invoice: Pick<InvoiceRecord, 'signatureMode' | 'physicalSignatureConfirmedAt'>,
+  order: { type?: string | null; gstin?: string | null; paymentStatus?: string | null }
+): boolean {
+  const physicalPending =
+    invoice.signatureMode === 'PHYSICAL_SIGNATURE_ON_PRINT' && !invoice.physicalSignatureConfirmedAt;
+  if (!physicalPending) return true;
+  return isRetailB2COrder(order) && isOrderPaidForInvoice(order);
 }
 
 // In-memory development store for invoices
@@ -102,6 +121,8 @@ export async function issueTaxInvoice(
   options?: {
     forceReissue?: boolean;
     requestedBy?: string;
+    /** Caller sends the invoice itself (e.g. attached to the order-confirmed email). */
+    skipCustomerEmail?: boolean;
     irn?: string;
     signedQrData?: string;
     digitalSignatureDetails?: string;
@@ -130,7 +151,7 @@ export async function issueTaxInvoice(
     if (existingInvoice.pdfStorageKey) {
       try {
         await privateStorageService.getPrivateFileBuffer(existingInvoice.pdfStorageKey);
-        return existingInvoice;
+        return { ...existingInvoice, customerReleasable: isInvoiceReleasableToCustomer(existingInvoice, order) };
       } catch {
         // PDF missing from disk, proceed to regenerate using SAME invoice number
       }
@@ -504,11 +525,14 @@ export async function issueTaxInvoice(
     isOrderPaidForInvoice(order) &&
     signatureMode === 'PHYSICAL_SIGNATURE_ON_PRINT';
 
-  if (!isPhysicalSignPending || b2cComputerGeneratedRelease) {
+  const customerReleasable = !isPhysicalSignPending || b2cComputerGeneratedRelease;
+  // Unpaid orders (Cash on Delivery before collection) get the invoice issued for the goods,
+  // but the customer email waits until payment: see emailInvoiceForPaidOrder().
+  if (customerReleasable && !options?.skipCustomerEmail && isOrderPaidForInvoice(order)) {
     await sendInvoiceAvailableEmail(invoiceRecord, sellerConfig, safeFilename, storageResult.fileKey);
   }
 
-  return invoiceRecord;
+  return { ...invoiceRecord, customerReleasable };
 }
 
 /**
@@ -686,6 +710,26 @@ async function findExistingInvoiceForOrder(orderId: string, orderNumber: string)
 /**
  * Enqueues the transactional customer email for an issued and authenticated invoice.
  */
+/**
+ * Emails the existing tax invoice to the customer once the order is paid (e.g. COD cash collected).
+ * Idempotent: the outbox key is per invoice number, so it is sent at most once.
+ */
+export async function emailInvoiceForPaidOrder(orderIdOrNumber: string): Promise<boolean> {
+  try {
+    const order = await fetchOrderForInvoicing(orderIdOrNumber);
+    if (!order || !isOrderPaidForInvoice(order)) return false;
+    const invoice = await getInvoiceForOrder(orderIdOrNumber);
+    if (!invoice || !invoice.pdfStorageKey) return false;
+    const sellerConfig = await getSellerConfig();
+    const safeFilename = `${invoice.invoiceNumber.replace(/[/\\]/g, '_')}.pdf`;
+    await sendInvoiceAvailableEmail(invoice, sellerConfig, safeFilename, invoice.pdfStorageKey);
+    return true;
+  } catch (err) {
+    console.warn('[INVOICE] Paid-order invoice email not sent:', err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
 export async function sendInvoiceAvailableEmail(
   invoiceRecord: InvoiceRecord,
   sellerConfig: SellerConfigData,
@@ -706,7 +750,7 @@ export async function sendInvoiceAvailableEmail(
         invoiceDate: formattedInvoiceDate,
         orderNumber: invoiceRecord.orderNumber,
         grandTotalInr: (invoiceRecord.grandTotalPaise / 100).toFixed(2),
-        downloadUrl: `/orders`,
+        downloadUrl: `${SNAPPY_EMAIL_BRAND.siteUrl}/account/orders`,
       },
       sellerConfig
     );
@@ -727,7 +771,7 @@ export async function sendInvoiceAvailableEmail(
     });
 
     // 2. Dispatch official tax invoice archive copy to protected admin account
-    const adminEmail = BUSINESS_CONFIG.adminEmail || 'ezonetechnologies2124@gmail.com';
+    const adminEmail = getPrimaryAdminEmail();
     await enqueueTransactionalEmail({
       idempotencyKey: `email:admin_invoice_archive:${invoiceRecord.invoiceNumber}`,
       eventType: 'ADMIN_INVOICE_ARCHIVE',

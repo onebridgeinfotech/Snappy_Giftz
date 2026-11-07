@@ -1,3 +1,5 @@
+// Tests use the built-in demo catalog when the database is offline.
+if (!process.env.SHOW_DEMO_PRODUCTS) process.env.SHOW_DEMO_PRODUCTS = 'true';
 if (!process.env.CI && process.env.NODE_ENV !== 'production') {
   process.env.DATABASE_URL = 'mysql://127.0.0.1:3306/dev_fallback';
 }

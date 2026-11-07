@@ -239,3 +239,7 @@
 .z-layer-drawer { z-index: var(--z-drawer); }
 .z-layer-modal { z-index: var(--z-modal); }
 .z-layer-toast { z-index: var(--z-toast); }
+
+/* Horizontal scroll rows (category chips, filters) without a visible scrollbar */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

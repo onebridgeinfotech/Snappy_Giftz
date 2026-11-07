@@ -14,7 +14,7 @@ export async function POST(
     const { id } = await params;
     const body = await req.json();
 
-    const { amountCollectedPaise, collectionMethod, receiptNumber, notes } = body;
+    const { amountCollectedPaise, collectionMethod, receiptNumber, notes, deliveryOtp } = body;
 
     if (typeof amountCollectedPaise !== 'number' || amountCollectedPaise <= 0) {
       return NextResponse.json(
@@ -30,6 +30,7 @@ export async function POST(
       collectionMethod: collectionMethod || 'CASH',
       receiptNumber,
       notes,
+      deliveryOtp: typeof deliveryOtp === 'string' ? deliveryOtp : undefined,
     });
 
     return NextResponse.json({

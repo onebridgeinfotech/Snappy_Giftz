@@ -14,11 +14,12 @@ async function parseJson(res: Response): Promise<any> {
   }
 }
 
-export async function fetchStorefrontCatalog(limit = 200): Promise<Product[]> {
+/** Returns the live catalog, or null when the catalog service could not be reached. */
+export async function fetchStorefrontCatalog(limit = 200): Promise<Product[] | null> {
   const res = await fetch(`/api/catalog/products?limit=${limit}`);
   const json = await parseJson(res);
   if (!res.ok || !json.success || !Array.isArray(json.data?.products)) {
-    return [];
+    return null;
   }
   return json.data.products.map(mapPublicProductToStorefront);
 }

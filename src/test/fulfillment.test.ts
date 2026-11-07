@@ -1,3 +1,5 @@
+// Tests use the built-in demo catalog when the database is offline.
+if (!process.env.SHOW_DEMO_PRODUCTS) process.env.SHOW_DEMO_PRODUCTS = 'true';
 import assert from 'node:assert/strict';
 import { Role, OrderStatus, PaymentStatus } from '@prisma/client';
 import {
@@ -384,7 +386,7 @@ export async function runFulfillmentTestSuite() {
       },
       (err: any) => {
         assert(err instanceof OrderTransitionError);
-        assert(err.message.includes('Orders must be DISPATCHED first'));
+        assert(err.message.includes('Orders must be DISPATCHED or OUT_FOR_DELIVERY first'));
         return true;
       }
     );

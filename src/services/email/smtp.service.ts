@@ -16,11 +16,16 @@ export class SmtpEmailService implements EmailAdapter {
     return process.env.NODE_ENV === 'production';
   }
 
-  /** When false, SMTP failures are simulated as successful delivery (test suite / demo fallback). */
+  /**
+   * When false, SMTP failures are simulated as successful delivery. Only the automated test suite
+   * (NODE_ENV=test) or an explicit EMAIL_DELIVERY_MODE=simulate may do that. ALLOW_DEMO_FALLBACK no
+   * longer hides failures: a real site must record a failed send so it is retried and visible in the
+   * admin email outbox instead of silently pretending a welcome / order email went out.
+   */
   private get strictProductionDelivery(): boolean {
+    if (process.env.EMAIL_DELIVERY_MODE === 'simulate') return false;
     if (process.env.NODE_ENV === 'test') return false;
-    if (process.env.ALLOW_DEMO_FALLBACK === 'true') return false;
-    return this.isProduction;
+    return true;
   }
 
   constructor() {
@@ -115,10 +120,13 @@ export class SmtpEmailService implements EmailAdapter {
         };
       } catch (err: any) {
         if (this.strictProductionDelivery) {
-          console.error('[EMAIL_SERVICE:CRITICAL] Production email delivery failed:', err?.message || err);
+          console.error('[EMAIL_SERVICE:CRITICAL] Email delivery failed:', err?.message || err);
+          const authFailed = err?.responseCode === 535 || err?.code === 'EAUTH';
           return {
             success: false,
-            error: 'Transactional email service is currently unavailable. Please verify SMTP credentials.',
+            error: authFailed
+              ? 'Transactional email service is currently unavailable. SMTP login was rejected (535): update SMTP_PASSWORD to the current mailbox password.'
+              : 'Transactional email service is currently unavailable. Please verify SMTP credentials.',
           };
         }
 

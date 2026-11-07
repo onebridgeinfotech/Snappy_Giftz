@@ -200,6 +200,8 @@ export async function recordCodCollection(input: {
   collectionMethod?: 'CASH' | 'UPI_ON_DELIVERY';
   receiptNumber?: string;
   notes?: string;
+  /** Customer's 6-digit delivery OTP; required when the order is out with your own delivery person. */
+  deliveryOtp?: string;
 }): Promise<any> {
   const method = input.collectionMethod || 'CASH';
 
@@ -215,6 +217,23 @@ export async function recordCodCollection(input: {
 
     if (order.paymentMethod.toUpperCase() !== 'COD') {
       throw new CodError('Order is not a Cash on Delivery order.', 400);
+    }
+
+    // Cash can only be collected for an approved order that is going out or already delivered.
+    const blockedStatuses = ['PENDING', 'PENDING_PAYMENT', 'PENDING_COD_CONFIRMATION', 'CANCELLED', 'REJECTED', 'EXPIRED'];
+    if (blockedStatuses.includes(String(order.orderStatus))) {
+      throw new CodError(
+        `Cannot record cash collection for an order in "${order.orderStatus}" status. Approve the COD order first.`,
+        409
+      );
+    }
+
+    // Own delivery: the customer must confirm the delivery OTP before the order counts as delivered.
+    try {
+      const { ensureOwnDeliveryOtpVerified } = await import('@/lib/orders/order-lifecycle.service');
+      await ensureOwnDeliveryOtpVerified(order, input.deliveryOtp, input.collector);
+    } catch (otpErr: any) {
+      throw new CodError(otpErr?.message || 'Delivery OTP check failed.', 400);
     }
 
     const expectedAmountPaise = Number(order.grandTotalPaise);
@@ -318,12 +337,22 @@ export async function recordCodCollection(input: {
         }
       }
 
+      // Close the local delivery / courier records so tracking shows delivered.
+      await tx.deliveryRecord.updateMany({
+        where: { orderId: order.id },
+        data: { deliveryStatus: 'DELIVERED', deliveredAt: new Date() },
+      });
+      await tx.shipment.updateMany({
+        where: { orderId: order.id, deliveredAt: null },
+        data: { dispatchStatus: 'DELIVERED', deliveredAt: new Date() },
+      });
+
       // 4. Update status history
       await tx.orderStatusHistory.create({
         data: {
           orderId: order.id,
           fromStatus: order.orderStatus,
-          toStatus: order.orderStatus,
+          toStatus: OrderStatus.DELIVERED,
           changedBy: input.collector,
           notes: `Recorded COD collection of ₹${(input.amountCollectedPaise / 100).toFixed(2)} via ${method}. Receipt: ${collectionRecord.receiptNumber}`,
         },
@@ -357,10 +386,19 @@ export async function recordCodCollection(input: {
 
     // 5. Issue final paid tax invoice
     try {
+      // Issues the invoice if it doesn't exist yet (now paid, so it is emailed), otherwise emails the
+      // invoice that was issued when the parcel left — COD customers get it only after paying.
       await issueTaxInvoice(order.id);
+      const { emailInvoiceForPaidOrder } = await import('@/lib/invoices/invoice.service');
+      await emailInvoiceForPaidOrder(order.id);
     } catch (invErr) {
       console.warn('[COD] Note: Tax invoice generation after COD collection:', invErr);
     }
+
+    // 6. "Delivered successfully" email to the customer
+    import('@/lib/orders/order-email-notifications')
+      .then(({ notifyOrderDeliveredEmail }) => notifyOrderDeliveredEmail(order.id))
+      .catch((err) => console.warn('[COD] Delivered email non-fatal:', err));
 
     return result;
   } catch (err: any) {

@@ -10,6 +10,7 @@
  * 6. CONFIRMED
  */
 
+import crypto from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { DEV_ORDERS_STORE } from './order.service';
 import { DEV_STATUS_HISTORY_STORE } from './order-lifecycle.service';
@@ -56,6 +57,80 @@ export interface OrderApprovalStatusDetails {
   };
 }
 
+/** Minimum time a customer gets to finish online payment right after approving the total. */
+const PAYMENT_WINDOW_AFTER_APPROVAL_MS = 30 * 60 * 1000;
+
+const OWNER_CHARGE_NOTE = 'owner manually set delivery charge';
+const CUSTOMER_APPROVAL_NOTE = 'customer approved final amount';
+
+function historyTime(h: any): number {
+  return h?.createdAt ? new Date(h.createdAt).getTime() : 0;
+}
+
+/**
+ * True only when the customer's most recent approval is newer than the owner's most recent
+ * delivery-charge change. If the owner revises the charge, the customer must approve again.
+ */
+export function hasCustomerApprovedCurrentCharge(history: any[]): boolean {
+  let lastOwnerSet = -1;
+  let lastApproval = -1;
+  for (const h of history || []) {
+    const note = String(h?.notes || '').toLowerCase();
+    const t = historyTime(h);
+    if (note.includes(OWNER_CHARGE_NOTE)) lastOwnerSet = Math.max(lastOwnerSet, t);
+    if (note.includes(CUSTOMER_APPROVAL_NOTE)) lastApproval = Math.max(lastApproval, t);
+  }
+  return lastApproval >= 0 && lastApproval >= lastOwnerSet;
+}
+
+export interface OrderAccessContext {
+  userId?: string | null;
+  userRole?: string | null;
+  guestToken?: string | null;
+}
+
+/**
+ * Only the order's owner (logged-in account), the holder of its guest token, or staff may
+ * view or act on an order's approval stage. Order numbers are guessable, so they are not proof of ownership.
+ */
+export function isOrderAccessAllowed(order: any, ctx: OrderAccessContext): boolean {
+  if (ctx.userRole === 'ADMIN' || ctx.userRole === 'STAFF') return true;
+  if (order.userId) {
+    return Boolean(ctx.userId) && ctx.userId === order.userId;
+  }
+  const expected = order.guestLookupToken;
+  const supplied = ctx.guestToken?.trim();
+  if (!expected || !supplied) return false;
+  const a = crypto.createHash('sha256').update(supplied).digest();
+  const b = crypto.createHash('sha256').update(String(expected)).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+/**
+ * Loads the order and throws 404 when it is missing or the caller may not access it
+ * (404 rather than 403 so order numbers cannot be probed).
+ */
+export async function assertCustomerOrderAccess(orderNumber: string, ctx: OrderAccessContext): Promise<void> {
+  const cleanKey = (orderNumber || '').trim();
+  let order: any = null;
+  try {
+    order = await prisma.order.findUnique({
+      where: { orderNumber: cleanKey },
+      select: { userId: true, guestLookupToken: true },
+    });
+  } catch {
+    if (!isStorefrontFallbackAllowed() || process.env.NODE_ENV === 'production') {
+      throw new CatalogDatabaseError('Database unreachable during order access check.');
+    }
+  }
+  if (!order && isStorefrontFallbackAllowed()) {
+    order = DEV_ORDERS_STORE.get(cleanKey) || null;
+  }
+  if (!order || !isOrderAccessAllowed(order, ctx)) {
+    throw new OrderApprovalError(`Order "${cleanKey}" not found.`, 404);
+  }
+}
+
 /**
  * Synchronous resolver to evaluate stage directly from an order object
  */
@@ -78,6 +153,8 @@ export function resolveOrderApprovalStage(order: any): OrderApprovalStage {
   const isCustomerApproved = Boolean(
     order.deliveryChargeCustomerApproved ||
     order.deliveryChargeApproved ||
+    order.deliveryFeeRuleId === 'AUTO_DISTANCE' || // charge calculated and accepted at checkout
+    order.deliveryFeeRuleId === 'OWNER_SET' || // customer approved the owner's charge
     order.customerApprovedAt ||
     (order.metadata && (order.metadata as any).customerApprovedFinalAmount)
   );
@@ -158,7 +235,7 @@ export async function getOrderApprovalStage(
   const isCustomerApproved = Boolean(
     order.deliveryChargeCustomerApproved ||
     (order.metadata && (order.metadata as any).customerApprovedFinalAmount) ||
-    history.some((h: any) => h.notes && h.notes.toLowerCase().includes('customer approved final amount'))
+    hasCustomerApprovedCurrentCharge(history)
   );
 
   let stage: OrderApprovalStage = 'ORDER_AWAITING_OWNER_REVIEW';
@@ -242,6 +319,20 @@ export async function customerProcessFinalAmount(
     throw new OrderApprovalError('Unauthorized: You do not own this order.', 403);
   }
 
+  // Server-side stage guard: the client UI is not trusted to only show valid actions.
+  const { stage: currentStage } = await getOrderApprovalStage(cleanNumber);
+  if (action === 'APPROVE' && currentStage !== 'AWAITING_CUSTOMER_APPROVAL') {
+    throw new OrderApprovalError(
+      currentStage === 'ORDER_AWAITING_OWNER_REVIEW'
+        ? 'The store has not set the delivery charge for this order yet. Please wait for the final amount.'
+        : `This order cannot be approved in its current stage (${currentStage}).`,
+      409
+    );
+  }
+  if (action === 'REJECT' && (currentStage === 'CONFIRMED' || currentStage === 'CANCELLED')) {
+    throw new OrderApprovalError(`This order can no longer be cancelled here (stage: ${currentStage}).`, 409);
+  }
+
   if (action === 'REJECT') {
     const reason = rejectionReason?.trim() || 'Customer rejected the delivery charge and final amount.';
     try {
@@ -281,11 +372,18 @@ export async function customerProcessFinalAmount(
   const grandTotalPaise = Number(order.grandTotalPaise);
   const shippingPaise = Number(order.shippingTotalPaise);
 
+  // Make sure the customer has time to finish online payment after approving.
+  const minPaymentDeadline = new Date(Date.now() + PAYMENT_WINDOW_AFTER_APPROVAL_MS);
+  const currentDeadline = order.reservationExpiresAt ? new Date(order.reservationExpiresAt) : null;
+  const extendedDeadline =
+    currentDeadline && currentDeadline.getTime() > minPaymentDeadline.getTime() ? currentDeadline : minPaymentDeadline;
+
   try {
     await prisma.order.update({
       where: { id: order.id },
       data: {
         deliveryFeeRuleId: 'OWNER_SET', // flag indicating delivery fee was formally approved
+        reservationExpiresAt: extendedDeadline,
       },
     });
 
@@ -308,6 +406,7 @@ export async function customerProcessFinalAmount(
     }
   } catch {
     order.deliveryChargeCustomerApproved = true;
+    order.reservationExpiresAt = extendedDeadline.toISOString();
     if (order.paymentMethod?.toUpperCase() === 'COD') {
       order.orderStatus = 'CONFIRMED';
     }
