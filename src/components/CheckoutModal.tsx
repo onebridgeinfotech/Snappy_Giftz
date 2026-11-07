@@ -52,7 +52,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     currentPincode,
     checkPincode,
     setSelectedOrder,
-    setActiveModal
+    setActiveModal,
+    clearCart
   } = useApp();
 
   const [step, setStep] = useState<'address' | 'payment' | 'success'>('address');
@@ -146,6 +147,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           },
           items: cart.map((i) => ({
             productId: i.productId,
+            productName: i.product?.name,
+            unitPrice: i.unitPrice || i.product?.basePrice,
+            category: i.product?.category,
+            imageUrl: i.product?.images?.[0],
             variantId: i.variant?.id,
             quantity: i.quantity,
             isGiftWrapped: Boolean(i.isGiftWrapped || i.customization?.giftWrap),
@@ -197,6 +202,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           setCreatedOrder(newOrder);
           setIsProcessing(false);
           setStep('success');
+          clearCart();
           onOrderSuccess(newOrder);
           return;
         }
@@ -268,6 +274,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       } catch {}
                     }
 
+                    clearCart();
                     onOrderSuccess(newOrder);
                   } else {
                     setCheckoutError(verifyJson?.error || 'Payment signature verification failed.');
@@ -305,6 +312,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             try {
               confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
             } catch {}
+            clearCart();
             onOrderSuccess(newOrder);
             return;
           }
@@ -688,6 +696,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               </div>
 
+              {/* COD Reassurance Note */}
+              {paymentMethod === 'COD' && (
+                <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                    <Truck className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div className="text-xs">
+                    <div className="font-bold text-emerald-300">No Online Payment Required Now</div>
+                    <div className="text-[#CBD5E1] text-[11px] mt-0.5">
+                      Pay <strong className="text-white">₹{grandTotal.toLocaleString('en-IN')}</strong> via Cash or UPI directly to the courier executive upon delivery at your doorstep.
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* UPI Sub-form */}
               {paymentMethod === 'UPI' && (
                 <div className="p-4 rounded-2xl bg-[#17181C] border border-[#D5A34A]/25 flex flex-col sm:flex-row items-center gap-4">
@@ -713,9 +736,40 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               )}
 
               {/* Price Breakdown Review */}
-              <div className="p-4 rounded-2xl bg-[#17181C] border border-[#D5A34A]/20 text-xs space-y-1.5">
-                <div className="flex justify-between text-[#CBD5E1]">
-                  <span>Subtotal ({cart.length} items)</span>
+              <div className="p-4 rounded-2xl bg-[#17181C] border border-[#D5A34A]/20 text-xs space-y-2">
+                <div className="flex justify-between items-center text-[#CBD5E1]">
+                  <span>Items in Bag ({cart.length})</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Clear all items from your bag?')) {
+                        clearCart();
+                        onClose();
+                      }
+                    }}
+                    className="text-[10.5px] text-[#EC3E98] hover:text-[#f87171] hover:underline cursor-pointer"
+                  >
+                    Clear Cart
+                  </button>
+                </div>
+
+                {/* Individual Cart Items List */}
+                <div className="space-y-1.5 py-1 max-h-36 overflow-y-auto pr-1">
+                  {cart.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center text-[11px] text-[#94A3B8] bg-[#0E0F12]/60 px-2.5 py-1.5 rounded-lg border border-[#D5A34A]/10">
+                      <span className="truncate max-w-[200px] text-[#CBD5E1]">
+                        {item.product?.name || item.productId}
+                        {item.quantity > 1 && <span className="text-[#F5BD48] ml-1 font-mono">×{item.quantity}</span>}
+                      </span>
+                      <span className="font-mono text-white shrink-0 ml-2">
+                        ₹{((item.unitPrice || item.product?.basePrice || 0) * item.quantity).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between text-[#CBD5E1] pt-1 border-t border-white/5">
+                  <span>Subtotal ({cart.length} item{cart.length > 1 ? 's' : ''})</span>
                   <span className="font-mono text-white">₹{subtotal.toLocaleString('en-IN')}</span>
                 </div>
                 {giftWrapFee > 0 && (
@@ -768,7 +822,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   className="px-8 py-3 rounded-full bg-gradient-to-r from-[#F5BD48] via-[#D5A34A] to-[#B88728] hover:brightness-105 text-[#08090B] font-bold text-sm shadow-[0_4px_16px_rgba(213,163,74,0.35)] flex items-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
                 >
                   {isProcessing ? (
-                    <span>Verifying &amp; Securing Payment...</span>
+                    <span>{paymentMethod === 'COD' ? 'Booking COD Order...' : 'Verifying & Securing Payment...'}</span>
+                  ) : paymentMethod === 'COD' ? (
+                    <>
+                      <Truck className="w-4 h-4 text-[#08090B]" />
+                      <span>Place COD Order (Pay ₹{grandTotal.toLocaleString('en-IN')} on Delivery)</span>
+                    </>
                   ) : (
                     <>
                       <Lock className="w-4 h-4 text-[#08090B]" />

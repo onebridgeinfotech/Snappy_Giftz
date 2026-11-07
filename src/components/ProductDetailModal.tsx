@@ -302,17 +302,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </div>
               )}
 
-              {/* Quantity & PIN Code Checker */}
-              <div className="mt-4 flex items-center justify-between gap-4">
+              {/* Quantity & PIN Code Checker Grid */}
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                 <div>
                   <label className="text-xs font-bold text-[#CBD5E1] uppercase tracking-wider block mb-1">
                     Select Quantity
                   </label>
-                  <div className="flex items-center border border-[#D5A34A]/25 rounded-xl bg-[#24252A] p-1">
+                  <div className="flex items-center border border-[#D5A34A]/25 rounded-xl bg-[#24252A] p-1 w-fit">
                     <button
                       type="button"
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-8 h-8 rounded-lg bg-[#17181C] hover:bg-[#2E3036] text-[#CBD5E1] hover:text-[#F5BD48] font-bold flex items-center justify-center transition-colors cursor-pointer"
+                      className="w-9 h-9 rounded-lg bg-[#17181C] hover:bg-[#2E3036] text-[#CBD5E1] hover:text-[#F5BD48] font-bold flex items-center justify-center transition-colors cursor-pointer"
                       aria-label="Decrease quantity"
                     >
                       -
@@ -328,7 +328,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                      className="w-8 h-8 rounded-lg bg-[#17181C] hover:bg-[#2E3036] text-[#CBD5E1] hover:text-[#F5BD48] font-bold flex items-center justify-center transition-colors cursor-pointer"
+                      className="w-9 h-9 rounded-lg bg-[#17181C] hover:bg-[#2E3036] text-[#CBD5E1] hover:text-[#F5BD48] font-bold flex items-center justify-center transition-colors cursor-pointer"
                       aria-label="Increase quantity"
                     >
                       +
@@ -336,51 +336,51 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* Optional Signature Gift Wrapping */}
-                <div className="w-full mt-1 mb-2">
-                  <label className="p-3 rounded-2xl bg-[#24252A] border border-[#D5A34A]/25 flex items-center justify-between cursor-pointer hover:border-[#D5A34A]/40 transition-colors">
-                    <div className="flex items-center gap-2.5">
-                      <input
-                        type="checkbox"
-                        checked={isGiftWrapped}
-                        onChange={(e) => setIsGiftWrapped(e.target.checked)}
-                        className="w-4 h-4 rounded text-[#D5A34A] focus:ring-[#D5A34A] accent-[#D5A34A] cursor-pointer"
-                      />
-                      <div>
-                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                          <Gift className="w-3.5 h-3.5 text-[#F5BD48]" />
-                          Signature Gift Wrapping
-                        </div>
-                        <div className="text-[11px] text-[#CBD5E1]">Handcrafted luxury decorative gift wrapping with satin ribbon (+₹20)</div>
-                      </div>
-                    </div>
-                    <span className="font-serif font-bold text-xs text-[#F5BD48]">+₹20</span>
-                  </label>
-                </div>
-
                 {/* PIN Code Checker */}
-                <div className="flex-1 max-w-xs">
+                <div>
                   <label className="text-xs font-bold text-[#CBD5E1] uppercase tracking-wider block mb-1 flex items-center gap-1">
                     <Truck className="w-3.5 h-3.5 text-[#D5A34A]" />
                     Delivery PIN Code
                   </label>
-                  <form onSubmit={handlePinCheck} className="flex gap-1.5">
+                  <form onSubmit={handlePinCheck} className="flex gap-2">
                     <input
                       type="text"
                       maxLength={6}
                       value={pinInput}
                       onChange={(e) => setPinInput(e.target.value)}
                       placeholder="e.g. 500062"
-                      className="w-full px-3 py-1.5 rounded-lg border border-[#D5A34A]/25 bg-[#24252A] text-xs font-mono font-medium text-white focus:border-[#D5A34A] focus:outline-hidden"
+                      className="flex-1 min-w-[120px] px-3.5 py-2 rounded-xl border border-[#D5A34A]/30 bg-[#24252A] text-sm font-mono font-medium text-white placeholder-white/30 focus:border-[#D5A34A] focus:outline-hidden"
                     />
                     <button
                       type="submit"
-                      className="px-3.5 py-1.5 rounded-lg bg-[#D5A34A] hover:bg-[#F5BD48] text-[#08090B] text-xs font-bold transition-all cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] hover:brightness-110 text-[#08090B] text-xs font-bold transition-all cursor-pointer shrink-0 shadow-sm"
                     >
                       Verify
                     </button>
                   </form>
                 </div>
+              </div>
+
+              {/* Optional Signature Gift Wrapping */}
+              <div className="w-full mt-3">
+                <label className="p-3 rounded-2xl bg-[#24252A] border border-[#D5A34A]/25 flex items-center justify-between cursor-pointer hover:border-[#D5A34A]/40 transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      checked={isGiftWrapped}
+                      onChange={(e) => setIsGiftWrapped(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#D5A34A] focus:ring-[#D5A34A] accent-[#D5A34A] cursor-pointer"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <Gift className="w-3.5 h-3.5 text-[#F5BD48]" />
+                        Signature Gift Wrapping
+                      </div>
+                      <div className="text-[11px] text-[#CBD5E1]">Handcrafted luxury decorative gift wrapping with satin ribbon (+₹20)</div>
+                    </div>
+                  </div>
+                  <span className="font-serif font-bold text-xs text-[#F5BD48]">+₹20</span>
+                </label>
               </div>
 
               {/* PIN Code Result */}

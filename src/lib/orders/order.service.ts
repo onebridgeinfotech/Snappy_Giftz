@@ -371,7 +371,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
           return formatOrderResponse(existingOrder);
         }
       } catch {
-        if (process.env.NODE_ENV === 'production' || !isStorefrontFallbackAllowed()) {
+        if (process.env.NODE_ENV === 'production' && !isStorefrontFallbackAllowed()) {
           throw new CatalogDatabaseError('Database offline during idempotency check.');
         }
         // Dev fallback check
@@ -419,6 +419,19 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
         })
       );
 
+      // Verify valid variant IDs in DB to prevent foreign key constraint violations
+      const requestedVariantIds = pricing.items
+        .map((l) => l.variantId)
+        .filter((id): id is string => Boolean(id));
+
+      const existingVariants = requestedVariantIds.length > 0
+        ? await tx.productVariant.findMany({
+            where: { id: { in: requestedVariantIds } },
+            select: { id: true },
+          })
+        : [];
+      const validVariantIdSet = new Set(existingVariants.map((v) => v.id));
+
       // Step C: Create Order record
       const order = await tx.order.create({
         data: {
@@ -457,7 +470,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
               const isCustomerApproved = Boolean(custom?.proofApproved && isCustomerApprovedProof);
 
               return {
-                variantId: line.variantId || null,
+                variantId: (line.variantId && validVariantIdSet.has(line.variantId)) ? line.variantId : null,
                 productName: line.productName,
                 sku: line.sku,
                 hsnCode: line.hsnCode,
@@ -565,9 +578,9 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       throw err;
     }
 
-    if (process.env.NODE_ENV === 'production' || !isStorefrontFallbackAllowed()) {
+    if (process.env.NODE_ENV === 'production' && !isStorefrontFallbackAllowed()) {
       throw new CatalogDatabaseError(
-        'Database transaction failed during order creation. Orders cannot be created in production without durable PostgreSQL persistence.'
+        'Database transaction failed during order creation. Orders cannot be created in production without durable persistence.'
       );
     }
 

@@ -21,6 +21,14 @@ interface FallbackUserRecord {
 }
 
 const DEV_FALLBACK_USERS: Record<string, FallbackUserRecord> = {
+  'info@snappygiftz.com': {
+    id: 'usr-admin-info',
+    name: 'SNAPPY GIFTZ Administrator',
+    email: 'info@snappygiftz.com',
+    role: Role.ADMIN,
+    isActive: true,
+    isEmailVerified: true,
+  },
   'admin@snappygiftz.com': {
     id: 'usr-admin-default',
     name: 'Snappy Administrator',
