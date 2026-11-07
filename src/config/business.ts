@@ -11,7 +11,11 @@ export const BUSINESS_CONFIG = {
   businessEmail: 'info@snappygiftz.com',
   adminEmail: 'info@snappygiftz.com',
   /** Operations inboxes that receive new-order and signup alerts */
-  adminEmails: ['info@snappygiftz.com', 'onebridgeinfotech@gmail.com'] as const,
+  adminEmails: [
+    'info@snappygiftz.com',
+    'onebridgeinfotech@gmail.com',
+    'ezonetechnologies2124@gmail.com',
+  ] as const,
   whatsappPhone: '8309600721',
   whatsappFormatted: '+91 83096 00721',
   website: 'https://snappygiftz.com',

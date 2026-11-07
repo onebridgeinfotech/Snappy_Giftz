@@ -12,6 +12,7 @@ import { getRazorpayKeyId } from './razorpay-env';
 import { isStorefrontFallbackAllowed, CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
 import { DEV_ORDERS_STORE } from '@/lib/orders/order.service';
 import { hasCustomerApprovedCurrentCharge } from '@/lib/orders/order-approval.service';
+import { notifyOrderPaidByOrderNumber } from '@/lib/orders/order-email-notifications';
 
 export interface InitiatePaymentInput {
   orderNumber: string;
@@ -586,9 +587,8 @@ export async function verifyCallbackPayment(input: VerifyCallbackInput): Promise
       }
     }
 
-    // Trigger non-fatal Order Confirmation Transactional Email
     try {
-      await triggerOrderConfirmationNotification(order);
+      await notifyOrderPaidByOrderNumber(order.orderNumber);
     } catch (confErr) {
       console.warn('[PAYMENT] Non-fatal order confirmation email error:', confErr);
     }
@@ -828,6 +828,10 @@ export async function processRazorpayWebhook(
                 }
               }
             }
+
+            void notifyOrderPaidByOrderNumber(order.orderNumber).catch((err) => {
+              console.warn('[WEBHOOK] Order paid email enqueue failed:', err);
+            });
           }
         }
       }
@@ -983,69 +987,6 @@ export function _tamperPaymentAmountForTesting(gatewayOrderId: string, amountPai
 export function _getDevPaymentForTesting(gatewayOrderId: string) {
   return DEV_PAYMENTS_STORE.get(gatewayOrderId);
 }
-
-async function triggerOrderConfirmationNotification(order: any): Promise<void> {
-  try {
-    const { getSellerConfig } = await import('@/lib/invoices/seller-config.service');
-    const { enqueueTransactionalEmail } = await import('@/lib/email/email-outbox.service');
-    const { renderOrderConfirmationTemplate } = await import('@/lib/email/email-templates');
-
-    const seller = await getSellerConfig();
-    const parsedAddr =
-      typeof order.shippingAddress === 'string'
-        ? JSON.parse(order.shippingAddress)
-        : order.shippingAddress || {};
-
-    const items = (order.items || []).map((item: any) => ({
-      productName: item.productName,
-      quantity: item.quantity,
-      unitPriceInr: (item.unitPricePaise / 100).toFixed(2),
-      totalInr: ((item.subtotalPaise ? Number(item.subtotalPaise) : item.unitPricePaise * item.quantity) / 100).toFixed(2),
-    }));
-
-    const emailData = renderOrderConfirmationTemplate(
-      {
-        orderNumber: order.orderNumber,
-        orderDate: new Date(order.createdAt || Date.now()).toLocaleDateString('en-GB', {
-          timeZone: 'Asia/Kolkata',
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        }),
-        customerName: order.customerName,
-        items,
-        taxableSubtotalInr: (Number(order.taxableAmountPaise || order.itemsSubtotalPaise || 0) / 100).toFixed(2),
-        taxTotalInr: (Number(order.taxTotalPaise || 0) / 100).toFixed(2),
-        shippingTotalInr: (Number(order.shippingTotalPaise || 0) / 100).toFixed(2),
-        grandTotalInr: (Number(order.grandTotalPaise || 0) / 100).toFixed(2),
-        shippingAddress: {
-          fullName: parsedAddr.name || parsedAddr.fullName || order.customerName,
-          addressLine1: parsedAddr.street || parsedAddr.addressLine1 || '',
-          city: parsedAddr.city || '',
-          state: parsedAddr.state || '',
-          postalCode: parsedAddr.pincode || parsedAddr.postalCode || '',
-        },
-      },
-      seller
-    );
-
-    await enqueueTransactionalEmail({
-      idempotencyKey: `email-order-confirmation-${order.orderNumber}`,
-      eventType: 'ORDER_CONFIRMATION',
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      recipientEmail: order.customerEmail,
-      recipientName: order.customerName,
-      subject: emailData.subject,
-      htmlBody: emailData.html,
-      textBody: emailData.text,
-    });
-  } catch (err) {
-    console.warn('[ORDER_CONFIRMATION:NOTIF] Non-fatal notification error:', err);
-  }
-}
-
-
 
 /**
  * Approves the delivery charge and final total for an order (Customer action).
