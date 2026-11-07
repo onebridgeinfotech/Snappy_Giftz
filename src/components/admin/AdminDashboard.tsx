@@ -55,13 +55,18 @@ import {
 } from 'lucide-react';
 import { AdminCategoryOccasionManager } from './AdminCategoryOccasionManager';
 import { AdminDamageReportsDesk } from './AdminDamageReportsDesk';
+import {
+  archiveCatalogProduct,
+  createCatalogProduct,
+  fetchAdminCatalog,
+  updateCatalogProduct,
+} from '@/lib/catalog/admin-catalog-sync';
 
 export const AdminDashboard: React.FC = () => {
   const {
     products,
-    addProduct,
-    updateProduct,
-    deleteProduct,
+    setProducts,
+    refreshCatalogFromServer,
     orders,
     updateOrderStatus,
     quotations,
@@ -105,6 +110,18 @@ export const AdminDashboard: React.FC = () => {
         setIsAdminAuthenticated(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (!isAdminAuthenticated) return;
+    (async () => {
+      const adminRows = await fetchAdminCatalog(200);
+      if (adminRows.length > 0) {
+        setProducts(adminRows);
+      } else {
+        await refreshCatalogFromServer();
+      }
+    })();
+  }, [isAdminAuthenticated, refreshCatalogFromServer, setProducts]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1325,40 +1342,39 @@ export const AdminDashboard: React.FC = () => {
   const totalItemsSold = orders.reduce((acc, o) => acc + o.items.reduce((ia, i) => ia + i.quantity, 0), 0);
   const lowStockProducts = products.filter(p => p.stock < 100);
 
-  const handleCreateProduct = (e: React.FormEvent) => {
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdName.trim()) return;
 
-    addProduct({
-      name: newProdName,
-      tagline: newProdTagline,
-      description: newProdType === 'CUSTOMIZABLE'
-        ? 'Handcrafted luxury personalized gift with custom laser engraving, inscription, or photos.'
-        : 'Handcrafted luxury ready-to-ship gift hamper with premium artisanal packaging.',
-      category: newProdCategory,
-      occasion: ['Festival', 'Corporate', 'Anniversary'],
-      recipient: ['Colleague', 'Friends', 'Family'],
-      basePrice: newProdBasePrice,
-      mrp: newProdMrp,
-      hsnCode: '69120010',
-      taxRate: 18,
-      rating: 5.0,
-      reviewsCount: 1,
-      images: [newProdImage],
-      productType: newProdType,
-      isCustomizable: newProdType === 'CUSTOMIZABLE',
-      customizationType: newProdType === 'CUSTOMIZABLE' ? 'engraving' : undefined,
-      stock: newProdStock,
-      sku: newProdSku || `SG-${Math.floor(1000 + Math.random() * 9000)}`,
-      warehouseLocation: newProdWarehouse,
-      estimatedDispatchDays: 1,
-      badge: newProdBadge?.trim() || undefined
-    });
-
-    setShowAddProductModal(false);
-    setNewProdName('');
-    setNewProdType('REGULAR');
-    setNewProdBadge('Special Offer');
+    try {
+      await createCatalogProduct({
+        name: newProdName,
+        tagline: newProdTagline,
+        description:
+          newProdType === 'CUSTOMIZABLE'
+            ? 'Handcrafted luxury personalized gift with custom laser engraving, inscription, or photos.'
+            : 'Handcrafted luxury ready-to-ship gift hamper with premium artisanal packaging.',
+        category: newProdCategory,
+        basePrice: newProdBasePrice,
+        mrp: newProdMrp,
+        hsnCode: '69120010',
+        taxRate: 18,
+        images: [newProdImage],
+        productType: newProdType,
+        isCustomizable: newProdType === 'CUSTOMIZABLE',
+        customizationType: newProdType === 'CUSTOMIZABLE' ? 'engraving' : undefined,
+        stock: newProdStock,
+        sku: newProdSku || `SG-${Math.floor(1000 + Math.random() * 9000)}`,
+      });
+      await refreshCatalogFromServer();
+      showToast(`Added product "${newProdName}" to live catalog (₹${newProdBasePrice}).`);
+      setShowAddProductModal(false);
+      setNewProdName('');
+      setNewProdType('REGULAR');
+      setNewProdBadge('Special Offer');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save product to catalog.', 'error');
+    }
   };
 
   // Edit Product Modal State (Part 3.2)
@@ -1437,24 +1453,29 @@ export const AdminDashboard: React.FC = () => {
     setShowEditProductModal(true);
   };
 
-  const handleSaveProductEdit = (e: React.FormEvent) => {
+  const handleSaveProductEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
     const pType = editingProduct.productType === 'CUSTOMIZABLE' ? 'CUSTOMIZABLE' : 'REGULAR';
-    updateProduct(editingProduct.id, {
-      name: editingProduct.name,
-      basePrice: Number(editingProduct.basePrice),
-      mrp: Number(editingProduct.mrp),
-      stock: Number(editingProduct.stock),
-      category: editingProduct.category,
-      badge: editingProduct.badge,
-      productType: pType,
-      isCustomizable: pType === 'CUSTOMIZABLE',
-      images: Array.isArray(editingProduct.images) ? editingProduct.images : [editingProduct.images],
-    });
-    showToast(`Product "${editingProduct.name}" updated successfully.`);
-    setShowEditProductModal(false);
-    setEditingProduct(null);
+    try {
+      await updateCatalogProduct(editingProduct.id, {
+        name: editingProduct.name,
+        basePrice: Number(editingProduct.basePrice),
+        mrp: Number(editingProduct.mrp),
+        stock: Number(editingProduct.stock),
+        category: editingProduct.category,
+        badge: editingProduct.badge,
+        productType: pType,
+        isCustomizable: pType === 'CUSTOMIZABLE',
+        images: Array.isArray(editingProduct.images) ? editingProduct.images : [editingProduct.images],
+      });
+      await refreshCatalogFromServer();
+      showToast(`Product "${editingProduct.name}" updated on live catalog.`);
+      setShowEditProductModal(false);
+      setEditingProduct(null);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update product.', 'error');
+    }
   };
 
   if (isAdminAuthenticated === null) {
@@ -2626,7 +2647,15 @@ export const AdminDashboard: React.FC = () => {
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            onClick={() => updateProduct(prod.id, { stock: Math.max(0, prod.stock - 10) })}
+                            onClick={async () => {
+                              const next = Math.max(0, prod.stock - 10);
+                              try {
+                                await updateCatalogProduct(prod.id, { stock: next });
+                                await refreshCatalogFromServer();
+                              } catch (err: any) {
+                                showToast(err.message || 'Stock update failed.', 'error');
+                              }
+                            }}
                             className="px-2 py-1 rounded-lg bg-[#181A22] border border-white/15 hover:bg-[#20232D] text-white font-bold transition-colors cursor-pointer"
                             title="Adjust down -10"
                           >
@@ -2634,7 +2663,14 @@ export const AdminDashboard: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => updateProduct(prod.id, { stock: prod.stock + 50 })}
+                            onClick={async () => {
+                              try {
+                                await updateCatalogProduct(prod.id, { stock: prod.stock + 50 });
+                                await refreshCatalogFromServer();
+                              } catch (err: any) {
+                                showToast(err.message || 'Stock update failed.', 'error');
+                              }
+                            }}
                             className="px-2 py-1 rounded-lg bg-[#D5A34A]/20 border border-[#D5A34A]/40 text-[#F5BD48] hover:bg-[#D5A34A]/30 font-bold transition-colors cursor-pointer"
                             title="Restock +50"
                           >
@@ -2656,9 +2692,16 @@ export const AdminDashboard: React.FC = () => {
 
                         <button
                           type="button"
-                          onClick={() => {
-                            if (window.confirm(`Are you sure you want to remove "${prod.name}" from catalog?`)) {
-                              deleteProduct(prod.id);
+                          onClick={async () => {
+                            if (!window.confirm(`Are you sure you want to remove "${prod.name}" from catalog?`)) {
+                              return;
+                            }
+                            try {
+                              await archiveCatalogProduct(prod.id);
+                              await refreshCatalogFromServer();
+                              showToast(`Archived "${prod.name}"`, 'info');
+                            } catch (err: any) {
+                              showToast(err.message || 'Could not archive product.', 'error');
                             }
                           }}
                           className="p-2 rounded-xl bg-[#181A22] hover:bg-rose-950/40 text-white/50 hover:text-rose-400 border border-white/10 hover:border-rose-500/30 transition-colors cursor-pointer"

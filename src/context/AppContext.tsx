@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { fetchStorefrontCatalog } from '@/lib/catalog/admin-catalog-sync';
 import {
   Product,
   CartItem,
@@ -33,6 +34,7 @@ interface AppContextType {
   addProduct: (product: Omit<Product, 'id'>) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
+  refreshCatalogFromServer: () => Promise<void>;
   selectedProduct: Product | null;
   setSelectedProduct: (p: Product | null) => void;
   
@@ -101,7 +103,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY_PRODUCTS = 'snappy_giftz_products_v1';
 const LOCAL_STORAGE_KEY_ORDERS = 'snappy_giftz_orders_v1';
 const LOCAL_STORAGE_KEY_QUOTATIONS = 'snappy_giftz_rfqs_v1';
 const LOCAL_STORAGE_KEY_CART = 'snappy_giftz_cart_v1';
@@ -123,9 +124,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Restore persisted state from localStorage once client has hydrated (prevents SSR hydration errors)
   useEffect(() => {
     try {
-      const savedProducts = localStorage.getItem(LOCAL_STORAGE_KEY_PRODUCTS);
-      if (savedProducts) setProducts(JSON.parse(savedProducts));
-
       const savedCart = localStorage.getItem(LOCAL_STORAGE_KEY_CART);
       if (savedCart) setCart(JSON.parse(savedCart));
 
@@ -184,15 +182,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4000);
   };
 
-  // Sync state to localStorage only after client hydration
+  const refreshCatalogFromServer = useCallback(async () => {
+    try {
+      const live = await fetchStorefrontCatalog(200);
+      if (live.length > 0) {
+        setProducts(live);
+        return;
+      }
+    } catch (e) {
+      console.warn('[APP_CONTEXT] Live catalog fetch failed:', e);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isHydrated) return;
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY_PRODUCTS, JSON.stringify(products));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [products, isHydrated]);
+    void refreshCatalogFromServer();
+  }, [isHydrated, refreshCatalogFromServer]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -606,6 +611,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addProduct,
         updateProduct,
         deleteProduct,
+        refreshCatalogFromServer,
         selectedProduct,
         setSelectedProduct,
         cart,

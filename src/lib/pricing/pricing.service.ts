@@ -276,10 +276,13 @@ export async function calculateCartPricing(
       );
     }
 
-    // Determine variant & authoritative selling price
+    // Determine variant metadata & authoritative selling price.
+    // List/base price lives on the product; variant prices apply only when the customer picks a variant.
+    const activeVariants = authoritativeProduct.variants.filter((v) => v.isActive && !v.isArchived);
     let unitPricePaise = authoritativeProduct.basePricePaise;
     let variantSku = `SKU-${authoritativeProduct.id}`;
     let variantName: string | undefined = undefined;
+    let resolvedVariantId: string | undefined = item.variantId;
 
     if (item.variantId) {
       const variant = authoritativeProduct.variants.find((v) => v.id === item.variantId);
@@ -296,11 +299,12 @@ export async function calculateCartPricing(
       unitPricePaise = variant.pricePaise;
       variantSku = variant.sku;
       variantName = variant.name;
-    } else if (authoritativeProduct.variants.length > 0) {
-      const defaultVariant = authoritativeProduct.variants[0];
+      resolvedVariantId = variant.id;
+    } else if (activeVariants.length > 0) {
+      const defaultVariant = activeVariants[0];
       variantSku = defaultVariant.sku;
       variantName = defaultVariant.name;
-      unitPricePaise = defaultVariant.pricePaise;
+      resolvedVariantId = defaultVariant.id;
     }
 
     // Customization fee (authoritative calculation on server)
@@ -380,7 +384,7 @@ export async function calculateCartPricing(
 
     lineQuotes.push({
       productId: authoritativeProduct.id,
-      variantId: item.variantId,
+      variantId: resolvedVariantId,
       productName: authoritativeProduct.name,
       variantName,
       sku: variantSku,

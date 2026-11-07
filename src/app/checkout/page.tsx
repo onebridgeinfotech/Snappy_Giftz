@@ -82,6 +82,8 @@ export default function CheckoutPage() {
   const [orderStageDetails, setOrderStageDetails] = useState<any | null>(null);
   const [isPollingStage, setIsPollingStage] = useState(false);
   const [isProcessingApproval, setIsProcessingApproval] = useState(false);
+  const [serverQuotePaise, setServerQuotePaise] = useState<number | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
 
   // Minimum delivery date is 2 days from today (preparation time invariant)
   const minDeliveryDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -94,6 +96,53 @@ export default function CheckoutPage() {
   const taxableAmount = Math.max(0, subtotal + giftWrapFee - discountTotal);
   const estimatedGst = Math.round(taxableAmount * 0.18);
   const subtotalExclDelivery = taxableAmount + estimatedGst;
+  const displayPreDeliveryTotal =
+    serverQuotePaise !== null ? serverQuotePaise / 100 : subtotalExclDelivery;
+
+  useEffect(() => {
+    if (cart.length === 0) {
+      setServerQuotePaise(null);
+      setQuoteError(null);
+      return;
+    }
+    const stateCode =
+      state.toLowerCase().includes('telangana') || state.toLowerCase().includes('hyderabad')
+        ? '36'
+        : '36';
+    const controller = new AbortController();
+    fetch('/api/checkout/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        destinationStateCode: stateCode,
+        items: cart.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          isGiftWrapped: Boolean(i.isGiftWrapped || i.customization?.giftWrap),
+          customization: i.customization
+            ? {
+                engravedText: i.customization.engravedText,
+                giftNote: i.customization.giftNote,
+                giftWrap: Boolean(i.isGiftWrapped || i.customization.giftWrap),
+                note: i.customization.specialInstructions,
+              }
+            : undefined,
+        })),
+      }),
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data?.grandTotalPaise != null) {
+          setServerQuotePaise(json.data.grandTotalPaise);
+          setQuoteError(null);
+        } else if (json.error) {
+          setQuoteError(json.error);
+        }
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [cart, state]);
 
   // Validate Delivery PIN code & Distance when PIN changes
   useEffect(() => {
@@ -513,11 +562,11 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {formError && (
+        {(formError || quoteError) && (
           <div className="mb-6 p-4 rounded-xl bg-[#EF4444]/10 border border-[#EF4444]/30 text-xs sm:text-sm text-[#EF4444] flex items-start gap-2.5">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div>
-              <strong className="font-semibold">Notice:</strong> {formError}
+              <strong className="font-semibold">Notice:</strong> {formError || quoteError}
             </div>
           </div>
         )}
@@ -809,7 +858,7 @@ export default function CheckoutPage() {
 
                   <div className="pt-2 border-t border-[#24252A] flex justify-between font-bold text-sm">
                     <span className="text-[#F1F5F9]">Initial Total (Excl. Delivery)</span>
-                    <span className="text-[#F5BD48]">₹{subtotalExclDelivery.toLocaleString('en-IN')}</span>
+                    <span className="text-[#F5BD48]">₹{displayPreDeliveryTotal.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
 
@@ -882,7 +931,7 @@ export default function CheckoutPage() {
                 <span className="text-xl font-bold text-[#F5BD48]">
                   ₹{(orderStageDetails
                     ? orderStageDetails.grandTotalPaise / 100
-                    : subtotalExclDelivery
+                    : displayPreDeliveryTotal
                   ).toLocaleString('en-IN')}
                 </span>
               </div>
@@ -949,7 +998,7 @@ export default function CheckoutPage() {
               <div>
                 <p className="text-xs text-[#94A3B8]">Total Amount to Pay</p>
                 <p className="text-2xl font-bold text-[#F5BD48]">
-                  ₹{(orderStageDetails ? orderStageDetails.grandTotalPaise / 100 : subtotalExclDelivery).toLocaleString('en-IN')}
+                  ₹{(orderStageDetails ? orderStageDetails.grandTotalPaise / 100 : displayPreDeliveryTotal).toLocaleString('en-IN')}
                 </p>
               </div>
               <div className="text-right">
@@ -979,7 +1028,7 @@ export default function CheckoutPage() {
               ) : (
                 <>
                   <CreditCard className="w-4 h-4" />
-                  Pay with Razorpay (₹{(orderStageDetails ? orderStageDetails.grandTotalPaise / 100 : subtotalExclDelivery).toLocaleString('en-IN')})
+                  Pay with Razorpay (₹{(orderStageDetails ? orderStageDetails.grandTotalPaise / 100 : displayPreDeliveryTotal).toLocaleString('en-IN')})
                 </>
               )}
             </button>

@@ -133,6 +133,28 @@ export async function PATCH(
         },
       });
 
+      if (updateData.basePricePaise !== undefined) {
+        const activeVariants = await tx.productVariant.findMany({
+          where: { productId: id, isArchived: false },
+        });
+        if (activeVariants.length === 1) {
+          await tx.productVariant.update({
+            where: { id: activeVariants[0].id },
+            data: { pricePaise: updateData.basePricePaise },
+          });
+        } else if (activeVariants.length > 1) {
+          const standard = activeVariants.find(
+            (v) => v.name.toLowerCase() === 'standard' || v.sku.endsWith('-STD')
+          );
+          if (standard) {
+            await tx.productVariant.update({
+              where: { id: standard.id },
+              data: { pricePaise: updateData.basePricePaise },
+            });
+          }
+        }
+      }
+
       await tx.auditLog.create({
         data: {
           userId: operator.id,

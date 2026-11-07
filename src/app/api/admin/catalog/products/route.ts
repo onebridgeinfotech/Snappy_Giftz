@@ -155,17 +155,28 @@ export async function POST(req: Request) {
                 create: body.occasionIds.map((occId) => ({ occasionId: occId })),
               }
             : undefined,
-          variants: body.variants && body.variants.length > 0
-            ? {
-                create: body.variants.map((v) => ({
-                  name: v.name.trim(),
-                  sku: v.sku.trim().toUpperCase(),
-                  attributes: v.attributes,
-                  pricePaise: v.pricePaise,
-                  stockQuantity: v.stockQuantity || 0,
-                })),
-              }
-            : undefined,
+          variants:
+            body.variants && body.variants.length > 0
+              ? {
+                  create: body.variants.map((v) => ({
+                    name: v.name.trim(),
+                    sku: v.sku.trim().toUpperCase(),
+                    attributes: v.attributes,
+                    pricePaise: v.pricePaise,
+                    stockQuantity: v.stockQuantity || 0,
+                  })),
+                }
+              : {
+                  create: [
+                    {
+                      name: 'Standard',
+                      sku: `${targetSlug.toUpperCase().replace(/-/g, '').slice(0, 12)}-STD`,
+                      attributes: {},
+                      pricePaise: body.basePricePaise,
+                      stockQuantity: body.minOrderQty && body.minOrderQty > 0 ? 100 : 100,
+                    },
+                  ],
+                },
         },
         include: {
           variants: true,

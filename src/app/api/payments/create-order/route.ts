@@ -8,6 +8,7 @@ import {
 import { getOptionalUser } from '@/lib/auth/rbac';
 import { CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
 import { PaymentConfigurationError, PaymentGatewayError } from '@/services/adapters/payment.adapter';
+import { getRazorpayConfigStatus } from '@/lib/payments/razorpay-env';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
 
 export async function POST(req: Request) {
@@ -73,8 +74,15 @@ export async function POST(req: Request) {
     }
 
     if (error instanceof PaymentConfigurationError) {
+      const rz = getRazorpayConfigStatus();
       return NextResponse.json(
-        { error: 'Payment gateway configuration is not available on this server.' },
+        {
+          error:
+            rz.checkoutReady
+              ? 'Payment gateway configuration is not available on this server.'
+              : `Payment gateway is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in server environment (Hostinger → Environment). ${rz.issues.join(' ')}`,
+          code: 'PAYMENT_NOT_CONFIGURED',
+        },
         { status: 503 }
       );
     }
