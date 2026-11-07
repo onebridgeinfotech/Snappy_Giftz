@@ -736,9 +736,40 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               )}
 
               {/* Price Breakdown Review */}
-              <div className="p-4 rounded-2xl bg-[#17181C] border border-[#D5A34A]/20 text-xs space-y-1.5">
-                <div className="flex justify-between text-[#CBD5E1]">
-                  <span>Subtotal ({cart.length} items)</span>
+              <div className="p-4 rounded-2xl bg-[#17181C] border border-[#D5A34A]/20 text-xs space-y-2">
+                <div className="flex justify-between items-center text-[#CBD5E1]">
+                  <span>Items in Bag ({cart.length})</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Clear all items from your bag?')) {
+                        clearCart();
+                        onClose();
+                      }
+                    }}
+                    className="text-[10.5px] text-[#EC3E98] hover:text-[#f87171] hover:underline cursor-pointer"
+                  >
+                    Clear Cart
+                  </button>
+                </div>
+
+                {/* Individual Cart Items List */}
+                <div className="space-y-1.5 py-1 max-h-36 overflow-y-auto pr-1">
+                  {cart.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center text-[11px] text-[#94A3B8] bg-[#0E0F12]/60 px-2.5 py-1.5 rounded-lg border border-[#D5A34A]/10">
+                      <span className="truncate max-w-[200px] text-[#CBD5E1]">
+                        {item.product?.name || item.productId}
+                        {item.quantity > 1 && <span className="text-[#F5BD48] ml-1 font-mono">×{item.quantity}</span>}
+                      </span>
+                      <span className="font-mono text-white shrink-0 ml-2">
+                        ₹{((item.unitPrice || item.product?.basePrice || 0) * item.quantity).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between text-[#CBD5E1] pt-1 border-t border-white/5">
+                  <span>Subtotal ({cart.length} item{cart.length > 1 ? 's' : ''})</span>
                   <span className="font-mono text-white">₹{subtotal.toLocaleString('en-IN')}</span>
                 </div>
                 {giftWrapFee > 0 && (
