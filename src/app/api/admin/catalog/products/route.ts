@@ -108,10 +108,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check category exists
-    const category = await prisma.category.findUnique({ where: { id: body.categoryId } });
+    // Check category exists (by ID, slug, or name)
+    const category = (await prisma.category.findUnique({ where: { id: body.categoryId } })) ||
+      (await prisma.category.findFirst({
+        where: {
+          OR: [
+            { slug: body.categoryId },
+            { name: body.categoryId },
+            { slug: slugify(body.categoryId) },
+          ],
+        },
+      }));
     if (!category) {
-      return NextResponse.json({ error: `Category with ID "${body.categoryId}" not found` }, { status: 404 });
+      return NextResponse.json({ error: `Category with ID or name "${body.categoryId}" not found` }, { status: 404 });
     }
 
     // Check SKU uniqueness in database
@@ -136,7 +145,7 @@ export async function POST(req: Request) {
           slug: targetSlug,
           tagline: body.tagline?.trim() || null,
           description: body.description.trim(),
-          categoryId: body.categoryId,
+          categoryId: category.id,
           occasions: body.occasions || [],
           recipients: body.recipients || [],
           hsnCode: body.hsnCode.trim(),

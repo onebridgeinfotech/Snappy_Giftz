@@ -1325,11 +1325,11 @@ export const AdminDashboard: React.FC = () => {
   const totalItemsSold = orders.reduce((acc, o) => acc + o.items.reduce((ia, i) => ia + i.quantity, 0), 0);
   const lowStockProducts = products.filter(p => p.stock < 100);
 
-  const handleCreateProduct = (e: React.FormEvent) => {
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdName.trim()) return;
 
-    addProduct({
+    const prodPayload = {
       name: newProdName,
       tagline: newProdTagline,
       description: newProdType === 'CUSTOMIZABLE'
@@ -1347,13 +1347,52 @@ export const AdminDashboard: React.FC = () => {
       images: [newProdImage],
       productType: newProdType,
       isCustomizable: newProdType === 'CUSTOMIZABLE',
-      customizationType: newProdType === 'CUSTOMIZABLE' ? 'engraving' : undefined,
+      customizationType: newProdType === 'CUSTOMIZABLE' ? ('engraving' as const) : undefined,
       stock: newProdStock,
       sku: newProdSku || `SG-${Math.floor(1000 + Math.random() * 9000)}`,
       warehouseLocation: newProdWarehouse,
       estimatedDispatchDays: 1,
       badge: newProdBadge?.trim() || undefined
-    });
+    };
+
+    // Save product to remote backend database
+    try {
+      const res = await fetch('/api/admin/catalog/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newProdName.trim(),
+          tagline: newProdTagline?.trim() || undefined,
+          description: prodPayload.description,
+          categoryId: newProdCategory,
+          hsnCode: '69120010',
+          taxRatePercent: 18,
+          basePricePaise: Math.round(newProdBasePrice * 100),
+          mrpPaise: Math.round(newProdMrp * 100),
+          productType: newProdType,
+          isCustomizable: newProdType === 'CUSTOMIZABLE',
+          customizationType: newProdType === 'CUSTOMIZABLE' ? 'engraving' : undefined,
+          images: [newProdImage],
+          variants: [{
+            name: 'Standard Edition',
+            sku: prodPayload.sku,
+            pricePaise: Math.round(newProdBasePrice * 100),
+            stockQuantity: newProdStock || 100,
+            attributes: {},
+          }],
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data?.id) {
+          (prodPayload as any).id = json.data.id;
+        }
+      }
+    } catch (err) {
+      console.warn('[ADMIN] Remote product save fallback:', err);
+    }
+
+    addProduct(prodPayload);
 
     setShowAddProductModal(false);
     setNewProdName('');

@@ -146,6 +146,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           },
           items: cart.map((i) => ({
             productId: i.productId,
+            productName: i.product?.name,
+            unitPrice: i.unitPrice || i.product?.basePrice,
+            category: i.product?.category,
+            imageUrl: i.product?.images?.[0],
             variantId: i.variant?.id,
             quantity: i.quantity,
             isGiftWrapped: Boolean(i.isGiftWrapped || i.customization?.giftWrap),
