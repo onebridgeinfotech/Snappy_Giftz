@@ -94,12 +94,24 @@ export async function enqueueOwnerOrderAlertEmails(
   }
 }
 
+/** Prefer linked account email over stale checkout/demo customerEmail. */
+export function resolveOrderNotificationEmail(order: {
+  customerEmail?: string | null;
+  user?: { email?: string | null } | null;
+}): string | null {
+  const account = order.user?.email?.trim().toLowerCase();
+  const checkout = order.customerEmail?.trim().toLowerCase();
+  return account || checkout || null;
+}
+
 /** Customer order receipt — send once payment is confirmed (or immediately for COD). */
 export async function enqueueCustomerOrderConfirmationEmail(
   order: SanitizedOrderResult | any,
-  shippingAddress?: ShippingAddressInput
+  shippingAddress?: ShippingAddressInput,
+  options?: { recipientEmail?: string; idempotencySuffix?: string }
 ): Promise<void> {
-  if (!order.customerEmail) return;
+  const recipientEmail = (options?.recipientEmail || resolveOrderNotificationEmail(order) || '').trim();
+  if (!recipientEmail) return;
 
   const seller = await getSellerConfig();
   const formattedDate = formatOrderDate(order.createdAt);
@@ -138,12 +150,13 @@ export async function enqueueCustomerOrderConfirmationEmail(
     seller
   );
 
+  const suffix = options?.idempotencySuffix ? `:${options.idempotencySuffix}` : '';
   await enqueueTransactionalEmail({
-    idempotencyKey: `email:customer_receipt:${order.orderNumber}`,
+    idempotencyKey: `email:customer_receipt:${order.orderNumber}${suffix}`,
     eventType: 'ORDER_CONFIRMED',
     orderId: order.id,
     orderNumber: order.orderNumber,
-    recipientEmail: order.customerEmail,
+    recipientEmail,
     recipientName: order.customerName,
     subject: custEmailData.subject,
     htmlBody: custEmailData.html,
@@ -183,7 +196,7 @@ export async function notifyOrderPaidByOrderNumber(orderNumber: string): Promise
   try {
     const order = await prisma.order.findUnique({
       where: { orderNumber: orderNumber.trim() },
-      include: { items: true },
+      include: { items: true, user: { select: { email: true } } },
     });
     if (order) {
       await notifyOrderPaidEmails(order);
@@ -215,5 +228,67 @@ export async function notifyOrderPaidEmails(order: SanitizedOrderResult | any): 
     await enqueueOwnerOrderAlertEmails(order, { shippingAddress: shipping, eventSuffix: 'paid' });
   } catch (err) {
     console.warn('[ORDER_PAID_NOTIFICATION]', err);
+  }
+}
+
+/** Admin: re-queue paid notifications to the correct account email. */
+export async function adminResendOrderEmails(orderId: string): Promise<{
+  ok: boolean;
+  status?: number;
+  error?: string;
+  orderNumber?: string;
+  recipientEmail?: string;
+}> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId.trim() },
+      include: { items: true, user: { select: { email: true, name: true } } },
+    });
+    if (!order) {
+      return { ok: false, status: 404, error: 'Order not found.' };
+    }
+    const recipientEmail = resolveOrderNotificationEmail(order);
+    if (!recipientEmail) {
+      return { ok: false, status: 400, error: 'No recipient email on file for this order.' };
+    }
+
+    const resendTag = `admin-${Date.now()}`;
+    let shipping: ShippingAddressInput | undefined;
+    if (order.shippingAddress) {
+      const parsed =
+        typeof order.shippingAddress === 'string'
+          ? JSON.parse(order.shippingAddress)
+          : order.shippingAddress;
+      shipping = {
+        name: parsed.name || parsed.fullName || order.customerName,
+        street: parsed.street || parsed.addressLine1 || '',
+        city: parsed.city || '',
+        state: parsed.state || '',
+        pincode: parsed.pincode || parsed.postalCode || '',
+        phone: parsed.phone || order.customerPhone,
+      };
+    }
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        customerEmail: recipientEmail,
+        customerName: order.user?.name?.trim() || order.customerName,
+      },
+    });
+
+    const orderForEmail = { ...order, customerEmail: recipientEmail, customerName: order.user?.name || order.customerName };
+    await enqueueCustomerOrderConfirmationEmail(orderForEmail, shipping, {
+      recipientEmail,
+      idempotencySuffix: resendTag,
+    });
+    await enqueueOwnerOrderAlertEmails(orderForEmail, {
+      shippingAddress: shipping,
+      eventSuffix: `paid-resend-${resendTag}`,
+    });
+
+    return { ok: true, orderNumber: order.orderNumber, recipientEmail };
+  } catch (err: any) {
+    return { ok: false, status: 500, error: err?.message || 'Resend failed.' };
   }
 }
