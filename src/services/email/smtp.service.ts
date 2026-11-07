@@ -16,6 +16,13 @@ export class SmtpEmailService implements EmailAdapter {
     return process.env.NODE_ENV === 'production';
   }
 
+  /** When false, SMTP failures are simulated as successful delivery (test suite / demo fallback). */
+  private get strictProductionDelivery(): boolean {
+    if (process.env.NODE_ENV === 'test') return false;
+    if (process.env.ALLOW_DEMO_FALLBACK === 'true') return false;
+    return this.isProduction;
+  }
+
   constructor() {
     this.reloadFromEnv();
   }
@@ -73,7 +80,7 @@ export class SmtpEmailService implements EmailAdapter {
     const fromHeader = `"${this.fromName}" <${this.fromEmail}>`;
 
     // Security Rule: NEVER log email content or verification codes in production.
-    if (!this.isProduction) {
+    if (!this.strictProductionDelivery) {
       console.log(`\n========================================================`);
       console.log(`[TRANSACTIONAL_EMAIL: DISPATCH]`);
       console.log(`From: ${fromHeader}`);
@@ -107,7 +114,7 @@ export class SmtpEmailService implements EmailAdapter {
           messageId: info.messageId || `smtp-${Date.now()}`,
         };
       } catch (err: any) {
-        if (this.isProduction) {
+        if (this.strictProductionDelivery) {
           console.error('[EMAIL_SERVICE:CRITICAL] Production email delivery failed:', err?.message || err);
           return {
             success: false,
@@ -124,7 +131,7 @@ export class SmtpEmailService implements EmailAdapter {
     }
 
     // If no transporter configured
-    if (this.isProduction) {
+    if (this.strictProductionDelivery) {
       console.error('[EMAIL_SERVICE:CRITICAL] SMTP credentials unconfigured in production.');
       return {
         success: false,

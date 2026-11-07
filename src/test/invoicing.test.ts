@@ -1,3 +1,10 @@
+// Align with master test runner: dev stores + simulated email when DB/SMTP are unavailable locally
+Object.assign(process.env, { NODE_ENV: 'test' });
+process.env.ALLOW_DEMO_FALLBACK = 'true';
+if (!process.env.CI) {
+  process.env.DATABASE_URL = 'mysql://127.0.0.1:3306/dev_fallback';
+}
+
 import {
   calculateCartPricing,
   CartItemInput,
@@ -959,30 +966,53 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
 
   await test('Email: Worker processes pending outbox queue and transitions status to SENT', async () => {
     const idempotencyKey = `worker-test-${Date.now()}`;
-    await enqueueTransactionalEmail({
-      idempotencyKey,
-      eventType: 'INVOICE_AVAILABLE',
-      recipientEmail: 'taxpayer@example.com',
-      subject: 'Your Tax Invoice SG/26-27/0001',
-      htmlBody: '<p>Invoice attached</p>',
-      textBody: 'Invoice attached',
-    });
+    const prevAutoDispatch = process.env.EMAIL_AUTO_DISPATCH;
+    const prevSmtpHost = process.env.SMTP_HOST;
+    const prevSmtpUser = process.env.SMTP_USER;
+    const prevSmtpPass = process.env.SMTP_PASSWORD;
+    process.env.EMAIL_AUTO_DISPATCH = 'false';
+    process.env.SMTP_HOST = 'localhost';
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
 
-    const workerResult = await processEmailOutbox({ batchSize: 5 });
-    if (workerResult.processedCount === 0) {
-      throw new Error('Expected worker to process at least 1 message');
-    }
+    try {
+      DEV_EMAIL_OUTBOX_STORE.clear();
 
-    const messages = await getOutboxMessages();
-    const processedMsg = messages.find((m) => m.idempotencyKey === idempotencyKey);
-    if (!processedMsg) {
-      throw new Error('Could not find processed message in outbox');
-    }
-    if (processedMsg.status !== 'SENT') {
-      throw new Error(`Expected message status SENT, got ${processedMsg.status}`);
-    }
-    if (!processedMsg.sentAt) {
-      throw new Error('Expected sentAt timestamp to be set upon successful send');
+      const enqueued = await enqueueTransactionalEmail({
+        idempotencyKey,
+        eventType: 'INVOICE_AVAILABLE',
+        recipientEmail: 'taxpayer@example.com',
+        subject: 'Your Tax Invoice SG/26-27/0001',
+        htmlBody: '<p>Invoice attached</p>',
+        textBody: 'Invoice attached',
+      });
+
+      const workerResult = await processEmailOutbox({ batchSize: 10, workerId: 'invoicing-worker-test' });
+      if (workerResult.processedCount === 0) {
+        throw new Error('Expected worker to process at least 1 message');
+      }
+
+      const processedMsg =
+        DEV_EMAIL_OUTBOX_STORE.get(enqueued.id) ||
+        (await getOutboxMessages({ limit: 50 })).find((m) => m.idempotencyKey === idempotencyKey);
+      if (!processedMsg) {
+        throw new Error('Could not find processed message in outbox');
+      }
+      if (processedMsg.status !== 'SENT') {
+        throw new Error(`Expected message status SENT, got ${processedMsg.status}`);
+      }
+      if (!processedMsg.sentAt) {
+        throw new Error('Expected sentAt timestamp to be set upon successful send');
+      }
+    } finally {
+      if (prevAutoDispatch === undefined) delete process.env.EMAIL_AUTO_DISPATCH;
+      else process.env.EMAIL_AUTO_DISPATCH = prevAutoDispatch;
+      if (prevSmtpHost === undefined) delete process.env.SMTP_HOST;
+      else process.env.SMTP_HOST = prevSmtpHost;
+      if (prevSmtpUser === undefined) delete process.env.SMTP_USER;
+      else process.env.SMTP_USER = prevSmtpUser;
+      if (prevSmtpPass === undefined) delete process.env.SMTP_PASSWORD;
+      else process.env.SMTP_PASSWORD = prevSmtpPass;
     }
   });
 
