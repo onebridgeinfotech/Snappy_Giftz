@@ -4,7 +4,13 @@ import { getOptionalUser } from '@/lib/auth/rbac';
 import { prisma } from '@/lib/prisma';
 import { DEV_ORDERS_STORE } from '@/lib/orders/order.service';
 import { isStorefrontFallbackAllowed } from '@/lib/catalog/public-catalog.service';
-import { getInvoiceForOrder, issueTaxInvoice, getInvoicePdfBuffer } from '@/lib/invoices/invoice.service';
+import {
+  getInvoiceForOrder,
+  issueTaxInvoice,
+  getInvoicePdfBuffer,
+  isRetailB2COrder,
+  isOrderPaidForInvoice,
+} from '@/lib/invoices/invoice.service';
 
 /**
  * GET /api/orders/[orderNumber]/invoice
@@ -103,10 +109,13 @@ export async function GET(
     // physical printing, signature, and verification before courier handover.
     // Authorized staff/admin MAY download the printable draft for physical signing at the warehouse.
     if (!isStaffOrAdmin) {
-      if (
+      const physicalCopyPending =
         invoice.signatureMode === 'PHYSICAL_SIGNATURE_ON_PRINT' &&
-        !invoice.physicalSignatureConfirmedAt
-      ) {
+        !invoice.physicalSignatureConfirmedAt;
+      const allowB2cComputerGenerated =
+        isRetailB2COrder(order) && isOrderPaidForInvoice(order);
+
+      if (physicalCopyPending && !allowB2cComputerGenerated) {
         return NextResponse.json(
           {
             error:

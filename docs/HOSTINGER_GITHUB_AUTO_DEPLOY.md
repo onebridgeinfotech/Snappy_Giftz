@@ -34,6 +34,31 @@ Build settings are stored on the server (Node 22, `app_type: next`, `build_scrip
 
 A **repository webhook** may exist pointing at `webhooks.hostinger.com/deploy/...` from an older **Git → public_html subdirectory** setup. That path does **not** replace the Node.js build pipeline above. Prefer the GitHub App flow in hPanel.
 
+## Transactional email (SMTP / outbox)
+
+Hostinger Titan for **info@snappygiftz.com** (not `snppygiftz` — common typo).
+
+In hPanel → **snappygiftz.com** → **Advanced** → **Node.js** → **Environment variables**, set:
+
+| Variable | Value |
+|----------|--------|
+| `SMTP_HOST` | `smtp.hostinger.com` |
+| `SMTP_PORT` | `465` |
+| `SMTP_SECURE` | `true` |
+| `SMTP_USER` | `info@snappygiftz.com` |
+| `SMTP_PASSWORD` | *(mailbox password — must match Titan)* |
+| `SMTP_FROM_EMAIL` | `info@snappygiftz.com` |
+| `EMAIL_FROM` | `info@snappygiftz.com` |
+| `EMAIL_AUTO_DISPATCH` | `true` |
+
+Save (Hostinger restarts Node). Local check: `node scripts/verify-smtp.cjs` with `SMTP_PASSWORD` set.
+
+Admin → **Emails** → **Process Outbox Worker**, then **Retry** on any `FAILED` rows.
+
+To push env via API you need a **full** `.env.hostinger` export (see `scripts/hostinger-env-from-dotenv.cjs`); MCP replace deletes any key not included.
+
+After deploy: `GET /api/health/email` reports SMTP verify status (no secrets).
+
 ## Verify
 
 - After pushing to `main`, check hPanel **Deployments** / build logs, or ask the agent to run `hosting_get-deployment` for `snappygiftz.com`.

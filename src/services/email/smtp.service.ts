@@ -17,6 +17,11 @@ export class SmtpEmailService implements EmailAdapter {
   }
 
   constructor() {
+    this.reloadFromEnv();
+  }
+
+  /** Re-read env after Hostinger restarts or hPanel SMTP credential updates. */
+  private reloadFromEnv() {
     this.host = process.env.SMTP_HOST || 'localhost';
     this.port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 1025;
     this.secure = process.env.SMTP_SECURE === 'true' || this.port === 465;
@@ -24,7 +29,6 @@ export class SmtpEmailService implements EmailAdapter {
     this.pass = process.env.SMTP_PASSWORD || process.env.SMTP_PASS || '';
     this.fromEmail = process.env.SMTP_FROM || process.env.SMTP_FROM_EMAIL || process.env.EMAIL_FROM || 'info@snappygiftz.com';
     this.fromName = process.env.SMTP_FROM_NAME || 'SNAPPY GIFTZ';
-
     this.initTransporter();
   }
 
@@ -64,6 +68,7 @@ export class SmtpEmailService implements EmailAdapter {
   }
 
   async sendEmail(input: SendEmailInput): Promise<EmailSendResult> {
+    this.reloadFromEnv();
     const recipients = Array.isArray(input.to) ? input.to : [input.to];
     const fromHeader = `"${this.fromName}" <${this.fromEmail}>`;
 
@@ -138,6 +143,7 @@ export class SmtpEmailService implements EmailAdapter {
    * Health check to verify SMTP connectivity
    */
   async verifyConnection(): Promise<{ ok: boolean; message?: string }> {
+    this.reloadFromEnv();
     if (!this.transporter) {
       return { ok: false, message: 'SMTP transporter not initialized (missing host or credentials).' };
     }

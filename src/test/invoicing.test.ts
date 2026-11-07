@@ -1851,7 +1851,7 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
     }
   });
 
-  await test('Customer delivery safeguard: Unsigned invoice cannot be downloaded by customer before physical signature (HTTP 409) and email is deferred', async () => {
+  await test('B2C retail: paid customer can download computer-generated invoice before warehouse physical signature; email sent', async () => {
     await updateSellerConfig({
       ...DEFAULT_SAMPLE_SELLER_CONFIG,
       signatureMode: 'PHYSICAL_SIGNATURE_ON_PRINT',
@@ -1901,13 +1901,12 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
       throw new Error('Expected invoice to be issued with valid number');
     }
 
-    // 2. Verify INVOICE_AVAILABLE email is NOT enqueued in outbox yet (physical signature pending)
-    const outboxBefore = Array.from(DEV_EMAIL_OUTBOX_STORE.values());
-    const invoiceEmailBefore = outboxBefore.find(
+    const outboxAfterIssue = Array.from(DEV_EMAIL_OUTBOX_STORE.values());
+    const invoiceEmailAfterIssue = outboxAfterIssue.find(
       (m) => m.idempotencyKey === `email-invoice-${invoice.invoiceNumber}`
     );
-    if (invoiceEmailBefore) {
-      throw new Error('INVOICE_AVAILABLE email was prematurely enqueued before physical signature confirmation');
+    if (!invoiceEmailAfterIssue) {
+      throw new Error('Expected INVOICE_AVAILABLE email for paid B2C retail after invoice issuance');
     }
 
     // 3. Customer attempts download via GET /api/orders/[orderNumber]/invoice without authorization
@@ -1927,12 +1926,12 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
       },
     });
     const custResBefore = await getInvoiceRoute(custReq, { params: Promise.resolve({ orderNumber }) });
-    if (custResBefore.status !== 409) {
-      throw new Error(`Expected HTTP 409 for customer downloading unsigned invoice, got ${custResBefore.status}`);
+    if (custResBefore.status !== 200) {
+      throw new Error(`Expected HTTP 200 for paid B2C customer invoice download, got ${custResBefore.status}`);
     }
-    const custErrBody = await custResBefore.json();
-    if (!custErrBody.error.includes('physical signature') || !custErrBody.error.includes('Rule 46(q)')) {
-      throw new Error(`Expected Rule 46(q) physical signature error, got: ${custErrBody.error}`);
+    const pdfCt = custResBefore.headers.get('content-type') || '';
+    if (!pdfCt.includes('application/pdf')) {
+      throw new Error(`Expected application/pdf response, got ${pdfCt}`);
     }
 
     // 5. Authorized staff CAN download the printable draft for physical signing at the warehouse
@@ -1989,13 +1988,13 @@ export async function runInvoicingTestSuite(): Promise<TestResult> {
       confirmingStaff
     );
 
-    // 7. Verify INVOICE_AVAILABLE email is now enqueued in outbox
+    // 7. INVOICE_AVAILABLE already enqueued at issuance for paid B2C; idempotent after dispatch
     const outboxAfter = Array.from(DEV_EMAIL_OUTBOX_STORE.values());
     const invoiceEmailAfter = outboxAfter.find(
       (m) => m.idempotencyKey === `email-invoice-${invoice.invoiceNumber}`
     );
     if (!invoiceEmailAfter) {
-      throw new Error('Expected INVOICE_AVAILABLE email to be enqueued after physical signature confirmation');
+      throw new Error('Expected INVOICE_AVAILABLE email in outbox after dispatch confirmation');
     }
     if (invoiceEmailAfter.status !== 'PENDING') {
       throw new Error(`Expected email status PENDING, got ${invoiceEmailAfter.status}`);

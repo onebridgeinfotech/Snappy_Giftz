@@ -24,6 +24,17 @@ export class InvoiceValidationError extends Error {
   }
 }
 
+/** Retail B2C consumer orders (not corporate GSTIN / B2B contract). */
+export function isRetailB2COrder(order: { type?: string | null; gstin?: string | null }): boolean {
+  const gstin = (order.gstin || '').trim();
+  return order.type !== 'B2B' && gstin.length !== 15;
+}
+
+export function isOrderPaidForInvoice(order: { paymentStatus?: string | null }): boolean {
+  const ps = (order.paymentStatus || '').toUpperCase();
+  return ps === 'PAID' || ps === 'CAPTURED';
+}
+
 export interface InvoiceRecord {
   id: string;
   invoiceNumber: string;
@@ -154,7 +165,7 @@ export async function issueTaxInvoice(
   // Transaction type classification under Rule 48(4):
   // Notification No. 13/2020-CT notifies e-invoicing for supplies to registered persons (B2B), exports, and SEZ units.
   // Retail B2C supplies to unregistered persons are excluded from Rule 48(4) IRP e-invoicing.
-  const isB2bSupply = order.type === 'B2B' || Boolean(order.gstin && order.gstin.trim().length === 15);
+  const isB2bSupply = !isRetailB2COrder(order);
 
   if (sellerConfig.eInvoiceStatus === 'APPLICABLE') {
     if (isB2bSupply) {
@@ -486,7 +497,14 @@ export async function issueTaxInvoice(
     signatureMode === 'PHYSICAL_SIGNATURE_ON_PRINT' &&
     !invoiceRecord.physicalSignatureConfirmedAt;
 
-  if (!isPhysicalSignPending) {
+  // B2C retail: computer-generated PDF is released to the customer once payment is captured.
+  // Warehouse still confirms physical hardcopy signature before dispatch (Rule 46(q)).
+  const b2cComputerGeneratedRelease =
+    isRetailB2COrder(order) &&
+    isOrderPaidForInvoice(order) &&
+    signatureMode === 'PHYSICAL_SIGNATURE_ON_PRINT';
+
+  if (!isPhysicalSignPending || b2cComputerGeneratedRelease) {
     await sendInvoiceAvailableEmail(invoiceRecord, sellerConfig, safeFilename, storageResult.fileKey);
   }
 
