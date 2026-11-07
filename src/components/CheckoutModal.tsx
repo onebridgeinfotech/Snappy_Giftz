@@ -52,7 +52,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     currentPincode,
     checkPincode,
     setSelectedOrder,
-    setActiveModal
+    setActiveModal,
+    clearCart
   } = useApp();
 
   const [step, setStep] = useState<'address' | 'payment' | 'success'>('address');
@@ -201,6 +202,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           setCreatedOrder(newOrder);
           setIsProcessing(false);
           setStep('success');
+          clearCart();
           onOrderSuccess(newOrder);
           return;
         }
@@ -272,6 +274,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       } catch {}
                     }
 
+                    clearCart();
                     onOrderSuccess(newOrder);
                   } else {
                     setCheckoutError(verifyJson?.error || 'Payment signature verification failed.');
@@ -309,6 +312,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             try {
               confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
             } catch {}
+            clearCart();
             onOrderSuccess(newOrder);
             return;
           }

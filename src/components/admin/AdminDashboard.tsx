@@ -1476,14 +1476,36 @@ export const AdminDashboard: React.FC = () => {
     setShowEditProductModal(true);
   };
 
-  const handleSaveProductEdit = (e: React.FormEvent) => {
+  const handleSaveProductEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
     const pType = editingProduct.productType === 'CUSTOMIZABLE' ? 'CUSTOMIZABLE' : 'REGULAR';
+    const updatedBasePrice = Number(editingProduct.basePrice);
+    const updatedMrp = Number(editingProduct.mrp);
+
+    // Sync changes to backend database
+    try {
+      await fetch(`/api/admin/catalog/products/${editingProduct.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingProduct.name,
+          basePricePaise: Math.round(updatedBasePrice * 100),
+          mrpPaise: Math.round(updatedMrp * 100),
+          stockQuantity: Number(editingProduct.stock),
+          productType: pType,
+          isCustomizable: pType === 'CUSTOMIZABLE',
+          images: Array.isArray(editingProduct.images) ? editingProduct.images : [editingProduct.images],
+        }),
+      });
+    } catch (err) {
+      console.warn('[ADMIN] Remote product update fallback:', err);
+    }
+
     updateProduct(editingProduct.id, {
       name: editingProduct.name,
-      basePrice: Number(editingProduct.basePrice),
-      mrp: Number(editingProduct.mrp),
+      basePrice: updatedBasePrice,
+      mrp: updatedMrp,
       stock: Number(editingProduct.stock),
       category: editingProduct.category,
       badge: editingProduct.badge,

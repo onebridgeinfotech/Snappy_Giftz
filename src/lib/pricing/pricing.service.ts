@@ -395,7 +395,9 @@ export async function calculateCartPricing(
 
             if (category) {
               const prodName = item.productName || `Product ${item.productId}`;
-              const basePricePaise = item.unitPrice ? Math.round(item.unitPrice * 100) : 199900;
+              const basePricePaise = typeof item.unitPrice === 'number' && item.unitPrice > 0
+                ? Math.round(item.unitPrice * 100)
+                : 100; // Default to ₹1 (100 paise) instead of ₹1999 if not specified
               const targetSlug = prodName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Math.random().toString(36).substring(2, 6);
 
               dbProduct = await prisma.product.create({
@@ -406,7 +408,7 @@ export async function calculateCartPricing(
                   description: prodName,
                   categoryId: category.id,
                   basePricePaise,
-                  mrpPaise: Math.round(basePricePaise * 1.2),
+                  mrpPaise: Math.max(basePricePaise, Math.round(basePricePaise * 1.2)),
                   hsnCode: '69120010',
                   taxRatePercent: 18,
                   productType: 'CUSTOMIZABLE',
@@ -532,6 +534,15 @@ export async function calculateCartPricing(
       variantSku = defaultVariant.sku;
       variantName = defaultVariant.name;
       unitPricePaise = defaultVariant.pricePaise;
+    }
+
+    // If client supplied an explicit item.unitPrice (e.g. custom product, admin catalog added, or live override)
+    // and DB variant price differed (e.g. default placeholder or stale DB cache), honor client unitPrice
+    if (typeof item.unitPrice === 'number' && item.unitPrice > 0) {
+      const clientPricePaise = Math.round(item.unitPrice * 100);
+      if (clientPricePaise > 0) {
+        unitPricePaise = clientPricePaise;
+      }
     }
 
     // Customization fee (authoritative calculation on server)
