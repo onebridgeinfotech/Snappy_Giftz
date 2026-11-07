@@ -83,6 +83,8 @@ export const RATE_LIMIT_PRESETS: Record<string, RateLimitConfig> = {
 
   // Admin Operations
   ADMIN_ACTION: { limit: 30, windowSeconds: 60, failClosedInProduction: true },
+  // Own-delivery handover OTP: 5 tries per order per 10 minutes so a 6-digit code can't be guessed.
+  DELIVERY_OTP_VERIFY: { limit: 5, windowSeconds: 600, failClosedInProduction: true },
 };
 
 // ============================================================================

@@ -62,3 +62,6 @@ Thumbs.db
 /stage*.png
 Captures/
 SNAPPY_GIFTZ_LOCAL_GITHUB_AUDIT.md
+
+# Local database backups (contain customer data - never commit)
+/backups/

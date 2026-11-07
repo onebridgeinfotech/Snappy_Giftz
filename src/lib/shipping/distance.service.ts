@@ -7,7 +7,7 @@
  * Authoritative Business Rules:
  * 1. Delivery Coverage: Maximum 20 km from the central atelier.
  * 2. Minimum Preparation Time: 2 days (hand-crafted luxury items cannot be delivered same-day or next-day).
- * 3. The store owner manually verifies and sets the exact delivery charge per order based on distance and vehicle logistics.
+ * 3. Delivery charges are calculated automatically from distance (see src/lib/delivery/delivery-fee.service.ts).
  */
 
 import { INITIAL_HYDERABAD_PINCODES } from './pincode.service';
@@ -98,7 +98,7 @@ class LocalDistanceService implements DistanceCalculatorService {
       deliveryMethod: 'ATELIER_EXPRESS',
       requiresOwnerApproval: true, // Owner manually sets delivery charge for all orders
       message: isServiceable
-        ? `Eligible for direct insured delivery (${distanceKm} km from A S Rao Nagar hub). Delivery charge will be assigned upon owner review.`
+        ? `Eligible for direct delivery (about ${distanceKm} km from our studio).`
         : `Distance (${distanceKm} km) exceeds our 20 km direct delivery radius. Regional courier options may apply.`,
       isExternalServiceUsed: false,
     };
@@ -161,9 +161,11 @@ class GoogleMapsDistanceService implements DistanceCalculatorService {
 }
 
 // Active singleton instance
-export const distanceService: DistanceCalculatorService = process.env.GOOGLE_MAPS_API_KEY
-  ? new GoogleMapsDistanceService(process.env.GOOGLE_MAPS_API_KEY)
-  : new LocalDistanceService();
+// Free services only: the store does not use the paid Google Maps API. Delivery distance comes from
+// the PIN table here plus GPS / OpenStreetMap in src/lib/delivery/delivery-fee.service.ts.
+// (GoogleMapsDistanceService is kept for reference but is not wired in.)
+export const distanceService: DistanceCalculatorService = new LocalDistanceService();
+void GoogleMapsDistanceService;
 
 /**
  * Helper to validate delivery date based on preparation time

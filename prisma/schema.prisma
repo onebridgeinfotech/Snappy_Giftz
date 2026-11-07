@@ -597,6 +597,34 @@ model ServiceablePincode {
   @@index([isActive])
 }
 
+/// Studio / delivery hub location and delivery radius (single row, id "default").
+/// Edited in Admin > Tax & Delivery. Distances and charges are measured from this point.
+model DeliverySettings {
+  id            String   @id @default("default")
+  hubName       String   @default("SNAPPY GIFTZ Studio")
+  hubAddress    String   @db.Text
+  hubPincode    String
+  hubLatitude   Float
+  hubLongitude  Float
+  maxRadiusKm   Int      @default(20)
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
+}
+
+/// Automatic delivery charge by distance from the studio: the first active slab whose
+/// maxDistanceKm >= the delivery distance sets the fee. Edited in Admin > Settings.
+model DeliveryFeeSlab {
+  id            String   @id @default(uuid())
+  maxDistanceKm Int      // inclusive upper bound, e.g. 10 = "up to 10 km"
+  feePaise      BigInt
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
+
+  @@index([isActive, maxDistanceKm])
+}
+
 model DeliveryFeeRule {
   id                  String   @id @default(uuid())
   name                String   // e.g. "Free delivery above Rs 999", "Standard delivery"
@@ -650,6 +678,7 @@ model Shipment {
   deliveredAt               DateTime?
   invoicePhysicallySignedBy String?
   invoicePhysicallySignedAt DateTime?
+  trackingEvents            ShipmentTrackingEvent[]
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 
@@ -962,4 +991,25 @@ model GoogleDriveIntegration {
   lastError                String?   @db.Text
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
+}
+
+/// Courier scan / status updates pushed by the courier (e.g. Shiprocket webhook).
+/// Shown to the customer as the tracking timeline; dedupeKey makes webhook retries harmless.
+model ShipmentTrackingEvent {
+  id          String   @id @default(uuid())
+  shipmentId  String
+  shipment    Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  orderId     String
+  awbNumber   String
+  status      String   // Normalized: IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, RTO, FAILED_ATTEMPT, PICKED_UP, OTHER
+  rawStatus   String?  // Courier's own label, e.g. "Reached at Destination Hub"
+  activity    String?  @db.Text
+  location    String?
+  eventAt     DateTime
+  source      String   @default("COURIER_WEBHOOK")
+  dedupeKey   String   @unique
+  createdAt   DateTime @default(now())
+
+  @@index([orderId, eventAt])
+  @@index([awbNumber])
 }

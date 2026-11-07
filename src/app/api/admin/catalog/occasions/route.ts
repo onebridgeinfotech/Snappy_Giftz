@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
     const existing = await prisma.occasion.findFirst({
       where: {
-        OR: [{ name: { equals: body.name.trim(), mode: 'insensitive' } }, { slug: targetSlug }],
+        OR: [{ name: { equals: body.name.trim() } }, { slug: targetSlug }],
       },
     });
 

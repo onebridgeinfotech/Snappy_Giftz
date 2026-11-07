@@ -29,18 +29,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     updateCartQuantity,
     removeFromCart,
     clearCart,
-    appliedCoupon,
-    couponDiscount,
-    applyCoupon,
-    removeCoupon,
     toggleItemGiftWrap
   } = useApp();
 
-  const [couponInput, setCouponInput] = useState('');
-  const [couponError, setCouponError] = useState('');
-
   const subtotal = cart.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-  const finalDiscount = couponDiscount;
+  const finalDiscount = 0; // promo codes are priced on the server only
   const isOrderGiftWrapped = cart.some((item) => Boolean(item.isGiftWrapped || item.customization?.giftWrap));
   const giftWrapFee = isOrderGiftWrapped ? 20 : 0;
   
@@ -48,18 +41,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const taxableAmount = Math.max(0, subtotal + giftWrapFee - finalDiscount);
   const estimatedGst = taxableAmount * 0.18;
   const totalExclDelivery = taxableAmount + estimatedGst;
-
-  const handleApplyCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!couponInput.trim()) return;
-    const res = applyCoupon(couponInput);
-    if (!res.success) {
-      setCouponError(res.message);
-    } else {
-      setCouponError('');
-      setCouponInput('');
-    }
-  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -255,43 +236,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         {cart.length > 0 && (
           <div className="p-4 sm:p-5 border-t border-[#D5A34A]/20 bg-[#08090B] space-y-3">
             
-            {/* Coupon Code Section */}
-            {appliedCoupon ? (
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-xs">
-                <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                  <Tag className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Coupon <strong>{appliedCoupon}</strong> (-₹{couponDiscount})</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={removeCoupon}
-                  className="text-emerald-300 hover:text-emerald-200 text-xs font-bold underline cursor-pointer"
-                >
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Promo code (FESTIVE15, WELCOME100)"
-                  value={couponInput}
-                  onChange={(e) => setCouponInput(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-xl border border-[#D5A34A]/25 bg-[#24252A] text-xs text-[#F1F5F9] placeholder-[#94A3B8] uppercase font-mono tracking-wider focus:outline-hidden focus:border-[#D5A34A]"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#24252A] hover:bg-[#2E3036] border border-[#D5A34A]/30 text-[#F5BD48] text-xs font-bold transition-all cursor-pointer"
-                >
-                  Apply
-                </button>
-              </form>
-            )}
-
-            {couponError && (
-              <p className="text-[11px] text-rose-400 pl-1">{couponError}</p>
-            )}
-
             {/* Calculations Breakdown */}
             <div className="space-y-1.5 text-xs text-[#CBD5E1] pt-1">
               <div className="flex justify-between">

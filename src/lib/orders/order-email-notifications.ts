@@ -1,10 +1,19 @@
 import { prisma } from '@/lib/prisma';
 import { getSellerConfig } from '@/lib/invoices/seller-config.service';
 import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
-import { renderOwnerNewOrderTemplate, renderOrderConfirmationTemplate } from '@/lib/email/email-templates';
+import {
+  renderOwnerNewOrderTemplate,
+  renderOrderConfirmationTemplate,
+  renderOrderDeliveredTemplate,
+} from '@/lib/email/email-templates';
+import { SNAPPY_EMAIL_BRAND } from '@/lib/email/snappy-email-brand';
+import { getDeliveryOtpForEmail } from '@/lib/orders/delivery-otp.service';
 import { getAdminNotificationEmails } from '@/config/business';
 import { notifyNewOrderWhatsApp } from '@/lib/notifications/whatsapp-notify.service';
 import type { SanitizedOrderResult } from './order.service';
+
+/** Invoice PDF to attach to an email (private storage key + download filename). */
+type EmailAttachment = { attachmentKey: string; attachmentFilename: string };
 
 type ShippingAddressInput = {
   name: string;
@@ -14,6 +23,11 @@ type ShippingAddressInput = {
   pincode: string;
   phone?: string;
 };
+
+/** Public link that opens order tracking on the website for this order. */
+export function orderTrackUrl(orderNumber: string): string {
+  return `${SNAPPY_EMAIL_BRAND.siteUrl}/?track=${encodeURIComponent(orderNumber)}`;
+}
 
 function formatOrderDate(d: Date | string = new Date()): string {
   return new Date(d).toLocaleDateString('en-IN', {
@@ -38,7 +52,7 @@ function mapLineItems(order: SanitizedOrderResult | any) {
 /** Owner / ops inboxes — new order or payment confirmed. */
 export async function enqueueOwnerOrderAlertEmails(
   order: SanitizedOrderResult | any,
-  options?: { shippingAddress?: ShippingAddressInput; eventSuffix?: string }
+  options?: { shippingAddress?: ShippingAddressInput; eventSuffix?: string; attachment?: EmailAttachment }
 ): Promise<void> {
   const seller = await getSellerConfig();
   const formattedDate = formatOrderDate(order.createdAt);
@@ -90,6 +104,8 @@ export async function enqueueOwnerOrderAlertEmails(
       subject: emailData.subject,
       htmlBody: emailData.html,
       textBody: emailData.text,
+      attachmentKey: options?.attachment?.attachmentKey,
+      attachmentFilename: options?.attachment?.attachmentFilename,
     });
   }
 }
@@ -108,7 +124,7 @@ export function resolveOrderNotificationEmail(order: {
 export async function enqueueCustomerOrderConfirmationEmail(
   order: SanitizedOrderResult | any,
   shippingAddress?: ShippingAddressInput,
-  options?: { recipientEmail?: string; idempotencySuffix?: string }
+  options?: { recipientEmail?: string; idempotencySuffix?: string; attachment?: EmailAttachment }
 ): Promise<void> {
   const recipientEmail = (options?.recipientEmail || resolveOrderNotificationEmail(order) || '').trim();
   if (!recipientEmail) return;
@@ -146,6 +162,9 @@ export async function enqueueCustomerOrderConfirmationEmail(
         state: addr.state,
         postalCode: addr.pincode,
       },
+      deliveryOtp: getDeliveryOtpForEmail(order.id),
+      trackUrl: orderTrackUrl(order.orderNumber),
+      invoiceAttached: Boolean(options?.attachment),
     },
     seller
   );
@@ -158,10 +177,34 @@ export async function enqueueCustomerOrderConfirmationEmail(
     orderNumber: order.orderNumber,
     recipientEmail,
     recipientName: order.customerName,
-    subject: custEmailData.subject,
+    subject: options?.attachment ? `${custEmailData.subject} (Tax Invoice attached)` : custEmailData.subject,
     htmlBody: custEmailData.html,
-    textBody: custEmailData.text,
+    textBody: options?.attachment
+      ? `${custEmailData.text}\n\nYour GST tax invoice is attached to this email.`
+      : custEmailData.text,
+    attachmentKey: options?.attachment?.attachmentKey,
+    attachmentFilename: options?.attachment?.attachmentFilename,
   });
+}
+
+/**
+ * Issues the GST tax invoice for a paid order and returns it as an email attachment, or null
+ * when it cannot be issued yet (e.g. seller GST setup incomplete) or must wait for a physical
+ * signature (B2B, Rule 46(q)). Failures never block the confirmation email.
+ */
+async function issueInvoiceAttachmentForPaidOrder(orderNumber: string): Promise<EmailAttachment | null> {
+  try {
+    const { issueTaxInvoice } = await import('@/lib/invoices/invoice.service');
+    const invoice = await issueTaxInvoice(orderNumber, { skipCustomerEmail: true, requestedBy: 'PAYMENT_CAPTURED' });
+    if (!invoice.pdfStorageKey || !invoice.customerReleasable) return null;
+    return {
+      attachmentKey: invoice.pdfStorageKey,
+      attachmentFilename: `${invoice.invoiceNumber.replace(/[/\\]/g, '_')}.pdf`,
+    };
+  } catch (err) {
+    console.warn(`[ORDER_PAID_NOTIFICATION] Invoice not attached for #${orderNumber}:`, err instanceof Error ? err.message : err);
+    return null;
+  }
 }
 
 export async function notifyOrderPlacedEmails(
@@ -224,8 +267,14 @@ export async function notifyOrderPaidEmails(order: SanitizedOrderResult | any): 
         phone: parsed.phone || order.customerPhone,
       };
     }
-    await enqueueCustomerOrderConfirmationEmail(order, shipping);
-    await enqueueOwnerOrderAlertEmails(order, { shippingAddress: shipping, eventSuffix: 'paid' });
+    // One "order confirmed" email per recipient, with the GST invoice attached when available.
+    const attachment = await issueInvoiceAttachmentForPaidOrder(order.orderNumber);
+    await enqueueCustomerOrderConfirmationEmail(order, shipping, attachment ? { attachment } : undefined);
+    await enqueueOwnerOrderAlertEmails(order, {
+      shippingAddress: shipping,
+      eventSuffix: 'paid',
+      attachment: attachment || undefined,
+    });
   } catch (err) {
     console.warn('[ORDER_PAID_NOTIFICATION]', err);
   }
@@ -290,5 +339,58 @@ export async function adminResendOrderEmails(orderId: string): Promise<{
     return { ok: true, orderNumber: order.orderNumber, recipientEmail };
   } catch (err: any) {
     return { ok: false, status: 500, error: err?.message || 'Resend failed.' };
+  }
+}
+
+/**
+ * "Delivered successfully" email to the customer. Sent once per order (idempotent outbox key),
+ * after a courier delivery is confirmed or an own delivery's OTP is confirmed.
+ */
+export async function notifyOrderDeliveredEmail(orderId: string): Promise<void> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { user: { select: { email: true } }, deliveryRecord: true, codCollection: true },
+    });
+    if (!order || order.orderStatus !== 'DELIVERED') return;
+    const recipientEmail = resolveOrderNotificationEmail(order);
+    if (!recipientEmail) return;
+
+    const seller = await getSellerConfig();
+    const deliveredAt = new Date(order.deliveryRecord?.deliveredAt || order.updatedAt).toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    const email = renderOrderDeliveredTemplate(
+      {
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        deliveredAt,
+        deliveredVia: order.deliveryRecord ? 'OWN_DELIVERY' : 'COURIER',
+        amountPaidInr: order.codCollection
+          ? `₹${(Number(order.codCollection.amountCollectedPaise) / 100).toFixed(2)} (${order.codCollection.collectionMethod === 'UPI_ON_DELIVERY' ? 'UPI' : 'Cash'} on delivery)`
+          : null,
+        trackUrl: orderTrackUrl(order.orderNumber),
+      },
+      seller
+    );
+
+    await enqueueTransactionalEmail({
+      idempotencyKey: `email:order_delivered:${order.orderNumber}`,
+      eventType: 'ORDER_DELIVERED',
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      recipientEmail,
+      recipientName: order.customerName,
+      subject: email.subject,
+      htmlBody: email.html,
+      textBody: email.text,
+    });
+  } catch (err) {
+    console.warn('[ORDER_DELIVERED_NOTIFICATION]', err);
   }
 }

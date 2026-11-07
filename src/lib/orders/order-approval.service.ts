@@ -153,6 +153,8 @@ export function resolveOrderApprovalStage(order: any): OrderApprovalStage {
   const isCustomerApproved = Boolean(
     order.deliveryChargeCustomerApproved ||
     order.deliveryChargeApproved ||
+    order.deliveryFeeRuleId === 'AUTO_DISTANCE' || // charge calculated and accepted at checkout
+    order.deliveryFeeRuleId === 'OWNER_SET' || // customer approved the owner's charge
     order.customerApprovedAt ||
     (order.metadata && (order.metadata as any).customerApprovedFinalAmount)
   );

@@ -1,3 +1,7 @@
+// These tests cover the owner-review (manual) delivery-charge flow.
+process.env.DELIVERY_FEE_MODE = 'manual';
+// Tests use the built-in demo catalog when the database is offline.
+if (!process.env.SHOW_DEMO_PRODUCTS) process.env.SHOW_DEMO_PRODUCTS = 'true';
 Object.assign(process.env, { NODE_ENV: 'test' });
 process.env.ALLOW_DEMO_FALLBACK = 'true';
 if (!process.env.CI) {

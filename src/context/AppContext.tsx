@@ -44,6 +44,8 @@ interface AppContextType {
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
   refreshCatalogFromServer: () => Promise<void>;
+  /** 'loading' until the first catalog fetch finishes; 'error' if the server could not be reached. */
+  catalogStatus: 'loading' | 'ready' | 'error';
   selectedProduct: Product | null;
   setSelectedProduct: (p: Product | null) => void;
   
@@ -61,10 +63,6 @@ interface AppContextType {
   toggleWishlist: (productId: string) => void;
   
   // Coupon
-  appliedCoupon: string | null;
-  couponDiscount: number;
-  applyCoupon: (code: string) => { success: boolean; message: string };
-  removeCoupon: () => void;
   
   // PIN code checker
   checkPincode: (pin: string) => { serviceable: boolean; city?: string; state?: string; days?: number; message: string };
@@ -119,7 +117,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isHydrated, setIsHydrated] = useState(false);
   
   // Safe initial state matching server-rendered markup (prevents hydration mismatch)
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  // Storefront shows only products the admin added (from the database) - never built-in demo items.
+  const [products, setProducts] = useState<Product[]>([]);
+  const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -161,8 +161,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       setClientStoreScope(nextScope);
       applyClientStoreBundle(readClientStoreBundle(nextScope));
-      setAppliedCoupon(null);
-      setCouponDiscount(0);
     },
     [applyClientStoreBundle]
   );
@@ -224,8 +222,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     department: 'People Operations & Procurement'
   });
 
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
-  const [couponDiscount, setCouponDiscount] = useState<number>(0);
   const [currentPincode, setCurrentPincode] = useState<string>('500062');
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -250,12 +246,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshCatalogFromServer = useCallback(async () => {
     try {
       const live = await fetchStorefrontCatalog(200);
-      if (live.length > 0) {
-        setProducts(live);
+      if (live === null) {
+        setCatalogStatus('error');
         return;
       }
+      // An empty list is a real answer (no products added yet), so show it as-is.
+      setProducts(live);
+      setCatalogStatus('ready');
     } catch (e) {
       console.warn('[APP_CONTEXT] Live catalog fetch failed:', e);
+      setCatalogStatus('error');
     }
   }, []);
 
@@ -402,8 +402,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const clearCart = () => {
     setCart([]);
-    setAppliedCoupon(null);
-    setCouponDiscount(0);
   };
 
   const updateCartItemCustomization = (cartItemId: string, customization: CustomizationOption) => {
@@ -430,34 +428,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Coupons
-  const applyCoupon = (code: string) => {
-    const clean = code.trim().toUpperCase();
-    if (clean === 'WELCOME100') {
-      setAppliedCoupon(clean);
-      setCouponDiscount(100);
-      showToast('₹100 discount applied! 🎉');
-      return { success: true, message: '₹100 discount applied!' };
-    }
-    if (clean === 'FESTIVE15') {
-      setAppliedCoupon(clean);
-      setCouponDiscount(250);
-      showToast('15% festive discount activated! 🎉');
-      return { success: true, message: '15% discount activated!' };
-    }
-    if (clean === 'CORP20') {
-      setAppliedCoupon(clean);
-      setCouponDiscount(500);
-      showToast('Corporate partner discount applied! 🎉');
-      return { success: true, message: 'Corporate discount applied!' };
-    }
-    return { success: false, message: 'Invalid coupon code. Try WELCOME100, FESTIVE15, or CORP20' };
-  };
-
-  const removeCoupon = () => {
-    setAppliedCoupon(null);
-    setCouponDiscount(0);
-    showToast('Coupon removed', 'info');
-  };
+  // Promo codes are validated and priced only on the server (see docs/PROMOTIONS_ENGINE_SPEC.md).
+  // The old browser-side codes (WELCOME100 / FESTIVE15 / CORP20) were removed: they showed a
+  // discount the server never applied.
 
   // PIN code verification
   const checkPincode = (pin: string) => {
@@ -646,6 +619,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateProduct,
         deleteProduct,
         refreshCatalogFromServer,
+        catalogStatus,
         selectedProduct,
         setSelectedProduct,
         cart,
@@ -658,10 +632,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setBulkRecipientsForCartItem,
         wishlist,
         toggleWishlist,
-        appliedCoupon,
-        couponDiscount,
-        applyCoupon,
-        removeCoupon,
         checkPincode,
         currentPincode,
         setCurrentPincode,

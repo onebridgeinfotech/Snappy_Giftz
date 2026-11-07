@@ -167,7 +167,7 @@ export const HeroBanner: React.FC = () => {
           {/* Luminous Cinematic Background Photography (Full Container) */}
           <div className="absolute inset-0 z-0">
             <img
-              src="/assets/luxury_hero_banner_perfect.jpg"
+              src="/assets/luxury_hero_banner_full.jpg"
               alt="Snappy Giftz Handcrafted Luxury Gift Box"
               className="w-full h-full object-cover object-[center_right] md:object-center transform scale-100 hover:scale-[1.01] transition-transform duration-1000 ease-out"
             />
@@ -238,18 +238,18 @@ export const HeroBanner: React.FC = () => {
                 </div>
 
                 {/* Trust Indicators below buttons matching Image 1 */}
-                <div className="pt-2 sm:pt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] sm:text-[12px] text-[#CBD5E1]">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <Truck className="w-3.5 h-3.5 text-[#F5BD48] shrink-0" />
-                    <span>Hyderabad Express Delivery</span>
+                <div className="pt-2 sm:pt-3 grid grid-cols-3 divide-x divide-[#D5A34A]/25 text-[10.5px] sm:text-[12px] leading-tight text-[#CBD5E1] max-w-md">
+                  <div className="flex items-center gap-2 pr-3">
+                    <Truck className="w-5 h-5 text-[#F5BD48] shrink-0" />
+                    <span>Hyderabad<br />Express Delivery</span>
                   </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#F5BD48] shrink-0" />
-                    <span>Insured &amp; Safe Packaging</span>
+                  <div className="flex items-center gap-2 px-3">
+                    <ShieldCheck className="w-5 h-5 text-[#F5BD48] shrink-0" />
+                    <span>Insured &amp;<br />Safe Packaging</span>
                   </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-[#F5BD48] shrink-0" />
-                    <span>Complimentary 24K Gold Inscription</span>
+                  <div className="flex items-center gap-2 pl-3">
+                    <Sparkles className="w-5 h-5 text-[#F5BD48] shrink-0" />
+                    <span>Complimentary<br />24K Gold Inscription</span>
                   </div>
                 </div>
 
@@ -257,10 +257,10 @@ export const HeroBanner: React.FC = () => {
 
               {/* Right Column: Floating Occasion Selector Panel with Increased Width */}
               <div className="md:col-span-6 lg:col-span-6 xl:col-span-7 flex justify-center md:justify-end">
-                <div className="w-full max-w-md sm:max-w-lg lg:max-w-[430px] xl:max-w-[460px] rounded-2xl bg-[#121316]/92 backdrop-blur-xl border border-[#D5A34A]/40 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(213,163,74,0.12)] overflow-hidden transition-all duration-300 hover:border-[#D5A34A]/60">
+                <div className="w-full max-w-sm sm:max-w-md lg:max-w-[380px] xl:max-w-[400px] rounded-2xl bg-[#121316]/92 backdrop-blur-xl border border-[#D5A34A]/40 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(213,163,74,0.12)] overflow-hidden transition-all duration-300 hover:border-[#D5A34A]/60">
                   
                   {/* Floating Panel Header: "Find the Perfect Gift" */}
-                  <div className="bg-[#1C1D22]/80 border-b border-[#D5A34A]/25 py-2.5 px-4 flex items-center justify-between">
+                  <div className="bg-[#1C1D22]/80 border-b border-[#D5A34A]/25 py-2 px-3.5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Gift className="w-4 h-4 text-[#F5BD48]" />
                       <span className="text-xs font-bold tracking-wider text-[#F1F5F9] uppercase">
@@ -273,35 +273,35 @@ export const HeroBanner: React.FC = () => {
                   </div>
 
                   {/* 8 Occasion Items Grid */}
-                  <div className="grid grid-cols-2 gap-2.5 p-3.5 bg-[#121316]/95">
+                  <div className="grid grid-cols-2 gap-1.5 p-2.5 bg-[#121316]/95">
                     {occasionItems.map((item, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => handleOccasionSelect(item)}
                         aria-label={`Find gifts for ${item.name}`}
-                        className="group flex items-center justify-between p-2.5 rounded-xl bg-[#1C1D22]/80 hover:bg-[#D5A34A]/15 border border-[#D5A34A]/20 hover:border-[#D5A34A]/60 text-left transition-all duration-200 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-[#D5A34A]"
+                        className="group flex items-center justify-between px-2 py-1.5 rounded-lg bg-[#1C1D22]/80 hover:bg-[#D5A34A]/15 border border-[#D5A34A]/20 hover:border-[#D5A34A]/60 text-left transition-all duration-200 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-[#D5A34A]"
                       >
-                        <div className="flex items-center gap-2.5 overflow-hidden">
-                          <span className="w-8 h-8 rounded-lg bg-[#121316] border border-[#D5A34A]/30 flex items-center justify-center text-sm group-hover:scale-110 transition-transform shrink-0">
+                        <div className="flex items-center gap-2 overflow-hidden min-w-0">
+                          <span className="w-6 h-6 rounded-md bg-[#121316] border border-[#D5A34A]/30 flex items-center justify-center text-xs group-hover:scale-110 transition-transform shrink-0">
                             {item.emoji}
                           </span>
                           <div className="leading-tight overflow-hidden">
-                            <div className="text-[12px] font-semibold text-[#F1F5F9] group-hover:text-[#F5BD48] transition-colors truncate">
+                            <div className="text-[11px] font-semibold text-[#F1F5F9] group-hover:text-[#F5BD48] transition-colors truncate">
                               {item.name}
                             </div>
-                            <div className="text-[10px] text-[#CBD5E1]/70 truncate">
+                            <div className="text-[9.5px] text-[#CBD5E1]/70 truncate">
                               {item.tagline}
                             </div>
                           </div>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-[#CBD5E1]/40 group-hover:text-[#F5BD48] group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                        <ChevronRight className="hidden sm:block w-3 h-3 text-[#CBD5E1]/40 group-hover:text-[#F5BD48] group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
                       </button>
                     ))}
                   </div>
 
                   {/* Panel Footer Prompt */}
-                  <div className="py-2.5 px-4 bg-[#1C1D22]/60 border-t border-[#D5A34A]/20 flex items-center justify-between text-[10.5px] text-[#CBD5E1]">
+                  <div className="py-2 px-3.5 bg-[#1C1D22]/60 border-t border-[#D5A34A]/20 flex items-center justify-between text-[10.5px] text-[#CBD5E1]">
                     <span className="flex items-center gap-1.5">
                       <Gift className="w-3.5 h-3.5 text-[#F5BD48]" />
                       <span>Ready for dispatch</span>

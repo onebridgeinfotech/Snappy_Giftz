@@ -95,6 +95,15 @@ export class CatalogDatabaseError extends Error {
  * - In development / testing: fallback is enabled when PostgreSQL is offline.
  * - Can be explicitly overridden with ALLOW_DEMO_FALLBACK=true for staging demo sandboxes.
  */
+/**
+ * Built-in demo products (src/data/initialData.ts) are shown only when SHOW_DEMO_PRODUCTS=true
+ * (used by the automated tests). Otherwise the storefront lists only products added in the admin,
+ * and a database outage shows an error instead of fake products.
+ */
+export function isDemoProductCatalogAllowed(): boolean {
+  return process.env.SHOW_DEMO_PRODUCTS === 'true' && isStorefrontFallbackAllowed();
+}
+
 export function isStorefrontFallbackAllowed(): boolean {
   if (process.env.ALLOW_DEMO_FALLBACK === 'true') {
     return true;
@@ -166,7 +175,7 @@ export async function getPublicProducts(
     if (category) {
       where.OR = [
         { category: { slug: slugify(category) } },
-        { category: { name: { equals: category, mode: 'insensitive' } } },
+        { category: { name: { equals: category } } },
       ];
     }
 
@@ -175,7 +184,7 @@ export async function getPublicProducts(
         ...(where.OR || []),
         { occasions: { has: occasion } },
         { productOccasions: { some: { occasion: { slug: slugify(occasion) } } } },
-        { productOccasions: { some: { occasion: { name: { equals: occasion, mode: 'insensitive' } } } } },
+        { productOccasions: { some: { occasion: { name: { equals: occasion } } } } },
       ];
     }
 
@@ -184,9 +193,9 @@ export async function getPublicProducts(
         ...(where.AND || []),
         {
           OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { tagline: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
+            { name: { contains: search } },
+            { tagline: { contains: search } },
+            { description: { contains: search } },
             { occasions: { hasSome: [search] } },
           ],
         },
@@ -284,8 +293,8 @@ export async function getPublicProducts(
       },
     };
   } catch (err: any) {
-    if (!isStorefrontFallbackAllowed()) {
-      // In production, never mask database outage or empty catalog with demo fixtures
+    if (!isDemoProductCatalogAllowed()) {
+      // Never mask a database outage or empty catalog with demo fixtures
       throw new CatalogDatabaseError('Public catalog service is temporarily unavailable.');
     }
   }
@@ -481,12 +490,12 @@ export async function getPublicProductBySlug(slugOrId: string): Promise<PublicPr
     // Database queried successfully and product was not found or is inactive/archived
     return null;
   } catch (err: any) {
-    if (!isStorefrontFallbackAllowed()) {
+    if (!isDemoProductCatalogAllowed()) {
       throw new CatalogDatabaseError('Public catalog service is temporarily unavailable.');
     }
   }
 
-  // Fallback search in development / test environments when DB is offline
+  // Fallback search in test environments (SHOW_DEMO_PRODUCTS=true) when DB is offline
   const fallback = INITIAL_PRODUCTS.find(
     (p) => (p.slug && p.slug === cleanKey) || slugify(p.name) === cleanKey || p.id === cleanKey
   );

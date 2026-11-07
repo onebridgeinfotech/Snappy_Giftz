@@ -31,36 +31,16 @@ export default function CartPage() {
     updateCartQuantity,
     removeFromCart,
     clearCart,
-    appliedCoupon,
-    couponDiscount,
-    applyCoupon,
-    removeCoupon,
     toggleItemGiftWrap,
   } = useApp();
-
-  const [couponCode, setCouponCode] = useState('');
-  const [couponError, setCouponError] = useState<string | null>(null);
 
   const subtotal = cart.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
   const isOrderGiftWrapped = cart.some((item) => Boolean(item.isGiftWrapped || item.customization?.giftWrap));
   const giftWrapFee = isOrderGiftWrapped ? 20 : 0;
-  const discountTotal = couponDiscount;
+  const discountTotal = 0; // promo codes are priced on the server only
   const taxableAmount = Math.max(0, subtotal + giftWrapFee - discountTotal);
   const estimatedGst = Math.round(taxableAmount * 0.18);
   const totalExclDelivery = taxableAmount + estimatedGst;
-
-  const handleApplyCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCouponError(null);
-    if (!couponCode.trim()) return;
-
-    const res = applyCoupon(couponCode.trim());
-    if (!res.success) {
-      setCouponError(res.message);
-    } else {
-      setCouponCode('');
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#08090B] text-[#F1F5F9] flex flex-col font-sans">
@@ -343,45 +323,6 @@ export default function CartPage() {
                   <span className="text-xl font-bold text-[#F5BD48]">
                     ₹{totalExclDelivery.toLocaleString('en-IN')}
                   </span>
-                </div>
-
-                {/* Coupon Code Input */}
-                <div className="py-4 border-b border-[#24252A]">
-                  {appliedCoupon ? (
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#10B981]/10 border border-[#10B981]/30 text-xs">
-                      <div className="flex items-center gap-2 text-[#10B981]">
-                        <Tag className="w-3.5 h-3.5" />
-                        <span className="font-bold">{appliedCoupon}</span>
-                        <span className="text-[#94A3B8]">(-₹{couponDiscount})</span>
-                      </div>
-                      <button
-                        onClick={removeCoupon}
-                        className="text-[#94A3B8] hover:text-[#EF4444] transition-colors p-1"
-                        aria-label="Remove coupon"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                        placeholder="Coupon Code"
-                        className="flex-1 bg-[#08090B] border border-[#24252A] rounded-lg px-3 py-2 text-xs text-[#F1F5F9] focus:outline-none focus:border-[#D5A34A]"
-                      />
-                      <button
-                        type="submit"
-                        className="px-3.5 py-2 rounded-lg bg-[#24252A] hover:bg-[#D5A34A] hover:text-[#08090B] text-[#F1F5F9] text-xs font-semibold transition-all"
-                      >
-                        Apply
-                      </button>
-                    </form>
-                  )}
-                  {couponError && (
-                    <p className="text-[11px] text-[#EF4444] mt-1.5">{couponError}</p>
-                  )}
                 </div>
 
                 {/* Proceed to Checkout CTA */}

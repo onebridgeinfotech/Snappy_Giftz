@@ -102,6 +102,18 @@ export async function checkHyderabadServiceability(pincode: string): Promise<{
         message: `Personal delivery available in ${record.areaName || record.city} within ${record.deliveryDays} day(s).`,
       };
     }
+    if (record && !record.isActive) {
+      // Owner paused this PIN code: it must not fall back to the built-in list below.
+      return {
+        serviceable: false,
+        pincode: clean,
+        city: record.city,
+        state: record.state,
+        stateCode: record.stateCode,
+        deliveryDays: 0,
+        message: `Delivery to PIN code ${clean} is currently paused.`,
+      };
+    }
   } catch {
     // DB fallback
   }
@@ -190,28 +202,57 @@ export async function calculateAuthoritativeDeliveryFee(orderSubtotalPaise: numb
 /**
  * Lists all serviceable PIN codes (Admin).
  */
+function toPincodeDTO(r: any): ServiceablePincodeDTO {
+  return {
+    id: r.id,
+    pincode: r.pincode,
+    areaName: r.areaName,
+    city: r.city,
+    state: r.state,
+    stateCode: r.stateCode,
+    zoneId: r.zoneId,
+    zoneName: r.zone?.name || null,
+    isActive: r.isActive,
+    deliveryDays: r.deliveryDays,
+    notes: r.notes,
+  };
+}
+
+/**
+ * Lists every PIN code checkout knows about: the built-in Hyderabad list, overridden by any
+ * owner-saved database entries (which can add new PIN codes or pause existing ones).
+ */
 export async function listServiceablePincodes(): Promise<ServiceablePincodeDTO[]> {
+  const merged = new Map<string, ServiceablePincodeDTO>();
+  for (const [pin, rec] of DEV_PINCODES.entries()) merged.set(pin, rec);
   try {
     const records = await prisma.serviceablePincode.findMany({
       include: { zone: true },
       orderBy: { pincode: 'asc' },
     });
-
-    return records.map((r) => ({
-      id: r.id,
-      pincode: r.pincode,
-      areaName: r.areaName,
-      city: r.city,
-      state: r.state,
-      stateCode: r.stateCode,
-      zoneId: r.zoneId,
-      zoneName: r.zone?.name || null,
-      isActive: r.isActive,
-      deliveryDays: r.deliveryDays,
-      notes: r.notes,
-    }));
+    for (const r of records) {
+      const dto = toPincodeDTO(r);
+      merged.set(dto.pincode, dto);
+      DEV_PINCODES.set(dto.pincode, dto);
+    }
   } catch {
-    return Array.from(DEV_PINCODES.values());
+    // Database unavailable: the in-memory registry is all we have.
+  }
+  return Array.from(merged.values()).sort((a, b) => a.pincode.localeCompare(b.pincode));
+}
+
+/**
+ * Loads the owner's saved setting for one PIN code (if any) into the in-memory registry that
+ * checkout's serviceability checks read, so admin changes take effect on every server instance.
+ */
+export async function primePincodeFromDatabase(pincode: string): Promise<void> {
+  const clean = (pincode || '').trim();
+  if (!/^[1-9][0-9]{5}$/.test(clean)) return;
+  try {
+    const r = await prisma.serviceablePincode.findUnique({ where: { pincode: clean }, include: { zone: true } });
+    if (r) DEV_PINCODES.set(clean, toPincodeDTO(r));
+  } catch {
+    // Keep the built-in registry when the database is unreachable.
   }
 }
 
@@ -255,19 +296,9 @@ export async function upsertServiceablePincode(data: {
       include: { zone: true },
     });
 
-    return {
-      id: result.id,
-      pincode: result.pincode,
-      areaName: result.areaName,
-      city: result.city,
-      state: result.state,
-      stateCode: result.stateCode,
-      zoneId: result.zoneId,
-      zoneName: result.zone?.name || null,
-      isActive: result.isActive,
-      deliveryDays: result.deliveryDays,
-      notes: result.notes,
-    };
+    const dto = toPincodeDTO(result);
+    DEV_PINCODES.set(cleanPin, dto);
+    return dto;
   } catch {
     const existing: ServiceablePincodeDTO = DEV_PINCODES.get(cleanPin) || {
       id: `dev-pin-${cleanPin}`,
@@ -466,6 +497,8 @@ export async function updateOrderDeliveryCharge(
       data: {
         shippingTotalPaise: BigInt(cleanCharge),
         grandTotalPaise: BigInt(newGrandTotal),
+        // A changed charge needs the customer's approval again (clears AUTO_DISTANCE / OWNER_SET).
+        deliveryFeeRuleId: null,
         // The customer can only review and pay after the owner sets the charge, so the
         // original short checkout hold must restart from here or it expires before payment.
         reservationExpiresAt: new Date(Date.now() + CUSTOMER_APPROVAL_WINDOW_MS),

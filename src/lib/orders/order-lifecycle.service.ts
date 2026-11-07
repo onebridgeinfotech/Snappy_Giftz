@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { buildTrackingTimeline } from '@/lib/shipping/courier-tracking.service';
 import { OrderStatus, PaymentStatus, Role } from '@prisma/client';
 import {
   SanitizedOrderResult,
@@ -15,8 +16,9 @@ import {
 } from '@/lib/invoices/invoice.service';
 import { getSellerConfig } from '@/lib/invoices/seller-config.service';
 import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
-import { renderShipmentDispatchedTemplate } from '@/lib/email/email-templates';
+import { renderShipmentDispatchedTemplate, renderOutForDeliveryTemplate } from '@/lib/email/email-templates';
 import { INITIAL_PRODUCTS } from '@/data/initialData';
+import { verifyDeliveryOtp, DeliveryOtpError, getDeliveryOtpForEmail } from '@/lib/orders/delivery-otp.service';
 
 export class OrderTransitionError extends Error {
   constructor(message: string) {
@@ -55,7 +57,7 @@ export const ORDER_TRANSITION_MATRIX: Record<OrderStatus, OrderStatus[]> = {
   PENDING: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_COD_CONFIRMATION],
   PENDING_PAYMENT: [OrderStatus.CONFIRMED, OrderStatus.EXPIRED, OrderStatus.CANCELLED],
   PENDING_COD_CONFIRMATION: [OrderStatus.CONFIRMED, OrderStatus.REJECTED, OrderStatus.CANCELLED],
-  CONFIRMED: [OrderStatus.PROCESSING, OrderStatus.IN_CUSTOMIZATION, OrderStatus.QUALITY_CHECK, OrderStatus.CANCELLED],
+  CONFIRMED: [OrderStatus.PROCESSING, OrderStatus.IN_CUSTOMIZATION, OrderStatus.QUALITY_CHECK, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED],
   PROCESSING: [OrderStatus.IN_CUSTOMIZATION, OrderStatus.QUALITY_CHECK, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DISPATCHED, OrderStatus.CANCELLED],
   IN_CUSTOMIZATION: [OrderStatus.QUALITY_CHECK, OrderStatus.PROCESSING, OrderStatus.CANCELLED],
   QUALITY_CHECK: [OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DISPATCHED, OrderStatus.IN_CUSTOMIZATION, OrderStatus.CANCELLED],
@@ -95,7 +97,55 @@ export interface DispatchInput {
 export interface DeliveryInput {
   deliveredAt?: string | Date | null;
   notes?: string | null;
+  /** 6-digit OTP the customer reads out; required for own (local) deliveries. */
+  deliveryOtp?: string | null;
 }
+
+/**
+ * Own deliveries (OUT_FOR_DELIVERY) may only be completed after the customer's delivery OTP is
+ * confirmed. Only enforced for database orders (pickupVerifiedAt is null rather than undefined).
+ * Verifies the supplied OTP if one is given; throws when it is missing or wrong.
+ */
+export async function ensureOwnDeliveryOtpVerified(order: any, suppliedOtp: string | null | undefined, actor: string) {
+  if (order.orderStatus !== OrderStatus.OUT_FOR_DELIVERY) return;
+  if (order.pickupVerifiedAt !== null) return; // already verified, or not a database order
+  if (!suppliedOtp || !String(suppliedOtp).trim()) {
+    throw new OrderFulfillmentError(
+      "Enter the customer's 6-digit delivery OTP to confirm this delivery. The customer received it in their order email."
+    );
+  }
+  try {
+    await verifyDeliveryOtp(order, String(suppliedOtp), actor);
+    order.pickupVerifiedAt = new Date();
+  } catch (err) {
+    if (err instanceof DeliveryOtpError) throw new OrderFulfillmentError(err.message);
+    throw err;
+  }
+}
+
+/** Fire-and-forget "delivered successfully" email to the customer. */
+function sendDeliveredEmail(orderId: string) {
+  import('@/lib/orders/order-email-notifications')
+    .then(({ notifyOrderDeliveredEmail }) => notifyOrderDeliveredEmail(orderId))
+    .catch((err) => console.warn('[DELIVERED_EMAIL] non-fatal:', err));
+}
+
+export interface LocalDeliveryInput {
+  assignedPerson: string;
+  assignedPhone?: string | null;
+  /** Optional: the delivery person gets the order details + a one-order OTP confirmation link. */
+  assignedEmail?: string | null;
+  notes?: string | null;
+  invoicePhysicalSignatureConfirmed?: boolean;
+}
+
+/** Statuses from which an order may be handed to the store's own delivery person. */
+const LOCAL_DELIVERY_SOURCE_STATUSES: OrderStatus[] = [
+  OrderStatus.CONFIRMED,
+  OrderStatus.PROCESSING,
+  OrderStatus.QUALITY_CHECK,
+  OrderStatus.OUT_FOR_DELIVERY, // re-assign to a different person
+];
 
 export interface AdminOrderListOptions {
   page?: number;
@@ -174,11 +224,11 @@ export async function listOrdersForAdmin(options: AdminOrderListOptions = {}) {
   if (options.search) {
     const s = options.search.trim();
     where.OR = [
-      { orderNumber: { contains: s, mode: 'insensitive' } },
-      { customerName: { contains: s, mode: 'insensitive' } },
-      { customerEmail: { contains: s, mode: 'insensitive' } },
-      { customerPhone: { contains: s, mode: 'insensitive' } },
-      { shipments: { some: { awbNumber: { contains: s, mode: 'insensitive' } } } },
+      { orderNumber: { contains: s } },
+      { customerName: { contains: s } },
+      { customerEmail: { contains: s } },
+      { customerPhone: { contains: s } },
+      { shipments: { some: { awbNumber: { contains: s } } } },
     ];
   }
 
@@ -206,6 +256,8 @@ export async function listOrdersForAdmin(options: AdminOrderListOptions = {}) {
             },
           },
           shipments: true,
+          deliveryRecord: true,
+          codCollection: true,
         },
       }),
       prisma.order.count({ where }),
@@ -402,6 +454,13 @@ export async function transitionOrderStatus(
     return formatDevOrderDetails(order);
   }
 
+  // 2b. Own deliveries must go through the Delivered (OTP) action, not a bare status change
+  if (newStatus === OrderStatus.DELIVERED && currentStatus === OrderStatus.OUT_FOR_DELIVERY && order.pickupVerifiedAt === null) {
+    throw new OrderTransitionError(
+      "This order is with your own delivery person. Use the Delivered button and enter the customer's delivery OTP."
+    );
+  }
+
   // 3. State machine validation
   const permittedNextStates = ORDER_TRANSITION_MATRIX[currentStatus] || [];
   if (!permittedNextStates.includes(newStatus)) {
@@ -551,6 +610,7 @@ export async function transitionOrderStatus(
       return orderUpdate;
     });
 
+    if (newStatus === OrderStatus.DELIVERED) sendDeliveredEmail(order.id);
     return formatAdminOrderDetails(updated);
   } catch (dbErr) {
     if (dbErr instanceof OrderTransitionError) throw dbErr;
@@ -828,6 +888,263 @@ async function triggerPostDispatchNotifications(
 }
 
 /**
+ * Hands an order to the store's own delivery person (Hyderabad local delivery, no courier/AWB).
+ * Issues the GST tax invoice first (same gate as courier dispatch), records who is delivering
+ * and how much cash to collect for COD, moves the order to OUT_FOR_DELIVERY and emails the customer.
+ */
+export async function startLocalDelivery(
+  orderIdOrNumber: string,
+  input: LocalDeliveryInput,
+  actorIdentifier: string
+) {
+  const cleanKey = orderIdOrNumber?.trim();
+  if (!cleanKey) throw new OrderNotFoundError();
+
+  const person = input?.assignedPerson?.trim() || '';
+  if (person.length < 2 || person.length > 100) {
+    throw new OrderFulfillmentError('Delivery person name is required (2 to 100 characters).');
+  }
+  const phone = input.assignedPhone?.trim().replace(/[\s-]/g, '') || null;
+  if (phone && !/^(?:\+91)?[6-9]\d{9}$/.test(phone)) {
+    throw new OrderFulfillmentError('Delivery person phone must be a valid 10-digit Indian mobile number.');
+  }
+  const notes = input.notes?.trim() || null;
+  const assignedEmail = input.assignedEmail?.trim().toLowerCase() || null;
+  if (assignedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(assignedEmail)) {
+    throw new OrderFulfillmentError('Delivery person email is not valid.');
+  }
+
+  let order: any = null;
+  try {
+    order = await prisma.order.findFirst({
+      where: { OR: [{ id: cleanKey }, { orderNumber: cleanKey }] },
+    });
+  } catch {
+    if (!isStorefrontFallbackAllowed() || process.env.NODE_ENV === 'production') {
+      throw new CatalogDatabaseError('Database unreachable during local delivery assignment.');
+    }
+  }
+  if (!order && isStorefrontFallbackAllowed()) {
+    for (const devOrd of DEV_ORDERS_STORE.values()) {
+      if (devOrd.id === cleanKey || devOrd.orderNumber === cleanKey) {
+        order = devOrd;
+        break;
+      }
+    }
+  }
+  if (!order) throw new OrderNotFoundError(`Order not found: ${cleanKey}`);
+
+  const currentStatus = order.orderStatus as OrderStatus;
+  if (!LOCAL_DELIVERY_SOURCE_STATUSES.includes(currentStatus)) {
+    throw new OrderTransitionError(
+      `Cannot send order out for delivery from "${currentStatus}". It must be CONFIRMED, PROCESSING or QUALITY_CHECK.`
+    );
+  }
+
+  const isCod = String(order.paymentMethod || '').toUpperCase() === 'COD';
+  if (!isCod && order.paymentStatus !== PaymentStatus.CAPTURED) {
+    throw new OrderTransitionError('Cannot send an unpaid online order out for delivery. Payment must be CAPTURED first.');
+  }
+  const codAmountDuePaise = isCod && order.paymentStatus !== PaymentStatus.CAPTURED ? Number(order.grandTotalPaise) : 0;
+
+  // GST gate (CGST s.31): the tax invoice must exist before goods leave the store.
+  const invoice = await issueTaxInvoice(order.orderNumber);
+  if (invoice.signatureMode === 'PHYSICAL_SIGNATURE_ON_PRINT') {
+    if (!input.invoicePhysicalSignatureConfirmed) {
+      throw new OrderFulfillmentError(
+        'Tax invoice requires physical signature on print before goods leave (CGST Rule 46(q)). Confirm the invoice has been printed and signed.'
+      );
+    }
+    await recordInvoicePhysicalSignatureConfirmation(order.orderNumber, actorIdentifier);
+  }
+
+  const isReassign = currentStatus === OrderStatus.OUT_FOR_DELIVERY;
+  const auditNote =
+    `${isReassign ? 'Re-assigned' : 'Out for delivery'} with ${person}${phone ? ` (${phone})` : ''}` +
+    (codAmountDuePaise > 0 ? ` • Collect COD ₹${(codAmountDuePaise / 100).toFixed(2)}` : '') +
+    (notes ? ` • ${notes}` : '');
+  const startedAt = new Date();
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.deliveryRecord.upsert({
+        where: { orderId: order.id },
+        create: {
+          orderId: order.id,
+          assignedPerson: person,
+          assignedPhone: phone,
+          deliveryStatus: 'OUT_FOR_DELIVERY',
+          deliveryNotes: notes,
+          startedAt,
+          codAmountDuePaise: BigInt(codAmountDuePaise),
+        },
+        update: {
+          assignedPerson: person,
+          assignedPhone: phone,
+          deliveryStatus: 'OUT_FOR_DELIVERY',
+          deliveryNotes: notes,
+          startedAt,
+          codAmountDuePaise: BigInt(codAmountDuePaise),
+        },
+      });
+
+      const updatedOrder = await tx.order.update({
+        where: { id: order.id },
+        data: { orderStatus: OrderStatus.OUT_FOR_DELIVERY },
+        include: {
+          items: true,
+          payments: true,
+          shipments: true,
+          statusHistory: { orderBy: { createdAt: 'asc' } },
+        },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          fromStatus: currentStatus,
+          toStatus: OrderStatus.OUT_FOR_DELIVERY,
+          changedBy: actorIdentifier,
+          notes: auditNote,
+        },
+      });
+
+      return updatedOrder;
+    });
+
+    if (!isReassign) {
+      await triggerOutForDeliveryNotification(order, person, phone, codAmountDuePaise);
+    }
+
+    // One-order confirmation link for the delivery person (closes on delivery / reassignment / 48h).
+    const { createDeliveryConfirmLink } = await import('@/lib/delivery/delivery-link.service');
+    const link = createDeliveryConfirmLink(order.id, startedAt);
+    if (assignedEmail) {
+      await sendDeliveryAssignmentEmail(order, {
+        person,
+        email: assignedEmail,
+        linkUrl: link.url,
+        linkExpiresAt: link.expiresAt,
+        codAmountDuePaise,
+      });
+    }
+    return {
+      ...formatAdminOrderDetails(updated),
+      deliveryLink: link.url,
+      deliveryLinkExpiresAt: link.expiresAt.toISOString(),
+      deliveryLinkEmailedTo: assignedEmail,
+    };
+  } catch (dbErr) {
+    if (dbErr instanceof OrderTransitionError || dbErr instanceof OrderFulfillmentError) throw dbErr;
+    if (process.env.NODE_ENV === 'production' || !isStorefrontFallbackAllowed()) {
+      throw new CatalogDatabaseError('Database transaction failed during local delivery assignment.');
+    }
+    order.orderStatus = OrderStatus.OUT_FOR_DELIVERY;
+    order.deliveryRecord = {
+      assignedPerson: person,
+      assignedPhone: phone,
+      deliveryStatus: 'OUT_FOR_DELIVERY',
+      deliveryNotes: notes,
+      startedAt: startedAt.toISOString(),
+      deliveredAt: null,
+      codAmountDuePaise,
+    };
+    DEV_ORDERS_STORE.set(order.orderNumber, order);
+    const history = DEV_STATUS_HISTORY_STORE.get(order.orderNumber) || [];
+    history.push({
+      id: `dev-hist-${Date.now()}`,
+      orderId: order.id,
+      fromStatus: currentStatus,
+      toStatus: OrderStatus.OUT_FOR_DELIVERY,
+      changedBy: actorIdentifier,
+      notes: auditNote,
+      createdAt: new Date().toISOString(),
+    });
+    DEV_STATUS_HISTORY_STORE.set(order.orderNumber, history);
+    return formatDevOrderDetails(order);
+  }
+}
+
+function orderTrackUrl(orderNumber: string): string {
+  const base = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://snappygiftz.com').replace(/\/$/, '');
+  return `${base}/?track=${encodeURIComponent(orderNumber)}`;
+}
+
+async function sendDeliveryAssignmentEmail(
+  order: any,
+  info: { person: string; email: string; linkUrl: string; linkExpiresAt: Date; codAmountDuePaise: number }
+): Promise<void> {
+  try {
+    const addr: any = typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : order.shippingAddress || {};
+    const seller = await getSellerConfig();
+    const { renderDeliveryAssignmentTemplate } = await import('@/lib/email/email-templates');
+    const email = renderDeliveryAssignmentTemplate(
+      {
+        orderNumber: order.orderNumber,
+        deliveryPerson: info.person,
+        customerName: addr.name || order.customerName,
+        customerPhone: addr.phone || order.customerPhone,
+        address: [addr.street, addr.city, addr.state, addr.pincode].filter(Boolean).join(', '),
+        codAmountDueInr: info.codAmountDuePaise > 0 ? `₹${(info.codAmountDuePaise / 100).toFixed(2)}` : null,
+        confirmUrl: info.linkUrl,
+        linkExpiresAt: info.linkExpiresAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }),
+      },
+      seller
+    );
+    await enqueueTransactionalEmail({
+      idempotencyKey: `email:delivery_assignment:${order.orderNumber}:${info.email}:${info.linkExpiresAt.getTime()}`,
+      eventType: 'DELIVERY_ASSIGNMENT',
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      recipientEmail: info.email,
+      recipientName: info.person,
+      subject: email.subject,
+      htmlBody: email.html,
+      textBody: email.text,
+    });
+  } catch (err) {
+    console.warn('[LOCAL_DELIVERY] Delivery person email non-fatal error:', err);
+  }
+}
+
+async function triggerOutForDeliveryNotification(
+  order: any,
+  person: string,
+  phone: string | null,
+  codAmountDuePaise: number
+): Promise<void> {
+  try {
+    if (!order.customerEmail) return;
+    const seller = await getSellerConfig();
+    const emailData = renderOutForDeliveryTemplate(
+      {
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        deliveryPerson: person,
+        deliveryPhone: phone,
+        codAmountDueInr: codAmountDuePaise > 0 ? `₹${(codAmountDuePaise / 100).toFixed(2)}` : null,
+        deliveryOtp: getDeliveryOtpForEmail(order.id),
+        trackUrl: orderTrackUrl(order.orderNumber),
+      },
+      seller
+    );
+    await enqueueTransactionalEmail({
+      idempotencyKey: `email-out-for-delivery-${order.orderNumber}`,
+      eventType: 'OUT_FOR_DELIVERY',
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      recipientEmail: order.customerEmail,
+      recipientName: order.customerName,
+      subject: emailData.subject,
+      htmlBody: emailData.html,
+      textBody: emailData.text,
+    });
+  } catch (err) {
+    console.warn('[LOCAL_DELIVERY] Out-for-delivery notification non-fatal error:', err);
+  }
+}
+
+/**
  * Confirms delivery of a dispatched order.
  * Moves order from DISPATCHED to DELIVERED, records deliveredAt,
  * and creates OrderStatusHistory audit entry.
@@ -875,14 +1192,21 @@ export async function confirmOrderDelivery(
 
   const currentStatus = order.orderStatus as OrderStatus;
 
-  // 2. Order must be currently DISPATCHED
-  if (currentStatus !== OrderStatus.DISPATCHED) {
+  // 2. Order must be with a courier (DISPATCHED) or the store's own delivery person (OUT_FOR_DELIVERY)
+  if (currentStatus !== OrderStatus.DISPATCHED && currentStatus !== OrderStatus.OUT_FOR_DELIVERY) {
     throw new OrderTransitionError(
-      `Cannot confirm delivery for order currently in "${currentStatus}" status. Orders must be DISPATCHED first.`
+      `Cannot confirm delivery for order currently in "${currentStatus}" status. Orders must be DISPATCHED or OUT_FOR_DELIVERY first.`
     );
   }
 
-  const auditNote = input.notes?.trim() || 'Delivery confirmed successfully.';
+  // 2b. Own delivery: the customer's OTP must be confirmed first
+  await ensureOwnDeliveryOtpVerified(order, input.deliveryOtp, actorIdentifier);
+
+  const auditNote =
+    input.notes?.trim() ||
+    (currentStatus === OrderStatus.OUT_FOR_DELIVERY
+      ? 'Delivered by own delivery; customer confirmed the delivery OTP.'
+      : 'Delivery confirmed successfully.');
 
   // 3. Execute Transaction
   try {
@@ -901,6 +1225,11 @@ export async function confirmOrderDelivery(
           },
         });
       }
+
+      await tx.deliveryRecord.updateMany({
+        where: { orderId: order.id },
+        data: { deliveryStatus: 'DELIVERED', deliveredAt: deliveryTimestamp },
+      });
 
       // Update Order Status to DELIVERED
       const updatedOrder = await tx.order.update({
@@ -960,7 +1289,7 @@ export async function confirmOrderDelivery(
       await tx.orderStatusHistory.create({
         data: {
           orderId: order.id,
-          fromStatus: OrderStatus.DISPATCHED,
+          fromStatus: currentStatus,
           toStatus: OrderStatus.DELIVERED,
           changedBy: actorIdentifier,
           notes: auditNote,
@@ -970,6 +1299,7 @@ export async function confirmOrderDelivery(
       return updatedOrder;
     });
 
+    sendDeliveredEmail(order.id);
     return formatAdminOrderDetails(updated);
   } catch (dbErr) {
     if (process.env.NODE_ENV === 'production' || !isStorefrontFallbackAllowed()) {
@@ -1035,7 +1365,8 @@ export async function listOrdersForCustomer(
         orderBy: { createdAt: 'desc' },
         include: {
           items: true,
-          shipments: true,
+          shipments: { include: { trackingEvents: { orderBy: { eventAt: 'desc' } } } },
+          statusHistory: { orderBy: { createdAt: 'asc' } },
         },
       }),
       prisma.order.count({ where: { userId: cleanUserId } }),
@@ -1117,6 +1448,34 @@ function formatAdminOrderListItem(order: any) {
         invoicePhysicallySignedAt: shipment.invoicePhysicallySignedAt ? new Date(shipment.invoicePhysicallySignedAt).toISOString() : null,
       }
       : null,
+    deliveryRecord: formatDeliveryRecord(order.deliveryRecord),
+    codCollection: formatCodCollection(order.codCollection),
+    deliveryOtpVerifiedAt: order.pickupVerifiedAt ? new Date(order.pickupVerifiedAt).toISOString() : null,
+    deliveryOtpVerifiedBy: order.pickupVerifiedBy || null,
+  };
+}
+
+function formatDeliveryRecord(rec: any) {
+  if (!rec) return null;
+  return {
+    assignedPerson: rec.assignedPerson || null,
+    assignedPhone: rec.assignedPhone || null,
+    deliveryStatus: rec.deliveryStatus,
+    deliveryNotes: rec.deliveryNotes || null,
+    startedAt: rec.startedAt ? new Date(rec.startedAt).toISOString() : null,
+    deliveredAt: rec.deliveredAt ? new Date(rec.deliveredAt).toISOString() : null,
+    codAmountDuePaise: Number(rec.codAmountDuePaise || 0),
+  };
+}
+
+function formatCodCollection(rec: any) {
+  if (!rec) return null;
+  return {
+    amountCollectedPaise: Number(rec.amountCollectedPaise || 0),
+    collectedAt: rec.collectedAt ? new Date(rec.collectedAt).toISOString() : null,
+    collectedBy: rec.collectedBy,
+    collectionMethod: rec.collectionMethod,
+    receiptNumber: rec.receiptNumber || null,
   };
 }
 
@@ -1253,6 +1612,7 @@ function formatCustomerOrderListItem(order: any) {
         deliveredAt: shipment.deliveredAt ? new Date(shipment.deliveredAt).toISOString() : null,
       }
       : null,
+    trackingTimeline: buildTrackingTimeline(order),
   };
 }
 

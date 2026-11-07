@@ -15,7 +15,8 @@ import {
   ExternalLink,
   AlertCircle,
   Loader2,
-  Crown
+  Crown,
+  RefreshCw
 } from 'lucide-react';
 import { BUSINESS_CONFIG } from '@/config/business';
 
@@ -123,6 +124,22 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
     }
   };
 
+  // Opened from an email link (/?track=SG-...): go straight to lookup with the order ID filled in.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const tracked = url.searchParams.get('track')?.trim();
+      if (tracked) {
+        setActiveTab('lookup');
+        setLookupOrderNumber(tracked.toUpperCase().slice(0, 40));
+        url.searchParams.delete('track');
+        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+      }
+    } catch {
+      // ignore malformed URLs
+    }
+  }, []);
+
   // Fetch real authenticated customer orders from server on mount
   useEffect(() => {
     let isCancelled = false;
@@ -150,6 +167,37 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
 
   // Determine which order to display
   const displayOrder: any = lookedUpOrder || selectedOrder || serverCustomerOrders[0] || orders[0] || null;
+
+  // Re-fetch the displayed order so the latest courier updates appear (no background polling).
+  const [isRefreshingTracking, setIsRefreshingTracking] = useState(false);
+  const refreshTracking = async () => {
+    if (!displayOrder?.orderNumber || isRefreshingTracking) return;
+    setIsRefreshingTracking(true);
+    try {
+      if (lookedUpOrder && lookupOrderNumber.trim() && lookupContact.trim()) {
+        const res = await fetch('/api/orders/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderNumber: lookupOrderNumber.trim(), contact: lookupContact.trim() }),
+        });
+        const data = await res.json();
+        if (res.ok && data.order) setLookedUpOrder(data.order);
+      } else {
+        const res = await fetch('/api/orders');
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.orders)) {
+          setServerCustomerOrders(data.orders);
+          const fresh = data.orders.find((o: any) => o.orderNumber === displayOrder.orderNumber);
+          if (fresh) setSelectedOrder(fresh);
+        }
+      }
+    } catch {
+      // Keep showing the last loaded timeline.
+    } finally {
+      setIsRefreshingTracking(false);
+    }
+  };
+  const trackingTimeline: any[] = Array.isArray(displayOrder?.trackingTimeline) ? displayOrder.trackingTimeline : [];
 
   // Handle guest lookup form submission
   const handleGuestLookup = async (e: React.FormEvent) => {
@@ -536,6 +584,50 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ onClose 
                 Recipient: <strong className="text-white">{displayOrder?.shippingAddress?.name || displayOrder?.customerName}</strong>
               </span>
             </div>
+
+            {/* Live tracking timeline: store milestones + courier scans pushed by the courier */}
+            {trackingTimeline.length > 0 && (
+              <div className="pt-2 border-t border-[#D5A34A]/15 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-white text-[12px]">Tracking updates</span>
+                  <button
+                    type="button"
+                    onClick={refreshTracking}
+                    disabled={isRefreshingTracking}
+                    className="inline-flex items-center gap-1 text-[11px] text-[#D5A34A] hover:text-[#F5BD48] disabled:opacity-50 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isRefreshingTracking ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+                <ol className="relative border-l border-[#D5A34A]/25 ml-1.5 space-y-3">
+                  {trackingTimeline.map((ev: any, i: number) => (
+                    <li key={`${ev.at}-${i}`} className="ml-4">
+                      <span
+                        className={`absolute -left-[5px] mt-1 w-2.5 h-2.5 rounded-full ${
+                          i === 0 ? 'bg-[#F5BD48] ring-2 ring-[#F5BD48]/30' : 'bg-[#475569]'
+                        }`}
+                      />
+                      <p className={`text-[12px] ${i === 0 ? 'text-white font-semibold' : 'text-[#CBD5E1]'}`}>{ev.label}</p>
+                      {(ev.detail || ev.location) && (
+                        <p className="text-[11px] text-[#94A3B8]">
+                          {[ev.detail !== ev.label ? ev.detail : null, ev.location].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                      <p className="text-[10.5px] text-[#64748B]">
+                        {new Date(ev.at).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                        {ev.source === 'COURIER' ? ' · courier update' : ''}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
 
             {/* External Carrier Link if tracking URL exists */}
             {trackingUrl && (

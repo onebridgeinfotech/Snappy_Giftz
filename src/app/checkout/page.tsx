@@ -77,8 +77,6 @@ export default function CheckoutPage() {
     clearCart,
     removeFromCart,
     currentPincode,
-    appliedCoupon,
-    couponDiscount,
     showToast
   } = useApp();
 
@@ -118,6 +116,41 @@ export default function CheckoutPage() {
   const [isPollingStage, setIsPollingStage] = useState(false);
   const [isProcessingApproval, setIsProcessingApproval] = useState(false);
   const [serverQuotePaise, setServerQuotePaise] = useState<number | null>(null);
+  // "Use my current location": only when delivering to where the customer is right now.
+  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  // GST from the server quote (per-product rates set in Admin > Tax & Delivery)
+  const [serverTaxPaise, setServerTaxPaise] = useState<number | null>(null);
+
+  const useCurrentLocation = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocationError('Your browser cannot share location. We will use your PIN code instead.');
+      return;
+    }
+    setLocating(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        setCurrentLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      },
+      () => {
+        setLocating(false);
+        setLocationError('Location permission was not given. We will use your PIN code instead.');
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
+  };
+
+  // Automatic delivery charge for the entered PIN (from the server quote)
+  const [deliveryQuote, setDeliveryQuote] = useState<{
+    serviceable: boolean;
+    isAutomatic: boolean;
+    distanceKm: number | null;
+    feePaise: number | null;
+    message: string;
+  } | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
   // Minimum delivery date is 2 days from today (preparation time invariant)
@@ -127,7 +160,7 @@ export default function CheckoutPage() {
   const subtotal = cart.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
   const isOrderGiftWrapped = cart.some((item) => Boolean(item.isGiftWrapped || item.customization?.giftWrap));
   const giftWrapFee = isOrderGiftWrapped ? 20 : 0;
-  const discountTotal = couponDiscount;
+  const discountTotal = 0; // promo codes are priced on the server only
   const taxableAmount = Math.max(0, subtotal + giftWrapFee - discountTotal);
   const estimatedGst = Math.round(taxableAmount * 0.18);
   const subtotalExclDelivery = taxableAmount + estimatedGst;
@@ -186,9 +219,11 @@ export default function CheckoutPage() {
     }
     if (cart.length === 0) {
       setServerQuotePaise(null);
+      setDeliveryQuote(null);
       setQuoteError(null);
       return;
     }
+    const quotePin = (pincode || '').trim();
     const stateCode =
       state.toLowerCase().includes('telangana') || state.toLowerCase().includes('hyderabad')
         ? '36'
@@ -200,6 +235,10 @@ export default function CheckoutPage() {
       signal: controller.signal,
       body: JSON.stringify({
         destinationStateCode: stateCode,
+        pincode: /^[1-9][0-9]{5}$/.test(quotePin) ? quotePin : undefined,
+        address: [street, city, quotePin].filter(Boolean).join(', ') || undefined,
+        latitude: currentLocation?.latitude,
+        longitude: currentLocation?.longitude,
         items: cart.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,
@@ -219,6 +258,8 @@ export default function CheckoutPage() {
       .then((json) => {
         if (json.success && json.data?.grandTotalPaise != null) {
           setServerQuotePaise(json.data.grandTotalPaise);
+          setServerTaxPaise(typeof json.data.taxTotalPaise === 'number' ? json.data.taxTotalPaise : null);
+          setDeliveryQuote(json.data.delivery || null);
           setQuoteError(null);
         } else if (json.error) {
           setQuoteError(json.error);
@@ -226,14 +267,17 @@ export default function CheckoutPage() {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [cart, state, resumeChecked, activeOrderNumber, savedPendingOrder]);
+  }, [cart, state, pincode, street, city, currentLocation, resumeChecked, activeOrderNumber, savedPendingOrder]);
 
   // Validate Delivery PIN code & Distance when PIN changes
   useEffect(() => {
     const cleanPin = (pincode || '').trim();
     if (cleanPin.length === 6 && /^[1-9][0-9]{5}$/.test(cleanPin)) {
       setIsValidatingPin(true);
-      fetch(`/api/shipping/distance?pincode=${cleanPin}`)
+      fetch(
+        `/api/shipping/distance?pincode=${cleanPin}` +
+          (currentLocation ? `&lat=${currentLocation.latitude}&lng=${currentLocation.longitude}` : '')
+      )
         .then((res) => res.json())
         .then((data) => {
           setIsValidatingPin(false);
@@ -276,7 +320,7 @@ export default function CheckoutPage() {
     } else {
       setDistanceInfo(null);
     }
-  }, [pincode]);
+  }, [pincode, currentLocation]);
 
   // Set default delivery date (2 days from now)
   useEffect(() => {
@@ -402,6 +446,7 @@ export default function CheckoutPage() {
             state: state.trim(),
             pincode: pincode.trim(),
             phone: cleanPhone,
+            ...(currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : {}),
           },
           items: cart.map((i) => ({
             productId: i.productId,
@@ -435,8 +480,21 @@ export default function CheckoutPage() {
       const guestToken: string | null = orderData.guestLookupToken || null;
       setActiveOrderNumber(orderData.orderNumber);
       setActiveGuestToken(guestToken);
+
+      // Automatic delivery charge + COD: the order is confirmed immediately.
+      if (String(orderData.orderStatus).toUpperCase() === 'CONFIRMED') {
+        clearCart();
+        setCurrentStep('confirmed');
+        checkOrderStage(orderData.orderNumber, guestToken);
+        try {
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        } catch {}
+        return;
+      }
+
       savePendingOrder({ orderNumber: orderData.orderNumber, guestToken: guestToken || undefined, paymentMethod });
-      setCurrentStep('approval');
+      // Automatic charge: the stage check moves straight to payment. Manual charge: waits for the owner.
+      setCurrentStep(orderData.deliveryChargeCustomerApproved ? 'payment' : 'approval');
       checkOrderStage(orderData.orderNumber, guestToken);
     } catch (err: any) {
       setIsSubmitting(false);
@@ -825,11 +883,47 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
+                {/* Optional: measure distance from the customer's current location */}
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {currentLocation ? (
+                    <>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] font-semibold">
+                        <MapPin className="w-3.5 h-3.5" />
+                        Using your current location for distance
+                      </span>
+                      <button type="button" onClick={() => setCurrentLocation(null)} className="text-[#94A3B8] hover:text-[#F5BD48] underline">
+                        Use PIN code instead
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={useCurrentLocation}
+                        disabled={locating}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#D5A34A]/40 text-[#F5BD48] font-semibold hover:bg-[#D5A34A]/10 disabled:opacity-60"
+                      >
+                        {locating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
+                        {locating ? 'Finding your location...' : 'Use my current location'}
+                      </button>
+                      <span className="text-[#94A3B8]">Only if the gift is delivered where you are now.</span>
+                    </>
+                  )}
+                  {locationError && <span className="w-full text-[#F59E0B]">{locationError}</span>}
+                  <span className="w-full text-[10px] text-[#64748B]">
+                    Distance uses your PIN code, address and location data from{' '}
+                    <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="underline hover:text-[#94A3B8]">
+                      © OpenStreetMap contributors
+                    </a>
+                    .
+                  </span>
+                </div>
+
                 {/* Distance & 20km Verification Card */}
                 {isValidatingPin && (
                   <div className="p-3 rounded-xl bg-[#08090B] border border-[#24252A] flex items-center gap-2 text-xs text-[#94A3B8]">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#D5A34A]" />
-                    <span>Checking distance from A S Rao Nagar hub...</span>
+                    <span>Checking distance from our studio...</span>
                   </div>
                 )}
 
@@ -843,12 +937,22 @@ export default function CheckoutPage() {
                       {distanceInfo.eligible ? (
                         <>
                           <CheckCircle2 className="w-4 h-4" />
-                          <span>Eligible for Studio Delivery ({distanceInfo.distanceKm} km from hub)</span>
+                          <span>
+                            Eligible for delivery
+                            {typeof distanceInfo.distanceKm === 'number' && distanceInfo.distanceKm >= 0
+                              ? ` (about ${distanceInfo.distanceKm} km from our studio)`
+                              : ''}
+                          </span>
                         </>
                       ) : (
                         <>
                           <XCircle className="w-4 h-4" />
-                          <span>Delivery Unavailable: Exceeds 20km Coverage ({distanceInfo.distanceKm} km)</span>
+                          <span>
+                            Delivery Unavailable
+                            {typeof distanceInfo.distanceKm === 'number' && distanceInfo.distanceKm >= 0
+                              ? ` (${distanceInfo.distanceKm} km from hub)`
+                              : ''}
+                          </span>
                         </>
                       )}
                     </div>
@@ -930,11 +1034,15 @@ export default function CheckoutPage() {
                   {isSubmitting ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Submitting Order for Studio Review...
+                      Placing your order...
                     </>
                   ) : (
                     <>
-                      Submit Order for Studio Assessment
+                      {deliveryQuote?.isAutomatic
+                        ? paymentMethod === 'COD'
+                          ? 'Place Order (Cash on Delivery)'
+                          : 'Place Order & Pay'
+                        : 'Submit Order for Delivery Charge'}
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -1017,12 +1125,36 @@ export default function CheckoutPage() {
                   )}
 
                   <div className="flex justify-between text-[#94A3B8]">
-                    <span>Estimated GST (18%)</span>
-                    <span className="text-[#F1F5F9]">₹{estimatedGst.toLocaleString('en-IN')}</span>
+                    <span>GST</span>
+                    <span className="text-[#F1F5F9]">
+                      ₹{(serverTaxPaise !== null ? serverTaxPaise / 100 : estimatedGst).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-[#94A3B8]">
+                    <span>
+                      Delivery
+                      {deliveryQuote?.isAutomatic && typeof deliveryQuote.distanceKm === 'number'
+                        ? ` (${deliveryQuote.distanceKm} km)`
+                        : ''}
+                    </span>
+                    <span className={deliveryQuote?.isAutomatic ? 'text-[#F1F5F9]' : 'text-[#F5BD48]'}>
+                      {deliveryQuote?.isAutomatic && typeof deliveryQuote.feePaise === 'number'
+                        ? deliveryQuote.feePaise === 0
+                          ? 'Free'
+                          : `₹${(deliveryQuote.feePaise / 100).toLocaleString('en-IN')}`
+                        : deliveryQuote && !deliveryQuote.serviceable
+                          ? 'Not available'
+                          : (pincode || '').trim().length === 6
+                            ? 'Confirmed by our team'
+                            : 'Enter PIN code'}
+                    </span>
                   </div>
 
                   <div className="pt-2 border-t border-[#24252A] flex justify-between font-bold text-sm">
-                    <span className="text-[#F1F5F9]">Initial Total (Excl. Delivery)</span>
+                    <span className="text-[#F1F5F9]">
+                      {deliveryQuote?.isAutomatic ? 'Total to Pay' : 'Initial Total (Excl. Delivery)'}
+                    </span>
                     <span className="text-[#F5BD48]">₹{displayPreDeliveryTotal.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
@@ -1031,11 +1163,14 @@ export default function CheckoutPage() {
                 <div className="p-4 rounded-xl bg-[#08090B] border border-[#D5A34A]/30 text-xs text-[#94A3B8] space-y-2">
                   <div className="flex items-center gap-1.5 font-semibold text-[#D5A34A]">
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Bespoke Delivery Approval Flow</span>
+                    <span>{deliveryQuote?.isAutomatic ? 'Delivery charge included' : 'Delivery charge'}</span>
                   </div>
                   <p className="leading-relaxed text-[11px]">
-                    Delivery charges are personally assessed by the studio owner based on your exact location (~20km from A S Rao Nagar).
-                    <strong> No payment is taken until you review and explicitly approve the final delivery charge.</strong>
+                    {deliveryQuote?.isAutomatic
+                      ? `Your delivery charge is calculated from the distance between our A S Rao Nagar studio and your PIN code. The total above is the final amount you pay.`
+                      : deliveryQuote && !deliveryQuote.serviceable
+                        ? deliveryQuote.message
+                        : 'For this address our team confirms the delivery charge first. No payment is taken until you approve the final amount.'}
                   </p>
                 </div>
               </div>

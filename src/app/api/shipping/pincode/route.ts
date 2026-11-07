@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { checkHyderabadServiceability } from '@/lib/delivery/delivery.service';
+import { checkHyderabadServiceability, primePincodeFromDatabase } from '@/lib/delivery/delivery.service';
 import { checkPincodeServiceability } from '@/lib/shipping/pincode.service';
 
 export async function GET(req: Request) {
@@ -28,6 +28,8 @@ export async function GET(req: Request) {
     // fallback to synchronous check
   }
 
+  // Load any owner override (e.g. a paused PIN) before the built-in list is consulted.
+  await primePincodeFromDatabase(pincode);
   const result = checkPincodeServiceability(pincode);
 
   return NextResponse.json({

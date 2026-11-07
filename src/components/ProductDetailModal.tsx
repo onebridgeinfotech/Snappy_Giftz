@@ -96,7 +96,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     );
     if (isBuyNow) {
       onClose();
-      setActiveModal('checkout');
+      setActiveModal('none');
+      window.location.assign('/checkout');
     } else {
       onClose();
       setActiveModal('cart');

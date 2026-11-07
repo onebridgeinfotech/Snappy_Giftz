@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { quoteDeliveryFee, sanitizeGeoPoint } from '@/lib/delivery/delivery-fee.service';
 import crypto from 'crypto';
 import {
   CartItemInput,
@@ -39,6 +40,9 @@ export interface ShippingAddressInput {
   state: string;
   pincode: string;
   company?: string;
+  /** Optional GPS point from "Use my current location" at checkout (only used for delivery distance). */
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface CreateOrderInput {
@@ -122,6 +126,15 @@ export interface SanitizedOrderResult {
     dispatchedAt: string | null;
     deliveredAt: string | null;
   } | null;
+  /** Customer tracking timeline (store milestones + courier scans), newest first. */
+  trackingTimeline?: Array<{
+    status: string;
+    label: string;
+    detail: string | null;
+    location: string | null;
+    at: string;
+    source: 'STORE' | 'COURIER';
+  }>;
 }
 
 export class OrderValidationError extends Error {
@@ -347,6 +360,11 @@ async function resolveOrderItemProof(
  * and record immutable audit ledger entries in a database transaction.
  */
 export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrderResult> {
+  // Apply the owner's saved PIN code settings (added or paused PINs) before validating.
+  if (input?.shippingAddress?.pincode) {
+    const { primePincodeFromDatabase } = await import('@/lib/delivery/delivery.service');
+    await primePincodeFromDatabase(input.shippingAddress.pincode);
+  }
   validateOrderInput(input);
 
   const cleanEmail = input.customerEmail.trim().toLowerCase();
@@ -379,8 +397,21 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
     }
   }
 
-  // 2. Authoritative Price Recalculation on the Server
-  const pricing: CartPricingQuote = await calculateCartPricing(input.items, destinationStateCode);
+  // 2. Delivery charge from distance (server-side only), then authoritative price recalculation
+  const deliveryQuote = await quoteDeliveryFee(
+    input.shippingAddress.pincode,
+    [input.shippingAddress.street, input.shippingAddress.city, input.shippingAddress.pincode].filter(Boolean).join(', '),
+    sanitizeGeoPoint(input.shippingAddress.latitude, input.shippingAddress.longitude)
+  );
+  if (!deliveryQuote.serviceable) {
+    throw new OrderValidationError(deliveryQuote.message || 'Delivery is not available to this address.');
+  }
+  const autoDeliveryFee = deliveryQuote.isAutomatic && typeof deliveryQuote.feePaise === 'number';
+  const pricing: CartPricingQuote = await calculateCartPricing(
+    input.items,
+    destinationStateCode,
+    autoDeliveryFee ? (deliveryQuote.feePaise as number) : undefined
+  );
 
   // 3. Generate Order Identifiers and 15-Minute Expiry
   const currentYear = new Date().getFullYear();
@@ -388,7 +419,43 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
   const orderNumber = `SG-${currentYear}-${randomSuffix}`;
   const guestLookupToken = crypto.randomUUID();
   const isCodOrder = input.paymentMethod?.toUpperCase() === 'COD';
-  const reservationExpiresAt = isCodOrder ? new Date(Date.now() + 24 * 60 * 60 * 1000) : new Date(Date.now() + 15 * 60 * 1000);
+  // Automatic delivery charge: the customer pays right away, so 30 minutes is plenty.
+  // Manual (owner-set) charge: the hold restarts when the owner sets the charge.
+  const reservationExpiresAt = isCodOrder
+    ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+    : new Date(Date.now() + (autoDeliveryFee ? 30 : 15) * 60 * 1000);
+  // With an automatic charge the customer saw and accepted the full total at checkout, so a COD
+  // order is confirmed immediately and an online order can go straight to payment.
+  const initialOrderStatus = isCodOrder ? (autoDeliveryFee ? 'CONFIRMED' : 'PENDING_COD_CONFIRMATION') : 'PENDING';
+  const placedAt = new Date();
+  const statusHistoryEntries: Array<{ fromStatus: any; toStatus: any; changedBy: string; notes: string; createdAt: Date }> = [
+    {
+      fromStatus: 'PENDING',
+      toStatus: 'PENDING',
+      changedBy: input.customerEmail.trim().toLowerCase(),
+      notes: autoDeliveryFee ? 'Order placed at checkout' : 'Order initiated with 15-minute inventory reservation',
+      createdAt: placedAt,
+    },
+  ];
+  if (autoDeliveryFee) {
+    const feeInr = ((deliveryQuote.feePaise as number) / 100).toFixed(2);
+    statusHistoryEntries.push(
+      {
+        fromStatus: 'PENDING',
+        toStatus: 'PENDING',
+        changedBy: 'SYSTEM_DELIVERY_PRICING',
+        notes: `Delivery charge auto-calculated: ₹${feeInr} for ${deliveryQuote.distanceKm} km from ${deliveryQuote.hubName} (PIN ${input.shippingAddress.pincode}, measured by ${deliveryQuote.source.replace('_', ' ').toLowerCase()}).`,
+        createdAt: placedAt,
+      },
+      {
+        fromStatus: 'PENDING',
+        toStatus: initialOrderStatus as any,
+        changedBy: input.customerEmail.trim().toLowerCase(),
+        notes: `Customer approved final amount of ₹${(pricing.grandTotalPaise / 100).toFixed(2)} (including ₹${feeInr} delivery charge) at checkout.`,
+        createdAt: new Date(placedAt.getTime() + 1),
+      }
+    );
+  }
 
   // 4. Transactional Order Creation & Concurrency-Safe Stock Reservation
   let resolvedProofs: Array<{ proofUrl: string | null; proofAssetKey: string | null; isCustomerApprovedProof: boolean }> = [];
@@ -450,7 +517,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
           igstPaise: BigInt(pricing.igstPaise),
           shippingTotalPaise: BigInt(pricing.shippingTotalPaise),
           grandTotalPaise: BigInt(pricing.grandTotalPaise),
-          orderStatus: input.paymentMethod.toUpperCase() === 'COD' ? 'PENDING_COD_CONFIRMATION' : 'PENDING',
+          orderStatus: initialOrderStatus as any,
           paymentStatus: 'PENDING',
           paymentMethod: input.paymentMethod,
           idempotencyKey: input.idempotencyKey?.trim() || null,
@@ -531,13 +598,9 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
               };
             }),
           },
+          ...(autoDeliveryFee ? { deliveryFeeRuleId: 'AUTO_DISTANCE' } : {}),
           statusHistory: {
-            create: {
-              fromStatus: 'PENDING',
-              toStatus: 'PENDING',
-              changedBy: cleanEmail,
-              notes: 'Order initiated with 15-minute inventory reservation',
-            },
+            create: statusHistoryEntries,
           },
         },
         include: {
@@ -588,7 +651,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       id: `dev-ord-${randomSuffix}`,
       orderNumber,
       userId: input.userId || null,
-      orderStatus: input.paymentMethod?.toUpperCase() === 'COD' ? 'PENDING_COD_CONFIRMATION' : 'PENDING',
+      orderStatus: initialOrderStatus,
       paymentStatus: 'PENDING',
       paymentMethod: input.paymentMethod,
       customerName: input.customerName.trim(),
@@ -710,8 +773,8 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       igstPaise: pricing.igstPaise,
       shippingTotalPaise: pricing.shippingTotalPaise,
       grandTotalPaise: pricing.grandTotalPaise,
-      deliveryChargeAssigned: false,
-      deliveryChargeCustomerApproved: false,
+      deliveryChargeAssigned: autoDeliveryFee,
+      deliveryChargeCustomerApproved: autoDeliveryFee,
       reservationExpiresAt: reservationExpiresAt.toISOString(),
       guestLookupToken,
       createdAt: new Date().toISOString(),
@@ -747,6 +810,8 @@ function formatOrderResponse(order: any): SanitizedOrderResult {
     destinationStateCode: order.destinationStateCode,
     shippingPincode: order.shippingPincode || (order.shippingAddress ? (typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress)?.pincode : order.shippingAddress?.pincode) : undefined),
     customizationTotalPaise: Number(order.customizationTotalPaise || 0),
+    deliveryChargeAssigned: order.deliveryFeeRuleId === 'AUTO_DISTANCE' || order.deliveryFeeRuleId === 'OWNER_SET' || Number(order.shippingTotalPaise || 0) > 0,
+    deliveryChargeCustomerApproved: order.deliveryFeeRuleId === 'AUTO_DISTANCE' || order.deliveryFeeRuleId === 'OWNER_SET',
     items: order.items.map((item: any) => ({
       id: item.id,
       productName: item.productName,

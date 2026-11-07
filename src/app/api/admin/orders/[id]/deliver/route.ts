@@ -4,6 +4,7 @@ import { Role } from '@prisma/client';
 import {
   confirmOrderDelivery,
   OrderTransitionError,
+  OrderFulfillmentError,
   OrderNotFoundError,
 } from '@/lib/orders/order-lifecycle.service';
 import { CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
@@ -30,7 +31,8 @@ export async function POST(
       id,
       {
         deliveredAt: body.deliveredAt,
-        notes: body.notes || 'Confirmed delivery by staff in operations portal.',
+        notes: body.notes || undefined,
+        deliveryOtp: typeof body.deliveryOtp === 'string' ? body.deliveryOtp : undefined,
       },
       actor
     );
@@ -43,6 +45,9 @@ export async function POST(
   } catch (error: any) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.statusCode });
+    }
+    if (error instanceof OrderFulfillmentError) {
+      return NextResponse.json({ error: error.message, code: 'DELIVERY_OTP_REQUIRED' }, { status: 400 });
     }
     if (error instanceof OrderTransitionError) {
       return NextResponse.json({ error: error.message, code: 'INVALID_TRANSITION' }, { status: 422 });

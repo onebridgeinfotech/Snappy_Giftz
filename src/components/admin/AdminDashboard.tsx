@@ -51,10 +51,29 @@ import {
   Tag,
   UploadCloud,
   Image as ImageIcon,
-  Trash2
+  Trash2,
+  Banknote,
+  XCircle,
+  UserCheck
 } from 'lucide-react';
 import { AdminCategoryOccasionManager } from './AdminCategoryOccasionManager';
 import { AdminDamageReportsDesk } from './AdminDamageReportsDesk';
+import { AdminOperationsDesk } from './AdminOperationsDesk';
+import { AdminOrderSupportActions } from './AdminOrderSupportActions';
+import { AdminTaxDeliverySettings } from './AdminTaxDeliverySettings';
+import {
+  AdminSidebar,
+  AdminTopBar,
+  KpiCard,
+  KpiIcons,
+  SectionTiles,
+  OrderTrendsChart,
+  OrderStatusDonut,
+  QuickActions,
+  QuickActionIcons,
+  RecentOrdersTable,
+  InventoryAlerts,
+} from './AdminShell';
 import {
   archiveCatalogProduct,
   createCatalogProduct,
@@ -88,6 +107,10 @@ export const AdminDashboard: React.FC = () => {
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  // Signed-in staff role from the server; owner-only actions (e.g. refunds) are shown to ADMIN only.
+  const [adminRole, setAdminRole] = useState<string | null>(null);
+  const [adminDisplayName, setAdminDisplayName] = useState<string>('Admin');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
@@ -100,6 +123,8 @@ export const AdminDashboard: React.FC = () => {
         ) {
           setIsAdminAuthenticated(true);
           setIsForbiddenCustomer(false);
+          setAdminRole(data.user.role);
+          setAdminDisplayName(data.user.name || data.user.email || 'Admin');
         } else {
           setIsAdminAuthenticated(false);
           if (data.authenticated && data.user?.role === 'CUSTOMER') {
@@ -170,6 +195,8 @@ export const AdminDashboard: React.FC = () => {
     | 'email-outbox'
     | 'audit'
     | 'tickets'
+    | 'operations'
+    | 'pricing'
   >('overview');
 
   // Batch 10: Overview Metrics State
@@ -287,6 +314,35 @@ export const AdminDashboard: React.FC = () => {
   const [dispatchSubmitting, setDispatchSubmitting] = useState(false);
   const [dispatchError, setDispatchError] = useState<string | null>(null);
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
+
+  // Local delivery (store's own delivery person) modal state
+  const [localDeliveryOrder, setLocalDeliveryOrder] = useState<any | null>(null);
+  const [localDeliveryPerson, setLocalDeliveryPerson] = useState('');
+  const [localDeliveryPhone, setLocalDeliveryPhone] = useState('');
+  const [localDeliveryEmail, setLocalDeliveryEmail] = useState('');
+  // After "Out for Delivery": the one-order OTP link to share with the delivery person
+  const [localDeliveryLink, setLocalDeliveryLink] = useState<{ url: string; emailedTo: string | null; expiresAt: string } | null>(null);
+  const [localDeliveryLinkCopied, setLocalDeliveryLinkCopied] = useState(false);
+  const [localDeliveryNotes, setLocalDeliveryNotes] = useState('');
+  const [localDeliverySignatureConfirmed, setLocalDeliverySignatureConfirmed] = useState(false);
+  const [localDeliverySubmitting, setLocalDeliverySubmitting] = useState(false);
+  const [localDeliveryError, setLocalDeliveryError] = useState<string | null>(null);
+
+  // COD cash collection modal state
+  const [codCollectOrder, setCodCollectOrder] = useState<any | null>(null);
+  const [codCollectAmount, setCodCollectAmount] = useState('');
+  const [codCollectMethod, setCodCollectMethod] = useState<'CASH' | 'UPI_ON_DELIVERY'>('CASH');
+  const [codCollectReceipt, setCodCollectReceipt] = useState('');
+  const [codCollectNotes, setCodCollectNotes] = useState('');
+  const [codCollectOtp, setCodCollectOtp] = useState('');
+
+  // Own-delivery OTP confirmation modal (prepaid orders)
+  const [otpDeliverOrder, setOtpDeliverOrder] = useState<any | null>(null);
+  const [otpDeliverValue, setOtpDeliverValue] = useState('');
+  const [otpDeliverError, setOtpDeliverError] = useState<string | null>(null);
+  const [otpDeliverSubmitting, setOtpDeliverSubmitting] = useState(false);
+  const [codCollectSubmitting, setCodCollectSubmitting] = useState(false);
+  const [codCollectError, setCodCollectError] = useState<string | null>(null);
 
   // Batch 8: Seller Config & Email Outbox State
   const [sellerConfig, setSellerConfig] = useState<any | null>(null);
@@ -1175,7 +1231,190 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleCodDecision = async (ord: any, action: 'APPROVE' | 'REJECT') => {
+    let reason: string | undefined;
+    if (action === 'REJECT') {
+      const input = window.prompt(`Reason for rejecting COD order ${ord.orderNumber}:`, 'Could not verify customer / address');
+      if (input === null) return;
+      reason = input.trim() || 'Rejected by store';
+    } else if (
+      !window.confirm(
+        `Accept Cash on Delivery order ${ord.orderNumber} now?
+
+Use this for orders you have already agreed with the customer. ` +
+          `It confirms the order immediately, so the customer will not be asked to approve a delivery charge.`
+      )
+    ) {
+      return;
+    }
+    setAdminOrderError(null);
+    setActionInProgressId(ord.id);
+    try {
+      const res = await fetch(`/api/admin/orders/${ord.id}/cod-action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, reason }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.success === false) throw new Error(data.error || 'COD action failed.');
+      showToast(data.message || (action === 'APPROVE' ? 'COD order accepted.' : 'COD order rejected.'));
+      fetchAdminOrders(adminPagination.page);
+    } catch (err: any) {
+      setAdminOrderError(err.message);
+      showToast(err.message, 'error');
+    } finally {
+      setActionInProgressId(null);
+    }
+  };
+
+  const handleOpenLocalDelivery = (ord: any) => {
+    setLocalDeliveryOrder(ord);
+    setLocalDeliveryPerson(ord.deliveryRecord?.assignedPerson || '');
+    setLocalDeliveryPhone(ord.deliveryRecord?.assignedPhone || '');
+    setLocalDeliveryEmail('');
+    setLocalDeliveryLink(null);
+    setLocalDeliveryLinkCopied(false);
+    setLocalDeliveryNotes('');
+    setLocalDeliverySignatureConfirmed(false);
+    setLocalDeliveryError(null);
+  };
+
+  const handleSubmitLocalDelivery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!localDeliveryOrder) return;
+    setLocalDeliveryError(null);
+    if (localDeliveryPerson.trim().length < 2) {
+      setLocalDeliveryError('Enter the name of the person delivering this order.');
+      return;
+    }
+    const phone = localDeliveryPhone.replace(/[\s-]/g, '');
+    if (phone && !/^(?:\+91)?[6-9]\d{9}$/.test(phone)) {
+      setLocalDeliveryError('Enter a valid 10-digit mobile number, or leave it empty.');
+      return;
+    }
+    setLocalDeliverySubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${localDeliveryOrder.id}/local-delivery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedPerson: localDeliveryPerson.trim(),
+          assignedPhone: phone || undefined,
+          assignedEmail: localDeliveryEmail.trim() || undefined,
+          notes: localDeliveryNotes.trim() || undefined,
+          invoicePhysicalSignatureConfirmed: localDeliverySignatureConfirmed,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send order out for delivery.');
+      showToast(data.message || 'Order is out for delivery.');
+      fetchAdminOrders(adminPagination.page);
+      if (data.data?.deliveryLink) {
+        // Keep the window open to show the link (copy / WhatsApp) for the delivery person.
+        setLocalDeliveryLink({
+          url: data.data.deliveryLink,
+          emailedTo: data.data.deliveryLinkEmailedTo || null,
+          expiresAt: data.data.deliveryLinkExpiresAt,
+        });
+      } else {
+        setLocalDeliveryOrder(null);
+      }
+    } catch (err: any) {
+      setLocalDeliveryError(err.message);
+    } finally {
+      setLocalDeliverySubmitting(false);
+    }
+  };
+
+  const handleOpenCodCollect = (ord: any) => {
+    setCodCollectOrder(ord);
+    const duePaise = ord.deliveryRecord?.codAmountDuePaise || ord.grandTotalPaise || 0;
+    setCodCollectAmount((duePaise / 100).toFixed(2));
+    setCodCollectMethod('CASH');
+    setCodCollectReceipt('');
+    setCodCollectNotes('');
+    setCodCollectOtp('');
+    setCodCollectError(null);
+  };
+
+  /** Own deliveries need the customer's OTP before they count as delivered. */
+  const needsDeliveryOtp = (ord: any) =>
+    String(ord?.orderStatus || '').toUpperCase() === 'OUT_FOR_DELIVERY' && !ord?.deliveryOtpVerifiedAt;
+
+  const handleSubmitCodCollect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!codCollectOrder) return;
+    setCodCollectError(null);
+    const rupees = parseFloat(codCollectAmount);
+    if (!Number.isFinite(rupees) || rupees <= 0) {
+      setCodCollectError('Enter the amount collected.');
+      return;
+    }
+    if (needsDeliveryOtp(codCollectOrder) && codCollectOtp.replace(/\D/g, '').length !== 6) {
+      setCodCollectError("Enter the customer's 6-digit delivery OTP.");
+      return;
+    }
+    setCodCollectSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${codCollectOrder.id}/cod-collect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amountCollectedPaise: Math.round(rupees * 100),
+          collectionMethod: codCollectMethod,
+          receiptNumber: codCollectReceipt.trim() || undefined,
+          notes: codCollectNotes.trim() || undefined,
+          deliveryOtp: codCollectOtp.replace(/\D/g, '') || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.success === false) throw new Error(data.error || 'Failed to record cash collection.');
+      showToast('Cash collected and order marked delivered.');
+      setCodCollectOrder(null);
+      fetchAdminOrders(adminPagination.page);
+    } catch (err: any) {
+      setCodCollectError(err.message);
+    } finally {
+      setCodCollectSubmitting(false);
+    }
+  };
+
+  const handleSubmitOtpDelivery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpDeliverOrder) return;
+    const otp = otpDeliverValue.replace(/\D/g, '');
+    if (otp.length !== 6) {
+      setOtpDeliverError("Enter the customer's 6-digit delivery OTP.");
+      return;
+    }
+    setOtpDeliverError(null);
+    setOtpDeliverSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${otpDeliverOrder.id}/deliver`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryOtp: otp }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to confirm delivery.');
+      showToast('OTP confirmed. Order delivered and customer notified.');
+      setOtpDeliverOrder(null);
+      fetchAdminOrders(adminPagination.page);
+    } catch (err: any) {
+      setOtpDeliverError(err.message);
+    } finally {
+      setOtpDeliverSubmitting(false);
+    }
+  };
+
   const handleConfirmDelivery = async (orderId: string) => {
+    const ord = adminOrders.find((o: any) => o.id === orderId);
+    if (ord && needsDeliveryOtp(ord)) {
+      setOtpDeliverOrder(ord);
+      setOtpDeliverValue('');
+      setOtpDeliverError(null);
+      return;
+    }
     setAdminOrderError(null);
     setActionInProgressId(orderId);
     try {
@@ -1610,481 +1849,188 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      
-      {/* Admin Title Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D5A34A]/25 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#D5A34A]/15 text-[#F5BD48] border border-[#D5A34A]/30 text-xs font-mono font-bold uppercase tracking-wider">
-              Operations Control Center
-            </span>
-            <span className="text-xs text-[#94A3B8]">Central Operations Hub</span>
-          </div>
-          <h1 className="font-serif text-3xl font-bold text-white mt-1">
-            Store & Warehouse Administration
-          </h1>
-        </div>
+  const kpis = overviewMetrics?.kpis || {};
+  const cmp = overviewMetrics?.comparison || {};
+  const attentionItems = [
+    { key: 'review', count: kpis.ordersAwaitingOwnerReview || 0, label: 'orders need a delivery charge', action: 'Set charges', tab: 'orders' },
+    { key: 'approval', count: kpis.ordersAwaitingCustomerApproval || 0, label: 'orders waiting for customer approval', action: 'View', tab: 'orders' },
+    { key: 'cod', count: kpis.pendingCodApprovals || 0, label: 'COD orders to accept or reject', action: 'Review', tab: 'orders' },
+    { key: 'damage', count: kpis.pendingDamageReportsCount || 0, label: 'damage claims to review', action: 'Open', tab: 'damage-reports' },
+    { key: 'emails', count: kpis.failedEmailsCount || 0, label: 'emails failed to send', action: 'Retry', tab: 'email-outbox' },
+  ].filter((a) => a.count > 0);
+  const attentionCount = attentionItems.reduce((n, a) => n + a.count, 0);
+  const activeNavId = activeAdminTab === 'inventory' && catalogOfferFilter === 'WITH_OFFER' ? 'offers' : activeAdminTab;
+  const selectAdminSection = (id: string) => {
+    if (id === 'offers') {
+      setCatalogOfferFilter('WITH_OFFER');
+      setActiveAdminTab('inventory');
+    } else {
+      if (id === 'inventory') setCatalogOfferFilter('ALL');
+      setActiveAdminTab(id as typeof activeAdminTab);
+    }
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const fmtCount = (n: any) => (typeof n === 'number' ? n.toLocaleString('en-IN') : '—');
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+  return (
+    <div className="min-h-screen bg-[#F6F7FB] text-[#111215]">
+      <AdminSidebar
+        active={activeNavId}
+        onSelect={selectAdminSection}
+        mobileOpen={sidebarOpen}
+        onCloseMobile={() => setSidebarOpen(false)}
+        badges={{
+          orders: (kpis.ordersAwaitingOwnerReview || 0) + (kpis.pendingCodApprovals || 0),
+          'damage-reports': kpis.pendingDamageReportsCount || 0,
+          'email-outbox': kpis.failedEmailsCount || 0,
+        }}
+      />
+
+      <div className="lg:pl-64 min-h-screen flex flex-col">
+        <AdminTopBar
+          onOpenMenu={() => setSidebarOpen(true)}
+          onSearch={(q) => {
+            setOrderSearch(q);
+            selectAdminSection('orders');
+          }}
+          attentionCount={attentionCount}
+          onOpenAttention={() => selectAdminSection('overview')}
+          userName={adminDisplayName}
+          userRole={adminRole || 'ADMIN'}
+          onLogout={async () => {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            setIsAdminAuthenticated(false);
+          }}
+        />
+
+        <div className="flex-1 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+      {/* Page header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#C48A1B]">Operations Control Center</div>
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#111215] mt-1">Store &amp; Warehouse Administration</h1>
+          <p className="text-sm text-[#4B5563] mt-1.5">Manage orders, inventory, products, customers and store operations — all in one place.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
           <a
             href="/"
+            target="_blank"
+            rel="noreferrer"
             onClick={() => setMode('b2c')}
-            className="px-4 py-2.5 rounded-xl border border-[#D5A34A]/40 bg-[#17181C] hover:bg-[#D5A34A]/15 text-[#F5BD48] text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md"
-            title="Return to Customer Storefront to browse gifts and catalogue"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-full border border-[#F5BD48]/60 bg-white text-[#111215] text-sm font-semibold hover:bg-[#FFF8EA] transition-all"
           >
-            <Home className="w-4 h-4 text-[#D5A34A]" />
-            <span>View Live Storefront</span>
+            <Home className="w-4 h-4 text-[#C48A1B]" />
+            View Live Storefront
           </a>
-
           <button
+            type="button"
             onClick={() => setShowAddProductModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] hover:brightness-110 text-[#08090B] text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-md shadow-[#D5A34A]/20 transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-gradient-to-r from-[#FBD27A] to-[#F5BD48] text-[#111215] text-sm font-bold shadow-[0_8px_22px_rgba(245,189,72,0.35)] hover:brightness-105 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Add New Product to Catalog</span>
+            Add New Product
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-[#12141A] border border-[#D5A34A]/20 rounded-2xl p-2 flex flex-wrap gap-2 text-xs sm:text-sm font-semibold shadow-xl">
-        <button
-          onClick={() => setActiveAdminTab('overview')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'overview'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4 text-emerald-400" />
-          <span>Overview & KPIs</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('orders')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'orders'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <ShoppingCart className="w-4 h-4 text-rose-500" />
-          <span>Orders & Fulfillment ({adminPagination.total || orders.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('inventory')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'inventory'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <Package className="w-4 h-4 text-amber-400" />
-          <span>Products & Offers ({products.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('categories')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'categories'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <FolderTree className="w-4 h-4 text-[#F5BD48]" />
-          <span>Categories & Occasions</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('damage-reports')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'damage-reports'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <ShieldAlert className="w-4 h-4 text-amber-400" />
-          <span>Damage Claims Desk</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('quotations')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'quotations'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <Building2 className="w-4 h-4 text-indigo-400" />
-          <span>Corporate &amp; Quotations</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('users')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'users'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <Users className="w-4 h-4 text-cyan-500" />
-          <span>Customers & Staff</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('reports')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'reports'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-          <span>Reports & CSV Export</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('settings')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'settings'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <Settings className="w-4 h-4 text-violet-500" />
-          <span>Business Settings</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('seller-config')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'seller-config'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <Building2 className="w-4 h-4 text-amber-500" />
-          <span>GST & Seller Setup</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('email-outbox')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'email-outbox'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <Send className="w-4 h-4 text-blue-500" />
-          <span>Emails ({outboxMessages.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('audit')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'audit'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4 text-teal-500" />
-          <span>Audit Trail</span>
-        </button>
-
-        <button
-          onClick={() => setActiveAdminTab('tickets')}
-          className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-            activeAdminTab === 'tickets'
-              ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] font-bold shadow-md shadow-[#D5A34A]/25'
-              : 'bg-[#181A22] text-[#94A3B8] hover:text-white hover:bg-[#20232D] border border-white/5'
-          }`}
-        >
-          <MessageSquare className="w-4 h-4 text-pink-500" />
-          <span>Support ({tickets.length})</span>
-        </button>
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <KpiCard
+          title="Total Orders"
+          value={fmtCount(kpis.totalOrders)}
+          changePct={cmp.ordersChangePct}
+          icon={KpiIcons.ShoppingCart}
+          tone="amber"
+          onClick={() => selectAdminSection('orders')}
+        />
+        <KpiCard
+          title="Total Products"
+          value={fmtCount(kpis.totalProducts)}
+          changePct={cmp.productsChangePct}
+          icon={KpiIcons.Package}
+          tone="violet"
+          onClick={() => selectAdminSection('inventory')}
+        />
+        <KpiCard
+          title="Total Customers"
+          value={fmtCount(cmp.totalCustomers)}
+          changePct={cmp.customersChangePct}
+          icon={KpiIcons.Users}
+          tone="blue"
+          onClick={() => selectAdminSection('users')}
+        />
+        <KpiCard
+          title="Revenue (7 Days)"
+          value={cmp.revenueLast7Formatted || '—'}
+          changePct={cmp.revenueChangePct}
+          icon={KpiIcons.IndianRupee}
+          tone="green"
+          onClick={() => selectAdminSection('reports')}
+        />
       </div>
+
+      {/* Section tiles */}
+      <SectionTiles active={activeNavId} onSelect={selectAdminSection} />
 
       {/* TAB 1: OVERVIEW */}
       {activeAdminTab === 'overview' && (
         <div className="space-y-6">
-          {/* Executive KPI Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            
-            <div className="p-5 rounded-2xl bg-[#12141A] border border-emerald-500/25 shadow-md">
-              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
-                <span>Captured Revenue</span>
-                <DollarSign className="w-4 h-4 text-emerald-400" />
+          {attentionItems.length > 0 && (
+            <div className="rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] p-4 flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
+              <div className="flex items-center gap-2 text-sm font-bold text-[#92400E] sm:mr-2">
+                <AlertTriangle className="w-4 h-4" />
+                Needs your attention
               </div>
-              <div className="text-2xl font-serif font-bold text-white mt-2">
-                {overviewMetrics?.kpis?.capturedRevenueFormatted || `₹${totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
-              </div>
-              <div className="text-[11px] text-emerald-400 font-medium mt-1">
-                Verified captured payments only
-              </div>
-              {overviewMetrics?.kpis?.pendingRevenuePaise > 0 && (
-                <div className="text-[10px] text-amber-400 mt-0.5">
-                  Pending/Auth: {overviewMetrics.kpis.pendingRevenueFormatted}
-                </div>
-              )}
-            </div>
-
-            <div className="p-5 rounded-2xl bg-[#12141A] border border-rose-500/25 shadow-md">
-              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
-                <span>Orders & Velocity</span>
-                <Package className="w-4 h-4 text-rose-400" />
-              </div>
-              <div className="text-2xl font-serif font-bold text-white mt-2">
-                {overviewMetrics?.kpis?.totalOrders ?? orders.length} Orders
-              </div>
-              <div className="text-[11px] text-[#94A3B8] font-medium mt-1">
-                Today: <strong className="text-rose-400">{overviewMetrics?.kpis?.ordersToday ?? 0} new</strong> (Asia/Kolkata)
-              </div>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-[#12141A] border border-amber-500/25 shadow-md">
-              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
-                <span>Delivery Charge & Approvals</span>
-                <DollarSign className="w-4 h-4 text-amber-400" />
-              </div>
-              <div className="text-2xl font-serif font-bold text-white mt-2">
-                {overviewMetrics?.kpis?.ordersAwaitingOwnerReview ?? 0} Review • {overviewMetrics?.kpis?.ordersAwaitingCustomerApproval ?? 0} Approval
-              </div>
-              <div className="text-[11px] text-amber-400 mt-1">
-                Manual fee quotes & customer approvals
-              </div>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-[#12141A] border border-indigo-500/25 shadow-md">
-              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
-                <span>Cash on Delivery (COD)</span>
-                <Building2 className="w-4 h-4 text-indigo-400" />
-              </div>
-              <div className="text-2xl font-serif font-bold text-white mt-2">
-                {overviewMetrics?.kpis?.pendingCodApprovals ?? 0} Approvals • {overviewMetrics?.kpis?.pendingCodCollections ?? 0} Collections
-              </div>
-              <div className="text-[11px] text-indigo-300 mt-1">
-                Stock deducted only when Delivered
-              </div>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-[#12141A] border border-amber-500/25 shadow-md">
-              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
-                <span>Catalogue & Stock</span>
-                <Warehouse className="w-4 h-4 text-amber-400" />
-              </div>
-              <div className="text-2xl font-serif font-bold text-white mt-2">
-                {overviewMetrics?.kpis?.totalProducts ?? products.length} SKUs
-              </div>
-              <div className="text-[11px] text-rose-400 font-semibold mt-1">
-                {overviewMetrics?.kpis?.lowStockProductsCount ?? lowStockProducts.length} low stock • {overviewMetrics?.kpis?.outOfStockProductsCount ?? 0} out
-              </div>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-[#12141A] border border-[#D5A34A]/25 shadow-md cursor-pointer hover:border-[#D5A34A]/60 transition-all" onClick={() => setActiveAdminTab('damage-reports')}>
-              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold">
-                <span>Damage Claims Desk</span>
-                <ShieldAlert className="w-4 h-4 text-[#F5BD48]" />
-              </div>
-              <div className="text-2xl font-serif font-bold text-[#F5BD48] mt-2">
-                {overviewMetrics?.kpis?.pendingDamageReportsCount ?? 0} Pending
-              </div>
-              <div className="text-[11px] text-[#94A3B8] mt-1">
-                24h delivery defect inspection
-              </div>
-            </div>
-
-          </div>
-
-          {/* Operational Pipeline Tracker */}
-          <div className="p-5 rounded-2xl bg-[#12141A] border border-[#D5A34A]/20 shadow-md space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <Truck className="w-4 h-4 text-[#F5BD48]" />
-                <span>Live Fulfillment Pipeline Status</span>
-              </h3>
-              <button
-                onClick={() => setActiveAdminTab('orders')}
-                className="text-xs text-[#D5A34A] hover:text-[#F5BD48] font-semibold underline cursor-pointer"
-              >
-                View Full Queue &rarr;
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
-              <div className="p-3 rounded-xl bg-[#17181C] border border-white/10">
-                <div className="text-[#94A3B8] font-medium">Pending Placed</div>
-                <div className="text-lg font-bold text-white mt-1">
-                  {overviewMetrics?.kpis?.pendingOrders ?? 0}
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-[#17181C] border border-purple-500/20">
-                <div className="text-purple-400 font-medium">Customization</div>
-                <div className="text-lg font-bold text-purple-300 mt-1">
-                  {overviewMetrics?.kpis?.ordersAwaitingCustomization ?? 0}
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-[#17181C] border border-blue-500/20">
-                <div className="text-blue-400 font-medium">Quality Check</div>
-                <div className="text-lg font-bold text-blue-300 mt-1">
-                  {overviewMetrics?.kpis?.ordersAwaitingQC ?? 0}
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-[#17181C] border border-amber-500/20">
-                <div className="text-amber-400 font-medium">Ready / Confirmed</div>
-                <div className="text-lg font-bold text-amber-300 mt-1">
-                  {overviewMetrics?.kpis?.ordersReadyForDispatch ?? 0}
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-[#17181C] border border-indigo-500/20">
-                <div className="text-indigo-400 font-medium">Dispatched</div>
-                <div className="text-lg font-bold text-indigo-300 mt-1">
-                  {overviewMetrics?.kpis?.dispatchedOrders ?? 0}
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-[#17181C] border border-emerald-500/20">
-                <div className="text-emerald-400 font-medium">Delivered</div>
-                <div className="text-lg font-bold text-emerald-300 mt-1">
-                  {overviewMetrics?.kpis?.deliveredOrders ?? 0}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Critical Operational Alerts */}
-          {(overviewMetrics?.kpis?.failedEmailsCount > 0 || (overviewMetrics?.kpis?.lowStockProductsCount ?? lowStockProducts.length) > 0) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(overviewMetrics?.kpis?.lowStockProductsCount ?? lowStockProducts.length) > 0 && (
-                <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-xs text-amber-300 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0" />
-                    <span>
-                      <strong>Stock Alert:</strong> {overviewMetrics?.kpis?.lowStockProductsCount ?? lowStockProducts.length} SKU(s) below reorder threshold (&lt;100 units).
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setActiveAdminTab('inventory')}
-                    className="text-xs font-bold underline hover:text-white shrink-0 ml-2 cursor-pointer"
-                  >
-                    Inventory
-                  </button>
-                </div>
-              )}
-
-              {overviewMetrics?.kpis?.failedEmailsCount > 0 && (
-                <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-300 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-                    <span>
-                      <strong>Email Delivery:</strong> {overviewMetrics.kpis.failedEmailsCount} transactional email(s) failed delivery.
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setActiveAdminTab('email-outbox')}
-                    className="text-xs font-bold underline hover:text-white shrink-0 ml-2 cursor-pointer"
-                  >
-                    Retry Outbox
-                  </button>
-                </div>
-              )}
+              {attentionItems.map((a) => (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => selectAdminSection(a.tab)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-[#FDE68A] text-[13px] text-[#111215] hover:border-[#F5BD48] transition-colors cursor-pointer"
+                >
+                  <strong className="text-[#B45309]">{a.count}</strong>
+                  <span>{a.label}</span>
+                  <span className="text-[#C48A1B] font-semibold">{a.action} →</span>
+                </button>
+              ))}
             </div>
           )}
 
-          {/* Two-Column Operational Detail */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Top Best Sellers */}
-            <div className="p-5 rounded-2xl bg-[#12141A] border border-white/10 shadow-md space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-400" />
-                  <span>Top Best-Selling Products</span>
-                </h3>
-                <span className="text-[11px] text-[#94A3B8]">Captured Volume</span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left text-[#CBD5E1]">
-                  <thead className="bg-[#17181C] text-[#94A3B8] border-b border-white/10 font-bold">
-                    <tr>
-                      <th className="p-2">Product Name</th>
-                      <th className="p-2 text-center">SKU</th>
-                      <th className="p-2 text-center">Units Sold</th>
-                      <th className="p-2 text-right">Revenue</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {overviewMetrics?.bestSellers && overviewMetrics.bestSellers.length > 0 ? (
-                      overviewMetrics.bestSellers.slice(0, 5).map((prod: any) => (
-                        <tr key={prod.id} className="hover:bg-white/[0.02]">
-                          <td className="p-2 font-semibold text-white truncate max-w-[180px]" title={prod.name}>
-                            {prod.name}
-                          </td>
-                          <td className="p-2 text-center font-mono text-[11px] text-[#94A3B8]">
-                            {prod.sku || '—'}
-                          </td>
-                          <td className="p-2 text-center font-bold text-white">
-                            {prod.unitsSold}
-                          </td>
-                          <td className="p-2 text-right font-mono font-bold text-emerald-400">
-                            {prod.revenueFormatted}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} className="p-4 text-center text-[#94A3B8] italic">
-                          No sales data recorded yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-12 gap-5">
+            <div className="lg:col-span-2 2xl:col-span-5">
+              <OrderTrendsChart data={overviewMetrics?.trend7d || []} />
             </div>
+            <div className="2xl:col-span-4">
+              <OrderStatusDonut
+                breakdown={overviewMetrics?.statusBreakdown || { delivered: 0, inTransit: 0, processing: 0, pending: 0, cancelled: 0 }}
+              />
+            </div>
+            <div className="2xl:col-span-3">
+              <QuickActions
+                actions={[
+                  { label: 'Add New Product', icon: QuickActionIcons.Plus, onClick: () => setShowAddProductModal(true), primary: true },
+                  { label: 'Create Offer / Coupon', icon: QuickActionIcons.Tag, onClick: () => selectAdminSection('offers') },
+                  { label: 'Process Pending Orders', icon: QuickActionIcons.Truck, onClick: () => selectAdminSection('orders') },
+                  { label: 'Generate Report', icon: QuickActionIcons.BarChart3, onClick: () => selectAdminSection('reports') },
+                ]}
+              />
+            </div>
+          </div>
 
-            {/* Recent Admin Audit Activity */}
-            <div className="p-5 rounded-2xl bg-[#12141A] border border-white/10 shadow-md space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-400" />
-                  <span>Recent Administrative Activity</span>
-                </h3>
-                <button
-                  onClick={() => setActiveAdminTab('audit')}
-                  className="text-xs text-[#D5A34A] hover:text-[#F5BD48] font-semibold underline cursor-pointer"
-                >
-                  Full Log &rarr;
-                </button>
-              </div>
-
-              <div className="divide-y divide-white/5 max-h-64 overflow-y-auto">
-                {overviewMetrics?.recentActivity && overviewMetrics.recentActivity.length > 0 ? (
-                  overviewMetrics.recentActivity.slice(0, 5).map((log: any) => (
-                    <div key={log.id} className="py-2.5 flex items-start justify-between text-xs">
-                      <div>
-                        <div className="font-semibold text-white flex items-center gap-1.5">
-                          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#17181C] text-[#CBD5E1] border border-white/10">
-                            {log.action}
-                          </span>
-                          <span className="text-[#94A3B8]">{log.entityType}</span>
-                        </div>
-                        <div className="text-[11px] text-[#64748B] mt-0.5">
-                          By: <span className="font-mono text-[#94A3B8]">{log.actorEmail}</span>
-                        </div>
-                      </div>
-                      <div className="text-[10px] text-[#64748B] text-right whitespace-nowrap">
-                        {new Date(log.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-4 text-center text-[#94A3B8] italic text-xs">
-                    No recent administrative activity recorded.
-                  </div>
-                )}
-              </div>
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+            <div className="xl:col-span-8 min-w-0">
+              <RecentOrdersTable
+                orders={overviewMetrics?.recentOrders || []}
+                onViewAll={() => selectAdminSection('orders')}
+                onOpenOrder={(id) => {
+                  selectAdminSection('orders');
+                  handleViewOrderDetails(id);
+                }}
+              />
+            </div>
+            <div className="xl:col-span-4 min-w-0">
+              <InventoryAlerts alerts={overviewMetrics?.stockAlerts || []} onViewAll={() => selectAdminSection('inventory')} />
             </div>
           </div>
         </div>
@@ -2221,21 +2167,32 @@ export const AdminDashboard: React.FC = () => {
                 ) : (
                   adminOrders.map((ord) => {
                     const statusStr = (ord.orderStatus || 'PENDING').toUpperCase().replace(' ', '_');
-                    const isTerminal = statusStr === 'DELIVERED' || statusStr === 'CANCELLED';
+                    const isTerminal = ['DELIVERED', 'CANCELLED', 'REJECTED', 'EXPIRED'].includes(statusStr);
                     const isDispatched = statusStr === 'DISPATCHED';
-                    const canDispatch = statusStr === 'QUALITY_CHECK' || statusStr === 'CONFIRMED';
+                    const isOutForDelivery = statusStr === 'OUT_FOR_DELIVERY';
+                    const canDispatch = ['CONFIRMED', 'PROCESSING', 'QUALITY_CHECK'].includes(statusStr);
+                    const canSendLocal = canDispatch || isOutForDelivery;
+                    const isCod = String(ord.paymentMethod || '').toUpperCase() === 'COD';
+                    const isPaid = ord.paymentStatus === 'CAPTURED' || ord.paymentStatus === 'PAID';
+                    const awaitingCodApproval = isCod && statusStr === 'PENDING_COD_CONFIRMATION';
+                    const needsCashCollection = isCod && !isPaid && (isDispatched || isOutForDelivery || statusStr === 'DELIVERED');
+                    const deliveryRec = ord.deliveryRecord || null;
                     const awbNum = ord.shipment?.awbNumber || ord.awbNumber || null;
                     const carrierName = ord.shipment?.carrierPartner || ord.courierPartner || null;
                     const trackLink = ord.shipment?.trackingUrl || ord.trackingUrl || null;
 
                     // Compute permitted next transitions from ORDER_TRANSITION_MATRIX
                     const allowedTransitions: string[] = {
-                      PENDING: ['CONFIRMED', 'CANCELLED'],
-                      ORDER_PLACED: ['CONFIRMED', 'CANCELLED'],
-                      CONFIRMED: ['IN_CUSTOMIZATION', 'QUALITY_CHECK', 'CANCELLED'],
+                      // Online orders are confirmed by payment; COD orders via Accept/Reject buttons.
+                      PENDING: ['CANCELLED'],
+                      ORDER_PLACED: ['CANCELLED'],
+                      PENDING_COD_CONFIRMATION: [],
+                      CONFIRMED: ['PROCESSING', 'IN_CUSTOMIZATION', 'QUALITY_CHECK', 'CANCELLED'],
+                      PROCESSING: ['IN_CUSTOMIZATION', 'QUALITY_CHECK', 'CANCELLED'],
                       IN_CUSTOMIZATION: ['QUALITY_CHECK', 'CANCELLED'],
                       QUALITY_CHECK: ['DISPATCHED', 'IN_CUSTOMIZATION', 'CANCELLED'],
-                      DISPATCHED: ['DELIVERED'],
+                      OUT_FOR_DELIVERY: ['CANCELLED'],
+                      DISPATCHED: [],
                       DELIVERED: [],
                       CANCELLED: [],
                     }[statusStr] || [];
@@ -2290,11 +2247,15 @@ export const AdminDashboard: React.FC = () => {
                                 ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30'
                                 : statusStr === 'DISPATCHED'
                                 ? 'bg-sky-950/60 text-sky-400 border-sky-500/30'
+                                : statusStr === 'OUT_FOR_DELIVERY'
+                                ? 'bg-violet-950/60 text-violet-300 border-violet-500/30'
+                                : statusStr === 'PENDING_COD_CONFIRMATION'
+                                ? 'bg-amber-950/60 text-amber-300 border-amber-500/30'
                                 : statusStr === 'CANCELLED'
                                 ? 'bg-rose-950/60 text-rose-400 border-rose-500/30'
                                 : 'bg-[#181A22] text-white/90 border-white/10'
                             }`}>
-                              {statusStr.replace('_', ' ')}
+                              {statusStr.replace(/_/g, ' ')}
                             </span>
 
                             {/* Permitted transitions selector */}
@@ -2343,10 +2304,39 @@ export const AdminDashboard: React.FC = () => {
                                 </a>
                               )}
                             </div>
+                          ) : deliveryRec?.assignedPerson ? (
+                            <div className="font-sans">
+                              <div className="font-bold text-white flex items-center gap-1">
+                                <UserCheck className="w-3 h-3 text-violet-300" />
+                                {deliveryRec.assignedPerson}
+                              </div>
+                              {deliveryRec.assignedPhone && (
+                                <a href={`tel:${deliveryRec.assignedPhone}`} className="text-[10px] text-[#F5BD48] hover:underline">
+                                  {deliveryRec.assignedPhone}
+                                </a>
+                              )}
+                              <div className="text-[10px] text-white/50">Own delivery • {String(deliveryRec.deliveryStatus || '').replace(/_/g, ' ')}</div>
+                              <div className={`text-[10px] font-semibold mt-0.5 ${ord.deliveryOtpVerifiedAt ? 'text-emerald-400' : 'text-amber-300'}`}>
+                                {ord.deliveryOtpVerifiedAt ? 'OTP confirmed' : 'OTP pending'}
+                              </div>
+                            </div>
                           ) : (
                             <span className="text-[11px] text-white/40 italic font-sans">
                               Unassigned
                             </span>
+                          )}
+                          {isCod && (
+                            <div className="mt-1 font-sans text-[10px]">
+                              {ord.codCollection ? (
+                                <span className="text-emerald-400 font-semibold">
+                                  Cash ₹{(ord.codCollection.amountCollectedPaise / 100).toLocaleString('en-IN')} collected
+                                </span>
+                              ) : !isTerminal || statusStr === 'DELIVERED' ? (
+                                <span className="text-amber-300 font-semibold">
+                                  Collect ₹{((ord.grandTotalPaise || 0) / 100).toLocaleString('en-IN')}
+                                </span>
+                              ) : null}
+                            </div>
                           )}
                         </td>
 
@@ -2375,6 +2365,42 @@ export const AdminDashboard: React.FC = () => {
                             <span>Audit</span>
                           </button>
 
+                          {/* COD approval */}
+                          {awaitingCodApproval && (
+                            <>
+                              <button
+                                onClick={() => handleCodDecision(ord, 'APPROVE')}
+                                disabled={actionInProgressId === ord.id}
+                                className="p-1.5 rounded-lg text-emerald-400 hover:bg-emerald-950/40 inline-flex items-center gap-1 font-semibold disabled:opacity-50 border border-emerald-500/30 transition-colors"
+                                title="Accept this Cash on Delivery order"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Accept COD</span>
+                              </button>
+                              <button
+                                onClick={() => handleCodDecision(ord, 'REJECT')}
+                                disabled={actionInProgressId === ord.id}
+                                className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-950/40 inline-flex items-center gap-1 font-semibold disabled:opacity-50 border border-rose-500/30 transition-colors"
+                                title="Reject this Cash on Delivery order"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                <span>Reject</span>
+                              </button>
+                            </>
+                          )}
+
+                          {/* Own (local) delivery */}
+                          {canSendLocal && (
+                            <button
+                              onClick={() => handleOpenLocalDelivery(ord)}
+                              className="p-1.5 rounded-lg text-violet-300 hover:bg-violet-950/40 inline-flex items-center gap-1 font-semibold border border-violet-500/30 transition-colors"
+                              title={isOutForDelivery ? 'Change delivery person' : 'Send out with your own delivery person'}
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              <span>{isOutForDelivery ? 'Reassign' : 'Own Delivery'}</span>
+                            </button>
+                          )}
+
                           {/* Dispatch Action */}
                           {canDispatch && (
                             <button
@@ -2387,8 +2413,21 @@ export const AdminDashboard: React.FC = () => {
                             </button>
                           )}
 
-                          {/* Confirm Delivery Action */}
-                          {isDispatched && (
+                          {/* COD: delivered + cash collected in one step */}
+                          {needsCashCollection && (
+                            <button
+                              onClick={() => handleOpenCodCollect(ord)}
+                              disabled={actionInProgressId === ord.id}
+                              className="p-1.5 rounded-lg text-emerald-400 hover:bg-emerald-950/40 inline-flex items-center gap-1 font-semibold disabled:opacity-50 border border-emerald-500/30 transition-colors"
+                              title="Record cash/UPI collected and mark delivered"
+                            >
+                              <Banknote className="w-3.5 h-3.5" />
+                              <span>Cash Collected</span>
+                            </button>
+                          )}
+
+                          {/* Confirm Delivery Action (prepaid orders) */}
+                          {(isDispatched || isOutForDelivery) && !needsCashCollection && (
                             <button
                               onClick={() => handleConfirmDelivery(ord.id)}
                               disabled={actionInProgressId === ord.id}
@@ -2749,6 +2788,13 @@ export const AdminDashboard: React.FC = () => {
       {activeAdminTab === 'damage-reports' && (
         <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl text-white">
           <AdminDamageReportsDesk onClaimUpdated={fetchOverviewMetrics} />
+        </div>
+      )}
+
+      {/* TAB: OPERATIONS & HEALTH */}
+      {activeAdminTab === 'operations' && (
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl text-white">
+          <AdminOperationsDesk />
         </div>
       )}
 
@@ -4033,6 +4079,9 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* TAB 7: COMPLETE BUSINESS SETTINGS */}
+      {activeAdminTab === 'pricing' && (
+        <AdminTaxDeliverySettings canEdit={adminRole === 'ADMIN' || adminRole === 'SUPER_ADMIN'} />
+      )}
       {activeAdminTab === 'settings' && (
         <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl space-y-6 text-white">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
@@ -5358,6 +5407,12 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
+            <AdminOrderSupportActions
+              order={selectedOrderDetails}
+              isOwner={adminRole === 'ADMIN' || adminRole === 'SUPER_ADMIN'}
+              onChanged={() => handleViewOrderDetails(selectedOrderDetails.id)}
+            />
+
             {/* Footer */}
             <div className="flex justify-end pt-3 border-t border-white/10">
               <button
@@ -5497,6 +5552,398 @@ export const AdminDashboard: React.FC = () => {
                     <>
                       <Truck className="w-3.5 h-3.5" />
                       <span>Confirm & Dispatch</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Local delivery (own delivery person) modal */}
+      {localDeliveryOrder && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setLocalDeliveryOrder(null); }}
+          className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+        >
+          <div className="w-full max-w-lg bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h3 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-violet-300" />
+                  <span>Send Out for Delivery</span>
+                </h3>
+                <p className="text-xs text-[#94A3B8]">
+                  Order {localDeliveryOrder.orderNumber} • {localDeliveryOrder.customerName}
+                </p>
+              </div>
+              <button onClick={() => setLocalDeliveryOrder(null)} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {localDeliveryError && (
+              <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{localDeliveryError}</span>
+              </div>
+            )}
+
+            {String(localDeliveryOrder.paymentMethod || '').toUpperCase() === 'COD' && (
+              <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs">
+                Cash on Delivery: collect <strong className="text-[#F5BD48]">₹{((localDeliveryOrder.grandTotalPaise || 0) / 100).toLocaleString('en-IN')}</strong> from the customer.
+              </div>
+            )}
+
+            {localDeliveryLink ? (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/30 text-emerald-200 flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    Out for delivery.{' '}
+                    {localDeliveryLink.emailedTo
+                      ? `Order details and the confirm link were emailed to ${localDeliveryLink.emailedTo}.`
+                      : 'Share this link with the delivery person.'}
+                  </span>
+                </div>
+                <label className="block font-bold text-[#D5A34A]">Delivery confirmation link (this order only)</label>
+                <input
+                  readOnly
+                  value={localDeliveryLink.url}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono text-[11px]"
+                />
+                <p className="text-[11px] text-white/50">
+                  The delivery person opens it after handing over the parcel and enters the customer&apos;s OTP. It closes automatically once delivered, if reassigned, or on{' '}
+                  {new Date(localDeliveryLink.expiresAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}.
+                </p>
+                <div className="flex flex-wrap justify-end gap-2 pt-3 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(localDeliveryLink.url);
+                        setLocalDeliveryLinkCopied(true);
+                      } catch {
+                        setLocalDeliveryLinkCopied(false);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl border border-white/15 text-white hover:bg-white/10 font-semibold"
+                  >
+                    {localDeliveryLinkCopied ? 'Copied' : 'Copy link'}
+                  </button>
+                  <a
+                    href={`https://wa.me/${(localDeliveryPhone || '').replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}?text=${encodeURIComponent(
+                      `SNAPPY GIFTZ delivery #${localDeliveryOrder.orderNumber}. After handing over the parcel, ask the customer for their 6-digit OTP and confirm here: ${localDeliveryLink.url}`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                  >
+                    Send on WhatsApp
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setLocalDeliveryOrder(null)}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-semibold"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <form onSubmit={handleSubmitLocalDelivery} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-[#D5A34A] mb-1">Delivery person name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Ravi"
+                  value={localDeliveryPerson}
+                  onChange={(e) => setLocalDeliveryPerson(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-[#D5A34A] mb-1">
+                  Delivery person phone <span className="text-white/40 font-normal">(Optional, shared with customer)</span>
+                </label>
+                <input
+                  type="tel"
+                  placeholder="10-digit mobile"
+                  value={localDeliveryPhone}
+                  onChange={(e) => setLocalDeliveryPhone(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono focus:outline-hidden"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-[#D5A34A] mb-1">
+                  Delivery person email <span className="text-white/40 font-normal">(Optional, gets order details + OTP confirm link)</span>
+                </label>
+                <input
+                  type="email"
+                  placeholder="name@example.com"
+                  value={localDeliveryEmail}
+                  onChange={(e) => setLocalDeliveryEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-[#D5A34A] mb-1">
+                  Notes <span className="text-white/40 font-normal">(Optional internal note)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Landmark, preferred time, handle with care..."
+                  value={localDeliveryNotes}
+                  onChange={(e) => setLocalDeliveryNotes(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white text-xs focus:outline-hidden"
+                />
+              </div>
+              <div className="p-3 rounded-2xl bg-amber-950/40 border border-amber-500/30">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={localDeliverySignatureConfirmed}
+                    onChange={(e) => setLocalDeliverySignatureConfirmed(e.target.checked)}
+                    className="mt-0.5 rounded border-amber-300 text-amber-500 focus:ring-amber-500 w-4 h-4"
+                  />
+                  <div className="text-[11px] text-amber-200 leading-snug">
+                    <span className="font-bold text-[#F5BD48]">Tax invoice printed and signed</span>
+                    <p className="text-amber-200/80 text-[10.5px] mt-0.5">
+                      Required if your invoices use physical signatures (CGST Rule 46(q)). The invoice is issued automatically when you confirm.
+                    </p>
+                  </div>
+                </label>
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setLocalDeliveryOrder(null)}
+                  disabled={localDeliverySubmitting}
+                  className="px-4 py-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={localDeliverySubmitting}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-semibold hover:brightness-110 disabled:opacity-50 flex items-center gap-1.5 transition-all"
+                >
+                  {localDeliverySubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Truck className="w-3.5 h-3.5" />
+                      <span>Out for Delivery</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Own-delivery OTP confirmation modal */}
+      {otpDeliverOrder && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setOtpDeliverOrder(null); }}
+          className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+        >
+          <div className="w-full max-w-sm bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h3 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  <span>Confirm Delivery OTP</span>
+                </h3>
+                <p className="text-xs text-[#94A3B8]">
+                  Order {otpDeliverOrder.orderNumber} • {otpDeliverOrder.customerName}
+                </p>
+              </div>
+              <button onClick={() => setOtpDeliverOrder(null)} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-[#CBD5E1]">
+              Call the customer{otpDeliverOrder.customerPhone ? ` (${otpDeliverOrder.customerPhone})` : ''} and ask for the 6-digit OTP from their order email. The order is marked delivered only after the OTP matches.
+            </p>
+            {otpDeliverError && (
+              <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{otpDeliverError}</span>
+              </div>
+            )}
+            <form onSubmit={handleSubmitOtpDelivery} className="space-y-3 text-xs">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={6}
+                placeholder="••••••"
+                value={otpDeliverValue}
+                onChange={(e) => setOtpDeliverValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full px-3 py-3 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono tracking-[0.5em] text-center text-xl focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
+              />
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setOtpDeliverOrder(null)}
+                  disabled={otpDeliverSubmitting}
+                  className="px-4 py-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={otpDeliverSubmitting || otpDeliverValue.length !== 6}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold hover:brightness-110 disabled:opacity-50 flex items-center gap-1.5 transition-all"
+                >
+                  {otpDeliverSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Checking...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Verify &amp; Mark Delivered</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* COD cash collection modal */}
+      {codCollectOrder && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setCodCollectOrder(null); }}
+          className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+        >
+          <div className="w-full max-w-md bg-[#12141A] border border-[#D5A34A]/30 text-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h3 className="font-serif font-bold text-lg text-white flex items-center gap-2">
+                  <Banknote className="w-5 h-5 text-emerald-400" />
+                  <span>Cash Collected &amp; Delivered</span>
+                </h3>
+                <p className="text-xs text-[#94A3B8]">
+                  Order {codCollectOrder.orderNumber} • Due ₹{((codCollectOrder.grandTotalPaise || 0) / 100).toLocaleString('en-IN')}
+                </p>
+              </div>
+              <button onClick={() => setCodCollectOrder(null)} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {codCollectError && (
+              <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{codCollectError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitCodCollect} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-[#D5A34A] mb-1">Amount collected (₹) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={codCollectAmount}
+                    onChange={(e) => setCodCollectAmount(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-[#D5A34A] mb-1">Paid by</label>
+                  <select
+                    value={codCollectMethod}
+                    onChange={(e) => setCodCollectMethod(e.target.value as 'CASH' | 'UPI_ON_DELIVERY')}
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden"
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="UPI_ON_DELIVERY">UPI on delivery</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block font-bold text-[#D5A34A] mb-1">
+                  Receipt / UPI reference <span className="text-white/40 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={codCollectReceipt}
+                  onChange={(e) => setCodCollectReceipt(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono focus:outline-hidden"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-[#D5A34A] mb-1">
+                  Notes <span className="text-white/40 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={codCollectNotes}
+                  onChange={(e) => setCodCollectNotes(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white focus:outline-hidden"
+                />
+              </div>
+              {needsDeliveryOtp(codCollectOrder) && (
+                <div>
+                  <label className="block font-bold text-[#D5A34A] mb-1">Customer delivery OTP *</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    required
+                    placeholder="6-digit OTP from the customer"
+                    value={codCollectOtp}
+                    onChange={(e) => setCodCollectOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-[#0D0F14] text-white font-mono tracking-[0.4em] text-center text-base focus:outline-hidden focus:ring-2 focus:ring-[#D5A34A]"
+                  />
+                  <p className="text-[10.5px] text-white/50 mt-1">Call the customer and ask for the OTP from their order email.</p>
+                </div>
+              )}
+              <p className="text-[11px] text-white/50">
+                This marks the order Delivered and Paid, reduces stock, issues the final tax invoice, and emails the customer.
+              </p>
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setCodCollectOrder(null)}
+                  disabled={codCollectSubmitting}
+                  className="px-4 py-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={codCollectSubmitting}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold hover:brightness-110 disabled:opacity-50 flex items-center gap-1.5 transition-all"
+                >
+                  {codCollectSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Confirm Collected</span>
                     </>
                   )}
                 </button>
@@ -6145,6 +6592,8 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
+        </div>
+      </div>
     </div>
   );
 };

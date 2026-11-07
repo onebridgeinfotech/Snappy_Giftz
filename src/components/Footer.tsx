@@ -22,7 +22,7 @@ export const Footer: React.FC = () => {
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim()) {
-      showToast('Welcome to the Snappy Royal Circle! Your ₹100 welcome gift code is WELCOME100 🎉');
+      showToast('Welcome to the Snappy Royal Circle! We will email you about new collections and offers.');
       setEmail('');
     }
   };
