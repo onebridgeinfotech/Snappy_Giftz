@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useApp } from '../context/AppContext';
 import {
@@ -8,10 +8,7 @@ import {
   Heart,
   Award,
   Truck,
-  SlidersHorizontal,
   Gift,
-  Building2,
-  ChevronDown,
   Sparkles,
   Menu,
   X,
@@ -22,16 +19,13 @@ import {
   Home,
   ShieldCheck
 } from 'lucide-react';
-import { UserRole } from '../types';
 import { AuthModal } from './AuthModal';
+import { notifyStorefrontAuthChanged } from '@/lib/auth/storefront-auth-events';
 
 export const Header: React.FC = () => {
   const {
     mode,
     setMode,
-    showToast,
-    currentRole,
-    setCurrentRole,
     cart,
     wishlist,
     setActiveModal,
@@ -45,50 +39,44 @@ export const Header: React.FC = () => {
   } = useApp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authenticatedUser, setAuthenticatedUser] = useState<any>(null);
 
-  const personaRef = useRef<HTMLDivElement>(null);
+  const refreshAuthenticatedUser = useCallback(() => {
+    fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        setAuthenticatedUser(data.authenticated && data.user ? data.user : null);
+      })
+      .catch(() => setAuthenticatedUser(null));
+  }, []);
 
-  // Close dropdowns and drawers on click outside or Escape
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (personaRef.current && !personaRef.current.contains(e.target as Node)) {
-        setRoleMenuOpen(false);
-      }
+    refreshAuthenticatedUser();
+  }, [refreshAuthenticatedUser]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshAuthenticatedUser();
     };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [refreshAuthenticatedUser]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setRoleMenuOpen(false);
         setMobileMenuOpen(false);
         setSearchFocused(false);
       }
     };
 
-    if (roleMenuOpen || mobileMenuOpen || searchFocused) {
-      document.addEventListener('mousedown', handleClickOutside);
+    if (mobileMenuOpen || searchFocused) {
       document.addEventListener('keydown', handleKeyDown);
     }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [roleMenuOpen, mobileMenuOpen, searchFocused]);
-
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.authenticated && data.user) {
-          setAuthenticatedUser(data.user);
-        } else {
-          setAuthenticatedUser(null);
-        }
-      })
-      .catch(() => setAuthenticatedUser(null));
-  }, []);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mobileMenuOpen, searchFocused]);
 
   const totalCartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -99,25 +87,6 @@ export const Header: React.FC = () => {
        authenticatedUser.role === 'SUPER_ADMIN' ||
        authenticatedUser.role === 'STAFF')
   );
-  const isStaffOrAdmin = isAdminUser;
-
-  const handleRoleSelect = (role: UserRole) => {
-    if (role === 'admin' || role === 'warehouse_staff') {
-      if (!isStaffOrAdmin && process.env.NODE_ENV === 'production') {
-        showToast('Administrator authentication required to access Operations.', 'error');
-        setRoleMenuOpen(false);
-        return;
-      }
-      setCurrentRole(role);
-      setRoleMenuOpen(false);
-      setMode('admin');
-    } else {
-      setCurrentRole(role);
-      setRoleMenuOpen(false);
-      setMode('b2c');
-    }
-  };
-
   const handleSearchSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const el = document.getElementById('catalog-section');
@@ -162,96 +131,6 @@ export const Header: React.FC = () => {
               <span>
                 Deliver to <strong className="text-[#F1F5F9]">{currentPincode}</strong>
               </span>
-            </div>
-
-            <span className="hidden md:inline h-3.5 w-px bg-[#D5A34A]/25" />
-
-            {/* Quick Mode Switcher (B2C Store / B2B Portal / Ops HQ) */}
-            <div className="flex items-center gap-1 bg-[#24252A] p-0.5 rounded-full border border-[#D5A34A]/25 text-[11px]">
-              <button
-                type="button"
-                onClick={() => setMode('b2c')}
-                className={`px-3 py-0.5 rounded-full font-semibold transition-all duration-200 cursor-pointer ${
-                  mode === 'b2c'
-                    ? 'bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] shadow-xs'
-                    : 'text-[#CBD5E1] hover:text-white'
-                }`}
-                title="B2C Retail Storefront"
-              >
-                B2C Store
-              </button>
-              {isStaffOrAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setMode('admin')}
-                  className={`px-2.5 py-0.5 rounded-full font-semibold transition-all duration-200 cursor-pointer ${
-                    mode === 'admin'
-                      ? 'bg-[#EC3E98] text-white shadow-xs'
-                      : 'text-[#CBD5E1] hover:text-white'
-                  }`}
-                  title="Warehouse & Ops Management"
-                >
-                  Ops
-                </button>
-              )}
-            </div>
-
-            {/* Persona Simulator Dropdown (Accessible, Z-Layer Managed & Unclipped) */}
-            <div ref={personaRef} className="relative hidden md:block">
-              <button
-                type="button"
-                id="persona-simulator-button"
-                aria-haspopup="menu"
-                aria-expanded={roleMenuOpen}
-                aria-controls="persona-simulator-dropdown"
-                onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-                className="flex items-center gap-1.5 px-3 py-0.5 rounded-full border border-[#D5A34A]/30 bg-[#24252A] text-[#CBD5E1] text-[11px] font-medium hover:border-[#D5A34A] hover:text-[#F5BD48] transition-colors focus-gold cursor-pointer"
-                title="Simulate User Persona"
-              >
-                <SlidersHorizontal className="w-3 h-3 text-[#D5A34A]" />
-                <span className="capitalize">{currentRole.replace('_', ' ')}</span>
-                <ChevronDown className={`w-3 h-3 text-[#D5A34A]/70 transition-transform duration-200 ${roleMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {roleMenuOpen && (
-                <div
-                  id="persona-simulator-dropdown"
-                  role="menu"
-                  aria-orientation="vertical"
-                  aria-labelledby="persona-simulator-button"
-                  className="absolute right-0 mt-2 w-64 rounded-xl bg-[#17181C] shadow-[0_16px_40px_rgba(0,0,0,0.85)] border border-[#D5A34A]/35 p-2 z-50 text-xs backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-150"
-                >
-                  <div className="px-2 py-1 text-[9px] font-bold text-[#D5A34A] uppercase tracking-widest border-b border-[#D5A34A]/15 pb-1 mb-1">
-                    Simulate Persona
-                  </div>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => handleRoleSelect('b2c_customer')}
-                    className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
-                      currentRole === 'b2c_customer'
-                        ? 'bg-[#24252A] text-[#F5BD48] font-bold border border-[#D5A34A]/40'
-                        : 'text-[#CBD5E1] hover:bg-[#24252A]/60'
-                    }`}
-                  >
-                    <span>Individual Retail Buyer</span>
-                    <span className="text-[9px] bg-[#08090B] border border-[#D5A34A]/30 text-[#D5A34A] px-1.5 py-0.5 rounded font-mono">B2C</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => handleRoleSelect('admin')}
-                    className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
-                      currentRole === 'admin'
-                        ? 'bg-[#24252A] text-[#F5BD48] font-bold border border-[#D5A34A]/40'
-                        : 'text-[#CBD5E1] hover:bg-[#24252A]/60'
-                    }`}
-                  >
-                    <span>Super Administrator</span>
-                    <span className="text-[9px] bg-[#D5A34A]/20 border border-[#D5A34A]/40 text-[#F5BD48] px-1.5 py-0.5 rounded font-bold">HQ</span>
-                  </button>
-                </div>
-              )}
             </div>
 
           </div>
@@ -642,30 +521,6 @@ export const Header: React.FC = () => {
           className="md:hidden bg-[#17181C] border-b border-[#D5A34A]/25 p-4 space-y-4 animate-in slide-in-from-top-3 duration-200 relative z-35"
         >
           
-          {/* Quick Mode Switches */}
-          <div className="flex items-center justify-between bg-[#24252A] p-1 rounded-xl border border-[#D5A34A]/20 text-xs">
-            <button
-              type="button"
-              onClick={() => { setMode('b2c'); setMobileMenuOpen(false); }}
-              className={`flex-1 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                mode === 'b2c' ? 'bg-[#D5A34A] text-[#08090B]' : 'text-[#CBD5E1]'
-              }`}
-            >
-              Consumer Store
-            </button>
-            {isStaffOrAdmin && (
-              <button
-                type="button"
-                onClick={() => { setMode('admin'); setMobileMenuOpen(false); }}
-                className={`flex-1 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                  mode === 'admin' ? 'bg-[#EC3E98] text-white' : 'text-[#CBD5E1]'
-                }`}
-              >
-                Ops HQ
-              </button>
-            )}
-          </div>
-
           {/* Mobile Home Storefront Link */}
           <Link
             href="/"
@@ -767,8 +622,15 @@ export const Header: React.FC = () => {
       {authModalOpen && (
         <AuthModal
           isOpen={authModalOpen}
-          onClose={() => setAuthModalOpen(false)}
-          onAuthSuccess={(user) => setAuthenticatedUser(user)}
+          onClose={() => {
+            setAuthModalOpen(false);
+            refreshAuthenticatedUser();
+          }}
+          onAuthSuccess={(user) => {
+            setAuthenticatedUser(user);
+            notifyStorefrontAuthChanged(user ?? null);
+            if (!user) refreshAuthenticatedUser();
+          }}
         />
       )}
 

@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import { googleDriveService } from '@/services/storage/google-drive.service';
+import { resolvePublicAppUrl } from '@/lib/http/request-origin';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
+  const publicOrigin = resolvePublicAppUrl(req);
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const errorParam = url.searchParams.get('error');
 
-  const adminSettingsUrl = new URL('/admin', url.origin);
+  const adminSettingsUrl = new URL('/admin', publicOrigin);
   adminSettingsUrl.searchParams.set('tab', 'settings');
 
   // 1. Handle user cancellation or OAuth error from Google
@@ -32,7 +34,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const customCallbackUri = `${url.origin}/api/integrations/google-drive/callback`;
+    const customCallbackUri = `${publicOrigin}/api/integrations/google-drive/callback`;
     await googleDriveService.handleCallback(code, stateVerification.adminUserId, customCallbackUri);
 
     adminSettingsUrl.searchParams.set('gdrive', 'connected');

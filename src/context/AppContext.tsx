@@ -1,7 +1,18 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { fetchStorefrontCatalog } from '@/lib/catalog/admin-catalog-sync';
+import {
+  STOREFRONT_AUTH_CHANGED_EVENT,
+  type StorefrontAuthUser,
+} from '@/lib/auth/storefront-auth-events';
+import {
+  emptyClientStoreBundle,
+  migrateLegacyGlobalClientStore,
+  readClientStoreBundle,
+  scopeKeyForUser,
+  writeClientStoreBundle,
+} from '@/lib/storefront/client-store-persistence';
 import {
   Product,
   CartItem,
@@ -16,8 +27,6 @@ import {
 } from '../types';
 import {
   INITIAL_PRODUCTS,
-  INITIAL_ORDERS,
-  INITIAL_QUOTATIONS,
   INITIAL_TICKETS,
   SERVICEABLE_PINCODES
 } from '../data/initialData';
@@ -103,11 +112,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY_ORDERS = 'snappy_giftz_orders_v1';
-const LOCAL_STORAGE_KEY_QUOTATIONS = 'snappy_giftz_rfqs_v1';
-const LOCAL_STORAGE_KEY_CART = 'snappy_giftz_cart_v1';
-const LOCAL_STORAGE_KEY_WISHLIST = 'snappy_giftz_wishlist_v1';
-
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setMode] = useState<'b2c' | 'b2b' | 'admin'>('b2c');
   const [currentRole, setCurrentRole] = useState<UserRole>('b2c_customer');
@@ -118,29 +122,90 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
-  const [quotations, setQuotations] = useState<CorporateQuotation[]>(INITIAL_QUOTATIONS);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [quotations, setQuotations] = useState<CorporateQuotation[]>([]);
+  const [clientStoreScope, setClientStoreScope] = useState('guest');
 
-  // Restore persisted state from localStorage once client has hydrated (prevents SSR hydration errors)
+  const clientStoreRef = useRef({
+    cart,
+    wishlist,
+    orders,
+    quotations,
+    clientStoreScope,
+  });
+  const clientStoreReadyRef = useRef(false);
+
   useEffect(() => {
-    try {
-      const savedCart = localStorage.getItem(LOCAL_STORAGE_KEY_CART);
-      if (savedCart) setCart(JSON.parse(savedCart));
+    clientStoreRef.current = { cart, wishlist, orders, quotations, clientStoreScope };
+  }, [cart, wishlist, orders, quotations, clientStoreScope]);
 
-      const savedWishlist = localStorage.getItem(LOCAL_STORAGE_KEY_WISHLIST);
-      if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
+  const applyClientStoreBundle = useCallback(
+    (bundle: ReturnType<typeof emptyClientStoreBundle>) => {
+      setCart(bundle.cart);
+      setWishlist(bundle.wishlist);
+      setOrders(bundle.orders);
+      setQuotations(bundle.quotations);
+    },
+    []
+  );
 
-      const savedOrders = localStorage.getItem(LOCAL_STORAGE_KEY_ORDERS);
-      if (savedOrders) setOrders(JSON.parse(savedOrders));
+  const switchClientStoreScope = useCallback(
+    (user: StorefrontAuthUser) => {
+      const nextScope = scopeKeyForUser(user?.id);
+      const { clientStoreScope: prevScope, cart: c, wishlist: w, orders: o, quotations: q } =
+        clientStoreRef.current;
 
-      const savedQuotations = localStorage.getItem(LOCAL_STORAGE_KEY_QUOTATIONS);
-      if (savedQuotations) setQuotations(JSON.parse(savedQuotations));
-    } catch (e) {
-      console.warn('[APP_CONTEXT] Error restoring from localStorage:', e);
-    } finally {
-      setIsHydrated(true);
-    }
-  }, []);
+      if (clientStoreReadyRef.current && prevScope && prevScope !== nextScope) {
+        writeClientStoreBundle(prevScope, { cart: c, wishlist: w, orders: o, quotations: q });
+      }
+
+      setClientStoreScope(nextScope);
+      applyClientStoreBundle(readClientStoreBundle(nextScope));
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+    },
+    [applyClientStoreBundle]
+  );
+
+  // Restore per-user / guest persisted state once client has hydrated
+  useEffect(() => {
+    let cancelled = false;
+
+    migrateLegacyGlobalClientStore();
+
+    fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const user = data?.authenticated && data?.user ? data.user : null;
+        switchClientStoreScope(user);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const scope = scopeKeyForUser(null);
+        setClientStoreScope(scope);
+        applyClientStoreBundle(readClientStoreBundle(scope));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          clientStoreReadyRef.current = true;
+          setIsHydrated(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyClientStoreBundle, switchClientStoreScope]);
+
+  useEffect(() => {
+    const onAuthChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ user: StorefrontAuthUser }>).detail;
+      switchClientStoreScope(detail?.user ?? null);
+    };
+    window.addEventListener(STOREFRONT_AUTH_CHANGED_EVENT, onAuthChanged);
+    return () => window.removeEventListener(STOREFRONT_AUTH_CHANGED_EVENT, onAuthChanged);
+  }, [switchClientStoreScope]);
 
   const [tickets, setTickets] = useState<SupportTicket[]>(INITIAL_TICKETS);
   
@@ -200,40 +265,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [isHydrated, refreshCatalogFromServer]);
 
   useEffect(() => {
-    if (!isHydrated) return;
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY_CART, JSON.stringify(cart));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [cart, isHydrated]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY_WISHLIST, JSON.stringify(wishlist));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [wishlist, isHydrated]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY_ORDERS, JSON.stringify(orders));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [orders, isHydrated]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY_QUOTATIONS, JSON.stringify(quotations));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [quotations, isHydrated]);
+    if (!isHydrated || !clientStoreScope) return;
+    writeClientStoreBundle(clientStoreScope, { cart, wishlist, orders, quotations });
+  }, [cart, wishlist, orders, quotations, clientStoreScope, isHydrated]);
 
   // Product mutations
   const addProduct = (p: Omit<Product, 'id'>) => {

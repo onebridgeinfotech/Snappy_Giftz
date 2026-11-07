@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { notifyStorefrontAuthChanged } from '@/lib/auth/storefront-auth-events';
 import {
   X,
   Lock,
@@ -53,27 +54,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
 
-  // Check auth status on mount
+  // Fresh session check whenever the modal opens (avoid stale admin/customer profile from a prior visit)
   useEffect(() => {
-    if (isOpen) {
-      setErrorMsg(null);
-      setSuccessMsg(null);
-      setPassword('');
-      fetch('/api/auth/me')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.authenticated && data.user) {
-            setCurrentUser(data.user);
-          } else {
-            setCurrentUser(null);
-          }
-        })
-        .catch(() => setCurrentUser(null));
-    } else {
+    if (!isOpen) {
       setPassword('');
       setErrorMsg(null);
       setSuccessMsg(null);
+      return;
     }
+
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setPassword('');
+    setCurrentUser(null);
+
+    const controller = new AbortController();
+    fetch('/api/auth/me', {
+      credentials: 'include',
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && data.user) {
+          setCurrentUser(data.user);
+        } else {
+          setCurrentUser(null);
+          setEmail('');
+        }
+      })
+      .catch(() => setCurrentUser(null));
+
+    return () => controller.abort();
   }, [isOpen]);
 
   // Clear credentials on bfcache / browser back navigation
@@ -179,6 +191,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Biometric sign-in failed.');
       setCurrentUser(data.user);
+      notifyStorefrontAuthChanged(data.user);
       setSuccessMsg('Signed in with Face ID / fingerprint.');
       if (onAuthSuccess) onAuthSuccess(data.user);
       setTimeout(() => onClose(), 1200);
@@ -207,6 +220,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
       }
 
       setCurrentUser(data.user);
+      notifyStorefrontAuthChanged(data.user);
       setSuccessMsg('Successfully signed in! Welcome back.');
       if (onAuthSuccess) onAuthSuccess(data.user);
       setTimeout(() => onClose(), 1200);
@@ -235,6 +249,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
       }
 
       setCurrentUser(data.user);
+      notifyStorefrontAuthChanged(data.user);
       setSuccessMsg('Account created successfully! Welcome to Snappy Gifts.');
       if (onAuthSuccess) onAuthSuccess(data.user);
       setTimeout(() => onClose(), 1200);
@@ -289,6 +304,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
       }
 
       setCurrentUser(data.user);
+      notifyStorefrontAuthChanged(data.user);
       setSuccessMsg('Code verified! You are now logged in.');
       if (onAuthSuccess) onAuthSuccess(data.user);
       setTimeout(() => onClose(), 1200);
@@ -306,8 +322,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
         localStorage.removeItem('snappy_remembered_email');
         sessionStorage.clear();
       } catch {}
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       setCurrentUser(null);
+      notifyStorefrontAuthChanged(null);
       setEmail('');
       setPassword('');
       setName('');
@@ -322,6 +339,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
         sessionStorage.clear();
       } catch {}
       setCurrentUser(null);
+      notifyStorefrontAuthChanged(null);
       setEmail('');
       setPassword('');
       setName('');

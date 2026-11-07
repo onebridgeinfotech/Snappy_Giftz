@@ -136,6 +136,15 @@ export default function CartPage() {
                     key={item.id}
                     className="bg-[#17181C] rounded-xl border border-[#24252A] p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start relative hover:border-[#D5A34A]/40 transition-all shadow-md"
                   >
+                    <button
+                      type="button"
+                      onClick={() => removeFromCart(item.id)}
+                      className="absolute top-3 right-3 sm:top-4 sm:right-4 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-[#94A3B8] hover:text-[#EF4444] hover:bg-[#EF4444]/10 border border-transparent hover:border-[#EF4444]/30 transition-colors z-10"
+                      aria-label={`Remove ${item.product.name} from bag`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Remove
+                    </button>
                     {/* Product Image */}
                     <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-[#08090B] border border-[#24252A] overflow-hidden flex-shrink-0 relative">
                       <Image

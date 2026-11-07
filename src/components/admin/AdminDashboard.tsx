@@ -61,6 +61,7 @@ import {
   fetchAdminCatalog,
   updateCatalogProduct,
 } from '@/lib/catalog/admin-catalog-sync';
+import { describeGoogleDriveOAuthError } from '@/lib/integrations/google-drive-oauth-errors';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -847,9 +848,13 @@ export const AdminDashboard: React.FC = () => {
       } else if (params.get('gdrive_error')) {
         setActiveAdminTab('settings');
         const err = params.get('gdrive_error') || 'Unknown error';
-        setGdriveBanner({ type: 'error', message: `Google Drive connection error: ${err}` });
-        showToast(`Google Drive connection error: ${err}`);
+        const friendly = describeGoogleDriveOAuthError(err);
+        setGdriveBanner({ type: 'error', message: friendly });
+        showToast('Google Drive connection failed. See Settings for details.', 'error');
         fetchGDriveStatus();
+        params.delete('gdrive_error');
+        const cleaned = `${window.location.pathname}${params.toString() ? `?${params}` : ''}`;
+        window.history.replaceState({}, '', cleaned);
       }
     }
   }, [fetchGDriveStatus, showToast]);
@@ -3455,8 +3460,11 @@ export const AdminDashboard: React.FC = () => {
                   {outboxMessages.map((msg) => (
                     <tr key={msg.id} className="hover:bg-white/5 transition-colors">
                       <td className="p-3">
-                        <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 text-white">
-                          {msg.eventType}
+                        <span
+                          className="inline-block max-w-[11rem] font-mono text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide bg-[#1e293b] text-[#e2e8f0] border border-[#475569]/60 shadow-sm"
+                          title={msg.eventType}
+                        >
+                          {msg.eventType.replace(/_/g, ' ')}
                         </span>
                       </td>
                       <td className="p-3 font-mono font-semibold text-white">
@@ -3466,7 +3474,7 @@ export const AdminDashboard: React.FC = () => {
                         <div className="font-semibold text-white/90">{msg.recipientEmail}</div>
                         {msg.recipientName && <div className="text-[10px] text-slate-400">{msg.recipientName}</div>}
                       </td>
-                      <td className="p-3 text-slate-300 max-w-xs truncate" title={msg.subject}>
+                      <td className="p-3 text-[#CBD5E1] max-w-xs truncate" title={msg.subject}>
                         {msg.subject}
                       </td>
                       <td className="p-3 text-center">
@@ -3485,12 +3493,12 @@ export const AdminDashboard: React.FC = () => {
                       <td className="p-3 text-center font-mono">
                         {msg.attempts} / {msg.maxAttempts}
                       </td>
-                      <td className="p-3 text-[11px] text-slate-500">
+                      <td className="p-3 text-[11px] text-[#94A3B8]">
                         {msg.sentAt
                           ? `Sent: ${new Date(msg.sentAt).toLocaleString('en-IN')}`
                           : `Queued: ${new Date(msg.createdAt).toLocaleString('en-IN')}`}
                         {msg.lastError && (
-                          <div className="text-rose-600 text-[10px] truncate max-w-xs" title={msg.lastError}>
+                          <div className="text-rose-400 text-[10px] truncate max-w-xs" title={msg.lastError}>
                             Err: {msg.lastError}
                           </div>
                         )}

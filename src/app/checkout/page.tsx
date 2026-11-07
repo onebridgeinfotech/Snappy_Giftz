@@ -23,7 +23,8 @@ import {
   RefreshCw,
   ShoppingBag,
   ExternalLink,
-  XCircle
+  XCircle,
+  Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -46,6 +47,7 @@ export default function CheckoutPage() {
   const {
     cart,
     clearCart,
+    removeFromCart,
     currentPincode,
     appliedCoupon,
     couponDiscount,
@@ -100,6 +102,10 @@ export default function CheckoutPage() {
     serverQuotePaise !== null ? serverQuotePaise / 100 : subtotalExclDelivery;
 
   useEffect(() => {
+    if (cart.length === 0 && currentStep === 'details') {
+      router.replace('/cart');
+      return;
+    }
     if (cart.length === 0) {
       setServerQuotePaise(null);
       setQuoteError(null);
@@ -800,13 +806,24 @@ export default function CheckoutPage() {
             {/* Right Column: Order Review Sidebar */}
             <div className="lg:col-span-5 space-y-6">
               <div className="bg-[#17181C] rounded-2xl border border-[#24252A] p-6 shadow-xl space-y-4">
-                <h3 className="text-base font-serif font-bold text-[#F1F5F9] pb-3 border-b border-[#24252A]">
-                  Order Items ({cart.length})
-                </h3>
+                <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#24252A]">
+                  <h3 className="text-base font-serif font-bold text-[#F1F5F9]">
+                    Order Items ({cart.length})
+                  </h3>
+                  <Link
+                    href="/cart"
+                    className="text-[11px] font-semibold text-[#D5A34A] hover:text-[#F5BD48] transition-colors shrink-0"
+                  >
+                    Edit bag
+                  </Link>
+                </div>
 
                 <div className="max-h-72 overflow-y-auto space-y-3 pr-1">
                   {cart.map((item) => (
-                    <div key={item.id} className="flex gap-3 items-center text-xs">
+                    <div
+                      key={item.id}
+                      className="flex gap-3 items-start text-xs group rounded-lg p-2 -mx-2 hover:bg-[#08090B]/50 transition-colors"
+                    >
                       <div className="w-12 h-12 rounded-lg bg-[#08090B] border border-[#24252A] overflow-hidden relative flex-shrink-0">
                         <Image
                           src={item.product.images?.[0] || '/assets/snappy-gifts-trimmed.png'}
@@ -817,15 +834,24 @@ export default function CheckoutPage() {
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-[#F1F5F9] truncate">{item.product.name}</p>
+                        <p className="font-semibold text-[#F1F5F9] truncate pr-1">{item.product.name}</p>
                         <p className="text-[11px] text-[#94A3B8]">Qty: {item.quantity}</p>
                         {item.customization?.engravedText && (
                           <p className="text-[10px] text-[#D5A34A] truncate">
                             Engrave: &ldquo;{item.customization.engravedText}&rdquo;
                           </p>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.id)}
+                          className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-[#94A3B8] hover:text-[#EF4444] transition-colors"
+                          aria-label={`Remove ${item.product.name} from order`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Remove
+                        </button>
                       </div>
-                      <div className="text-right font-semibold text-[#F5BD48]">
+                      <div className="text-right font-semibold text-[#F5BD48] shrink-0">
                         ₹{(item.unitPrice * item.quantity).toLocaleString('en-IN')}
                       </div>
                     </div>

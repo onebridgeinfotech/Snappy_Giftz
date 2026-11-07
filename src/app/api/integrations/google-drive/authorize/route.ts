@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireRole, AuthError } from '@/lib/auth/rbac';
 import { Role } from '@prisma/client';
 import { googleDriveService } from '@/services/storage/google-drive.service';
+import { resolvePublicAppUrl } from '@/lib/http/request-origin';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,12 +10,12 @@ export async function GET(req: Request) {
   try {
     const admin = await requireRole([Role.ADMIN], req);
 
-    const url = new URL(req.url);
-    const redirectOrigin = url.origin;
+    const redirectOrigin = resolvePublicAppUrl(req);
     const customCallbackUri = `${redirectOrigin}/api/integrations/google-drive/callback`;
 
     const authUrl = googleDriveService.generateAuthUrl(admin.id, customCallbackUri);
 
+    const url = new URL(req.url);
     const acceptHeader = req.headers.get('accept') || '';
     const wantsJson = acceptHeader.includes('application/json') || url.searchParams.get('format') === 'json';
 
