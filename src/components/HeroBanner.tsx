@@ -4,20 +4,14 @@ import {
   ArrowRight,
   Sparkles,
   ShieldCheck,
+  Gift,
+  Truck,
+  ChevronRight,
+  CheckCircle2,
+  Award,
   HeartHandshake,
   Lock,
-  RefreshCw,
-  Award,
-  Crown,
-  Gift,
-  CheckCircle2,
-  Sliders,
-  Compass,
-  Star,
-  Cake,
-  Heart,
-  Briefcase,
-  Users
+  RefreshCw
 } from 'lucide-react';
 
 export const HeroBanner: React.FC = () => {
@@ -91,12 +85,12 @@ export const HeroBanner: React.FC = () => {
     }
   ];
 
-  // 8 Occasions matching Stage 2 requirement:
-  // Birthday, Anniversary, Wedding, Kids, Baby Shower, Festival, Corporate Gifts, Personalized Gifts
+  // 8 Occasions matching Image 1:
+  // Birthday, Anniversary, Wedding, Kids, Baby Shower, Festival, Housewarming, Personalized Gifts
   const occasionItems = [
     {
       name: 'Birthday',
-      tagline: 'Milestones & Joy',
+      tagline: 'Memorable In a Way',
       emoji: '🎂',
       filterType: 'occasion' as const,
       filterValue: 'Birthday',
@@ -111,7 +105,7 @@ export const HeroBanner: React.FC = () => {
     {
       name: 'Wedding',
       tagline: 'Sacred Beginnings',
-      emoji: '💒',
+      emoji: '💐',
       filterType: 'occasion' as const,
       filterValue: 'Wedding',
     },
@@ -132,7 +126,7 @@ export const HeroBanner: React.FC = () => {
     {
       name: 'Festival',
       tagline: 'Diwali & Celebrations',
-      emoji: '🪔',
+      emoji: '🎆',
       filterType: 'occasion' as const,
       filterValue: 'Diwali',
     },
@@ -146,7 +140,7 @@ export const HeroBanner: React.FC = () => {
     {
       name: 'Personalized Gifts',
       tagline: '24K Gold Inscribed',
-      emoji: '✨',
+      emoji: '🎁',
       filterType: 'category' as const,
       filterValue: 'Personalized Gifts',
     },
@@ -163,46 +157,44 @@ export const HeroBanner: React.FC = () => {
   return (
     <section className="relative overflow-hidden bg-[#08090B] pt-4 pb-0">
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1440px] 2xl:max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* ========================================================= */}
         {/* 1. MAIN HERO BANNER — Cinematic Dark Luxury Experience    */}
         {/* ========================================================= */}
-        <div className="relative rounded-3xl overflow-hidden border border-[#D5A34A]/25 bg-[#08090B] shadow-[0_25px_60px_rgba(0,0,0,0.85)] min-h-[540px] lg:min-h-[620px] flex items-center mb-8">
+        <div className="relative rounded-3xl overflow-hidden border border-[#D5A34A]/50 bg-[#08090B] shadow-[0_25px_60px_rgba(0,0,0,0.85),0_0_35px_rgba(213,163,74,0.18)] min-h-[560px] lg:min-h-[620px] flex items-center mb-8">
           
-          {/* Subtle Ambient Radial Lighting */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_40%,rgba(213,163,74,0.08),transparent_65%)] pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#08090B] via-[#08090B]/95 to-transparent z-1 pointer-events-none hidden md:block" />
-
-          {/* Desktop & Tablet Cinematic Background Photography (Right-Anchored) */}
-          <div className="hidden md:block absolute right-0 top-0 bottom-0 w-7/12 z-0">
+          {/* Luminous Cinematic Background Photography (Full Container) */}
+          <div className="absolute inset-0 z-0">
             <img
-              src="/assets/hero_dark_luxury_gift.jpg"
+              src="/assets/luxury_hero_banner_perfect.jpg"
               alt="Snappy Giftz Handcrafted Luxury Gift Box"
-              className="w-full h-full object-cover object-center transform scale-100 hover:scale-[1.02] transition-transform duration-1000 ease-out"
+              className="w-full h-full object-cover object-[center_right] md:object-center transform scale-100 hover:scale-[1.01] transition-transform duration-1000 ease-out"
             />
-            {/* Smooth Left Vignette Fade into Midnight Black */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#08090B] via-[#08090B]/75 via-25% to-transparent pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#08090B]/90 via-transparent to-[#08090B]/40 pointer-events-none" />
+            {/* High contrast gradient on the left for crisp text readability */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#08090B] via-[#08090B]/70 via-35% to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#08090B]/90 via-transparent to-[#08090B]/20 pointer-events-none" />
+            {/* Ambient golden aura centered around gift box */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_55%_45%,rgba(213,163,74,0.16),transparent_65%)] pointer-events-none" />
           </div>
 
           {/* Foreground Hero Content Container */}
-          <div className="relative z-10 w-full p-5 sm:p-7 md:p-8 lg:p-12">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 items-center">
+          <div className="relative z-10 w-full p-5 sm:p-7 md:p-8 lg:p-12 xl:p-14">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 xl:gap-16 items-center">
               
               {/* Left Column: Brand Eyebrow, Editorial Headline & Actions */}
-              <div className="md:col-span-7 space-y-4 md:space-y-5 max-w-xl">
+              <div className="md:col-span-6 lg:col-span-6 xl:col-span-5 space-y-4 md:space-y-5 max-w-lg">
                 
                 {/* Brand Eyebrow */}
-                <div className="inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-[#17181C]/90 border border-[#D5A34A]/35 text-[#D5A34A] text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.22em] shadow-xs backdrop-blur-xs">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#17181C]/90 border border-[#D5A34A]/40 text-[#F5BD48] text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] shadow-sm backdrop-blur-md">
                   <Sparkles className="w-3.5 h-3.5 text-[#F5BD48]" />
                   <span>TURNING MOMENTS INTO MEMORIES</span>
                 </div>
 
                 {/* Editorial Headline with Gold Highlight */}
-                <h1 className="font-serif font-black text-3xl sm:text-4xl md:text-3xl lg:text-5xl xl:text-6xl text-[#F1F5F9] tracking-tight leading-[1.1] drop-shadow-sm">
+                <h1 className="font-serif font-black text-3xl sm:text-4xl md:text-3xl lg:text-5xl xl:text-6xl text-[#F1F5F9] tracking-tight leading-[1.1] drop-shadow-md">
                   Thoughtful{' '}
-                  <span className="bg-gradient-to-r from-[#F5BD48] via-[#D5A34A] to-[#F5BD48] bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-[#F5BD48] via-[#E5A93C] to-[#F5BD48] bg-clip-text text-transparent">
                     Gifts
                   </span>{' '}
                   for Every{' '}
@@ -212,7 +204,7 @@ export const HeroBanner: React.FC = () => {
                 </h1>
 
                 {/* Supporting Description */}
-                <p className="text-[#CBD5E1] text-xs sm:text-sm lg:text-base leading-relaxed font-sans max-w-lg">
+                <p className="text-[#CBD5E1] text-xs sm:text-sm lg:text-base leading-relaxed font-sans max-w-md drop-shadow-sm">
                   Discover bespoke handcrafted keepsakes, luxury hampers, and laser-engraved treasures curated to celebrate life’s most cherished milestones.
                 </p>
 
@@ -228,7 +220,7 @@ export const HeroBanner: React.FC = () => {
                       if (setSearchQuery) setSearchQuery('');
                       scrollToCatalog();
                     }}
-                    className="group bg-gradient-to-r from-[#F5BD48] via-[#D5A34A] to-[#B88728] hover:from-[#F5BD48] hover:to-[#D5A34A] text-[#08090B] font-bold px-6 sm:px-8 py-3 sm:py-3.5 lg:py-4 rounded-full shadow-lg shadow-[#D5A34A]/20 flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    className="group bg-gradient-to-r from-[#F5BD48] via-[#E5A93C] to-[#D5A34A] hover:brightness-110 text-[#08090B] font-extrabold px-7 sm:px-8 py-3.5 sm:py-4 rounded-full shadow-[0_4px_25px_rgba(245,189,72,0.4)] flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                   >
                     <span>Shop Now</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -238,89 +230,80 @@ export const HeroBanner: React.FC = () => {
                   <button
                     type="button"
                     onClick={scrollToCatalog}
-                    className="px-5 sm:px-7 py-3 sm:py-3.5 lg:py-4 rounded-full bg-[#17181C] hover:bg-[#24252A] border border-[#D5A34A]/30 hover:border-[#D5A34A] text-[#F1F5F9] hover:text-[#F5BD48] font-semibold text-xs sm:text-sm tracking-wide transition-all duration-300 cursor-pointer"
+                    className="px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-[#17181C]/80 hover:bg-[#24252A] border border-[#D5A34A]/40 hover:border-[#F5BD48] text-[#F1F5F9] hover:text-[#F5BD48] font-semibold text-xs sm:text-sm tracking-wide transition-all duration-300 backdrop-blur-sm cursor-pointer"
                   >
                     <span>Explore Collections</span>
                   </button>
 
                 </div>
 
-                {/* Trust Indicators below buttons */}
-                <div className="pt-1 sm:pt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px] sm:text-[11.5px] text-[#CBD5E1]">
+                {/* Trust Indicators below buttons matching Image 1 */}
+                <div className="pt-2 sm:pt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] sm:text-[12px] text-[#CBD5E1]">
                   <div className="flex items-center gap-1.5 sm:gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#D5A34A] shrink-0" />
+                    <Truck className="w-3.5 h-3.5 text-[#F5BD48] shrink-0" />
+                    <span>Hyderabad Express Delivery</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#F5BD48] shrink-0" />
+                    <span>Insured &amp; Safe Packaging</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-[#F5BD48] shrink-0" />
                     <span>Complimentary 24K Gold Inscription</span>
                   </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#D5A34A] shrink-0" />
-                    <span>Insured Express Nationwide Delivery</span>
-                  </div>
                 </div>
 
               </div>
 
-              {/* Mobile Dedicated Gift Box Image (Displayed below headline on phones only) */}
-              <div className="block md:hidden w-full">
-                <div className="relative rounded-2xl overflow-hidden border border-[#D5A34A]/25 aspect-[16/10] shadow-xl">
-                  <img
-                    src="/assets/hero_dark_luxury_gift.jpg"
-                    alt="Snappy Giftz Handcrafted Luxury Gift Box"
-                    className="w-full h-full object-cover object-center"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#08090B]/80 via-transparent to-transparent pointer-events-none" />
-                  <div className="absolute top-3 left-3 bg-[#08090B]/85 backdrop-blur-md px-3 py-1 rounded-full border border-[#D5A34A]/40 text-[10px] font-bold text-[#F5BD48] flex items-center gap-1.5 shadow-md">
-                    <Sparkles className="w-3 h-3 text-[#D5A34A]" />
-                    <span>Artisan Bespoke Box</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Floating Occasion Selector Panel */}
-              <div className="md:col-span-5 flex justify-center md:justify-end">
-                <div className="w-full max-w-sm sm:max-w-md lg:max-w-xs xl:max-w-sm rounded-2xl bg-[#17181C]/95 backdrop-blur-md border border-[#D5A34A]/35 shadow-[0_20px_50px_rgba(0,0,0,0.7)] overflow-hidden transform hover:-translate-y-1 transition-all duration-300">
+              {/* Right Column: Floating Occasion Selector Panel with Increased Width */}
+              <div className="md:col-span-6 lg:col-span-6 xl:col-span-7 flex justify-center md:justify-end">
+                <div className="w-full max-w-md sm:max-w-lg lg:max-w-[430px] xl:max-w-[460px] rounded-2xl bg-[#121316]/92 backdrop-blur-xl border border-[#D5A34A]/40 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(213,163,74,0.12)] overflow-hidden transition-all duration-300 hover:border-[#D5A34A]/60">
                   
                   {/* Floating Panel Header: "Find the Perfect Gift" */}
-                  <div className="bg-[#24252A] border-b border-[#D5A34A]/20 py-2.5 px-4 flex items-center justify-between">
+                  <div className="bg-[#1C1D22]/80 border-b border-[#D5A34A]/25 py-2.5 px-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#F5BD48]" />
+                      <Gift className="w-4 h-4 text-[#F5BD48]" />
                       <span className="text-xs font-bold tracking-wider text-[#F1F5F9] uppercase">
                         Find the Perfect Gift
                       </span>
                     </div>
-                    <span className="text-[10px] font-medium text-[#D5A34A] tracking-wider uppercase">
+                    <span className="px-2 py-0.5 rounded-full bg-[#D5A34A]/20 border border-[#D5A34A]/40 text-[10px] font-bold text-[#F5BD48] tracking-wider uppercase">
                       Curated
                     </span>
                   </div>
 
                   {/* 8 Occasion Items Grid */}
-                  <div className="grid grid-cols-2 gap-2 p-3 bg-[#17181C]/90">
+                  <div className="grid grid-cols-2 gap-2.5 p-3.5 bg-[#121316]/95">
                     {occasionItems.map((item, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => handleOccasionSelect(item)}
                         aria-label={`Find gifts for ${item.name}`}
-                        className="group flex items-center gap-2 p-2 sm:p-2.5 rounded-xl bg-[#24252A]/60 hover:bg-[#D5A34A]/15 border border-[#D5A34A]/15 hover:border-[#D5A34A]/60 text-left transition-all duration-200 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-[#D5A34A]"
+                        className="group flex items-center justify-between p-2.5 rounded-xl bg-[#1C1D22]/80 hover:bg-[#D5A34A]/15 border border-[#D5A34A]/20 hover:border-[#D5A34A]/60 text-left transition-all duration-200 cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-[#D5A34A]"
                       >
-                        <span className="w-7 h-7 rounded-lg bg-[#17181C] border border-[#D5A34A]/25 flex items-center justify-center text-sm group-hover:scale-110 transition-transform shrink-0">
-                          {item.emoji}
-                        </span>
-                        <div className="leading-tight overflow-hidden">
-                          <div className="text-[11.5px] font-semibold text-[#F1F5F9] group-hover:text-[#F5BD48] transition-colors truncate">
-                            {item.name}
-                          </div>
-                          <div className="text-[9.5px] text-[#CBD5E1]/70 truncate">
-                            {item.tagline}
+                        <div className="flex items-center gap-2.5 overflow-hidden">
+                          <span className="w-8 h-8 rounded-lg bg-[#121316] border border-[#D5A34A]/30 flex items-center justify-center text-sm group-hover:scale-110 transition-transform shrink-0">
+                            {item.emoji}
+                          </span>
+                          <div className="leading-tight overflow-hidden">
+                            <div className="text-[12px] font-semibold text-[#F1F5F9] group-hover:text-[#F5BD48] transition-colors truncate">
+                              {item.name}
+                            </div>
+                            <div className="text-[10px] text-[#CBD5E1]/70 truncate">
+                              {item.tagline}
+                            </div>
                           </div>
                         </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-[#CBD5E1]/40 group-hover:text-[#F5BD48] group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
                       </button>
                     ))}
                   </div>
 
                   {/* Panel Footer Prompt */}
-                  <div className="py-2 px-3.5 bg-[#24252A]/50 border-t border-[#D5A34A]/15 flex items-center justify-between text-[10.5px] text-[#CBD5E1]">
+                  <div className="py-2.5 px-4 bg-[#1C1D22]/60 border-t border-[#D5A34A]/20 flex items-center justify-between text-[10.5px] text-[#CBD5E1]">
                     <span className="flex items-center gap-1.5">
-                      <Gift className="w-3 h-3 text-[#D5A34A]" />
+                      <Gift className="w-3.5 h-3.5 text-[#F5BD48]" />
                       <span>Ready for dispatch</span>
                     </span>
                     <button
@@ -331,7 +314,7 @@ export const HeroBanner: React.FC = () => {
                         if (setSearchQuery) setSearchQuery('');
                         scrollToCatalog();
                       }}
-                      className="text-[#D5A34A] hover:text-[#F5BD48] font-bold hover:underline"
+                      className="text-[#F5BD48] hover:text-[#FFD778] font-bold hover:underline"
                     >
                       View All →
                     </button>
