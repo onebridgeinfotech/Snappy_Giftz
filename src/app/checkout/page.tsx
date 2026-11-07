@@ -28,6 +28,34 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
+const PENDING_ORDER_STORAGE_KEY = 'snappy_pending_checkout_order';
+
+interface PendingCheckoutOrder {
+  orderNumber: string;
+  guestToken?: string;
+  paymentMethod?: 'RAZORPAY' | 'COD';
+}
+
+function readPendingOrder(): PendingCheckoutOrder | null {
+  try {
+    const raw = window.localStorage.getItem(PENDING_ORDER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed.orderNumber === 'string' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePendingOrder(order: PendingCheckoutOrder | null) {
+  try {
+    if (order) window.localStorage.setItem(PENDING_ORDER_STORAGE_KEY, JSON.stringify(order));
+    else window.localStorage.removeItem(PENDING_ORDER_STORAGE_KEY);
+  } catch {
+    // Storage unavailable (private mode etc.) - resume simply won't be offered.
+  }
+}
+
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') return resolve(false);
@@ -81,6 +109,11 @@ export default function CheckoutPage() {
 
   // Active Order State after creation
   const [activeOrderNumber, setActiveOrderNumber] = useState<string | null>(null);
+  // Guest checkouts must present this token to view, approve or pay for their order.
+  const [activeGuestToken, setActiveGuestToken] = useState<string | null>(null);
+  // A previously started order found in this browser, offered for resuming.
+  const [savedPendingOrder, setSavedPendingOrder] = useState<PendingCheckoutOrder | null>(null);
+  const [resumeChecked, setResumeChecked] = useState(false);
   const [orderStageDetails, setOrderStageDetails] = useState<any | null>(null);
   const [isPollingStage, setIsPollingStage] = useState(false);
   const [isProcessingApproval, setIsProcessingApproval] = useState(false);
@@ -101,8 +134,53 @@ export default function CheckoutPage() {
   const displayPreDeliveryTotal =
     serverQuotePaise !== null ? serverQuotePaise / 100 : subtotalExclDelivery;
 
+  const orderAuthHeaders = (token: string | null = activeGuestToken): Record<string, string> =>
+    token ? { 'x-order-token': token } : {};
+
+  // Resume a pending order: from an email link (/checkout?order=SG-...#t=<token>)
+  // or from the order saved in this browser when it was placed.
   useEffect(() => {
-    if (cart.length === 0 && currentStep === 'details') {
+    const url = new URL(window.location.href);
+    const linkedOrder = url.searchParams.get('order')?.trim() || null;
+    const hashToken = new URLSearchParams(url.hash.replace(/^#/, '')).get('t');
+    const saved = readPendingOrder();
+
+    if (linkedOrder) {
+      const token = hashToken || (saved?.orderNumber === linkedOrder ? saved.guestToken : undefined) || null;
+      if (hashToken) {
+        // Keep the token out of the visible URL / history once captured.
+        window.history.replaceState(null, '', `${url.pathname}?order=${encodeURIComponent(linkedOrder)}`);
+      }
+      savePendingOrder({ orderNumber: linkedOrder, guestToken: token || undefined, paymentMethod: saved?.paymentMethod });
+      setActiveOrderNumber(linkedOrder);
+      setActiveGuestToken(token);
+      setCurrentStep('approval');
+      checkOrderStage(linkedOrder, token);
+    } else if (saved) {
+      setSavedPendingOrder(saved);
+    }
+    setResumeChecked(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const resumeSavedOrder = () => {
+    if (!savedPendingOrder) return;
+    setActiveOrderNumber(savedPendingOrder.orderNumber);
+    setActiveGuestToken(savedPendingOrder.guestToken || null);
+    if (savedPendingOrder.paymentMethod) setPaymentMethod(savedPendingOrder.paymentMethod);
+    setSavedPendingOrder(null);
+    setCurrentStep('approval');
+    checkOrderStage(savedPendingOrder.orderNumber, savedPendingOrder.guestToken || null);
+  };
+
+  const dismissSavedOrder = () => {
+    savePendingOrder(null);
+    setSavedPendingOrder(null);
+  };
+
+  useEffect(() => {
+    if (!resumeChecked) return;
+    if (cart.length === 0 && currentStep === 'details' && !activeOrderNumber && !savedPendingOrder) {
       router.replace('/cart');
       return;
     }
@@ -148,7 +226,7 @@ export default function CheckoutPage() {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [cart, state]);
+  }, [cart, state, resumeChecked, activeOrderNumber, savedPendingOrder]);
 
   // Validate Delivery PIN code & Distance when PIN changes
   useEffect(() => {
@@ -208,16 +286,34 @@ export default function CheckoutPage() {
   }, [deliveryDate, minDeliveryDate]);
 
   // Stage Polling for submitted order
-  const checkOrderStage = async (orderNum: string) => {
+  const checkOrderStage = async (orderNum: string, token: string | null = activeGuestToken) => {
     if (!orderNum) return;
     try {
       setIsPollingStage(true);
-      const res = await fetch(`/api/orders/${orderNum}/approve-final-amount`);
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderNum)}/approve-final-amount`, {
+        headers: orderAuthHeaders(token),
+      });
       const json = await res.json();
       setIsPollingStage(false);
+      if (res.status === 404) {
+        // Order missing or this browser can't access it - stop resuming it.
+        savePendingOrder(null);
+        setActiveOrderNumber(null);
+        setActiveGuestToken(null);
+        setCurrentStep('details');
+        setFormError('We could not open that order. If you placed it as a guest, use the link from your email.');
+        return;
+      }
       if (res.ok && json.success && json.data) {
         setOrderStageDetails(json.data);
+        if (json.data.paymentMethod === 'COD' || json.data.paymentMethod === 'RAZORPAY') {
+          setPaymentMethod(json.data.paymentMethod);
+        }
+        if (json.data.stage === 'CANCELLED') {
+          savePendingOrder(null);
+        }
         if (json.data.stage === 'CONFIRMED') {
+          savePendingOrder(null);
           setCurrentStep('confirmed');
         } else if (json.data.stage === 'CUSTOMER_APPROVED' || json.data.stage === 'PAYMENT_PENDING') {
           setCurrentStep('payment');
@@ -336,9 +432,12 @@ export default function CheckoutPage() {
       }
 
       const orderData = json.data;
+      const guestToken: string | null = orderData.guestLookupToken || null;
       setActiveOrderNumber(orderData.orderNumber);
+      setActiveGuestToken(guestToken);
+      savePendingOrder({ orderNumber: orderData.orderNumber, guestToken: guestToken || undefined, paymentMethod });
       setCurrentStep('approval');
-      checkOrderStage(orderData.orderNumber);
+      checkOrderStage(orderData.orderNumber, guestToken);
     } catch (err: any) {
       setIsSubmitting(false);
       setFormError(err.message || 'An unexpected error occurred while submitting your order.');
@@ -352,9 +451,9 @@ export default function CheckoutPage() {
     setFormError(null);
 
     try {
-      const res = await fetch(`/api/orders/${activeOrderNumber}/approve-final-amount`, {
+      const res = await fetch(`/api/orders/${encodeURIComponent(activeOrderNumber)}/approve-final-amount`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...orderAuthHeaders() },
         body: JSON.stringify({
           action,
           notes: action === 'REJECT' ? 'Customer opted to decline delivery charge' : undefined,
@@ -374,6 +473,7 @@ export default function CheckoutPage() {
         checkOrderStage(activeOrderNumber);
       } else {
         // Declined
+        savePendingOrder(null);
         alert('Order has been cancelled as requested.');
         router.push('/cart');
       }
@@ -393,6 +493,7 @@ export default function CheckoutPage() {
       // Cash on Delivery confirmed
       setIsSubmitting(false);
       clearCart();
+      savePendingOrder(null);
       setCurrentStep('confirmed');
       try {
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
@@ -406,6 +507,7 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderNumber: activeOrderNumber,
+          guestToken: activeGuestToken || undefined,
           customerAcceptedDeliveryCharge: true,
         }),
       });
@@ -429,9 +531,9 @@ export default function CheckoutPage() {
           description: `Order ${activeOrderNumber}`,
           order_id: pmtConfig.gatewayOrderId,
           prefill: {
-            name: customerName,
-            email: customerEmail,
-            contact: customerPhone,
+            name: customerName || pmtConfig.customerName,
+            email: customerEmail || pmtConfig.customerEmail,
+            contact: customerPhone || pmtConfig.customerPhone,
           },
           theme: { color: '#D5A34A' },
           handler: async function (rzpResp: any) {
@@ -444,12 +546,14 @@ export default function CheckoutPage() {
                   gatewayOrderId: rzpResp.razorpay_order_id,
                   gatewayPaymentId: rzpResp.razorpay_payment_id,
                   gatewaySignature: rzpResp.razorpay_signature,
+                  guestToken: activeGuestToken || undefined,
                 }),
               });
               const verifyJson = await verifyRes.json();
               setIsSubmitting(false);
               if (verifyRes.ok && verifyJson.success) {
                 clearCart();
+                savePendingOrder(null);
                 setCurrentStep('confirmed');
                 try {
                   confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
@@ -479,12 +583,14 @@ export default function CheckoutPage() {
             gatewayOrderId: pmtConfig.gatewayOrderId,
             gatewayPaymentId: `pay_mock_${Date.now()}`,
             gatewaySignature: 'mock_signature_valid',
+            guestToken: activeGuestToken || undefined,
           }),
         });
         const verifyJson = await verifyRes.json();
         setIsSubmitting(false);
         if (verifyRes.ok && verifyJson.success) {
           clearCart();
+          savePendingOrder(null);
           setCurrentStep('confirmed');
           try {
             confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
@@ -573,6 +679,39 @@ export default function CheckoutPage() {
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div>
               <strong className="font-semibold">Notice:</strong> {formError || quoteError}
+            </div>
+          </div>
+        )}
+
+        {/* Resume an order started earlier in this browser */}
+        {currentStep === 'details' && savedPendingOrder && (
+          <div className="mb-6 rounded-2xl border border-[#D5A34A]/40 bg-[#17181C] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Clock className="w-5 h-5 text-[#F5BD48] shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-[#F1F5F9]">
+                  You have an unfinished order #{savedPendingOrder.orderNumber}
+                </p>
+                <p className="text-xs text-[#CBD5E1] mt-0.5">
+                  Continue to see the delivery charge, approve the final amount, and pay.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={resumeSavedOrder}
+                className="px-4 py-2 rounded-full bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] text-xs font-bold uppercase tracking-wider cursor-pointer"
+              >
+                Continue order
+              </button>
+              <button
+                type="button"
+                onClick={dismissSavedOrder}
+                className="px-4 py-2 rounded-full border border-[#D5A34A]/30 text-[#CBD5E1] text-xs font-semibold cursor-pointer hover:text-[#F5BD48]"
+              >
+                Dismiss
+              </button>
             </div>
           </div>
         )}

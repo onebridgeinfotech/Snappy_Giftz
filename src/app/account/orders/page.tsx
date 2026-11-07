@@ -167,6 +167,15 @@ export default function CustomerOrdersPage() {
                         {order.orderStatus}
                       </span>
                       <span className="text-white font-bold text-sm">₹{totalAmount}</span>
+                      {['PENDING', 'PENDING_PAYMENT', 'PENDING_COD_CONFIRMATION'].includes(order.orderStatus) &&
+                        order.paymentStatus !== 'CAPTURED' && (
+                          <Link
+                            href={`/checkout?order=${encodeURIComponent(order.orderNumber)}`}
+                            className="px-3 py-1 rounded-full bg-gradient-to-r from-[#F5BD48] to-[#D5A34A] text-[#08090B] text-[10.5px] font-bold uppercase tracking-wider"
+                          >
+                            Continue checkout
+                          </Link>
+                        )}
                     </div>
                   </div>
 

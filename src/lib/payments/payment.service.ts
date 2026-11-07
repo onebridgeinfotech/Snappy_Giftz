@@ -11,6 +11,7 @@ import { getPaymentAdapter } from './payment-factory';
 import { getRazorpayKeyId } from './razorpay-env';
 import { isStorefrontFallbackAllowed, CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
 import { DEV_ORDERS_STORE } from '@/lib/orders/order.service';
+import { hasCustomerApprovedCurrentCharge } from '@/lib/orders/order-approval.service';
 
 export interface InitiatePaymentInput {
   orderNumber: string;
@@ -87,13 +88,14 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
   try {
     order = await prisma.order.findUnique({
       where: { orderNumber: cleanOrderNumber },
-      include: { payments: true },
+      include: { payments: true, statusHistory: { select: { notes: true, createdAt: true } } },
     });
   } catch {
     if (process.env.NODE_ENV === 'production' || !isStorefrontFallbackAllowed()) {
       throw new CatalogDatabaseError('Database unreachable during payment initiation.');
     }
   }
+  const loadedFromDatabase = Boolean(order);
 
   // Development/test fallback check
   if (!order) {
@@ -169,16 +171,18 @@ export async function initiatePayment(input: InitiatePaymentInput): Promise<Clie
   // 4.5 Verify Customer Has Approved the Delivery Charge and Order Total
   // Per business rules: The owner manually enters delivery charges for each order.
   // Customer must see and approve the final delivery charge and total before initiating payment.
-  if (
-    order.deliveryChargeCustomerApproved !== true &&
-    input.customerAcceptedDeliveryCharge !== true
-  ) {
+  // For real (database) orders the approval must already be recorded server-side via
+  // /api/orders/[orderNumber]/approve-final-amount; a client-sent flag is not trusted.
+  const customerApproved = loadedFromDatabase
+    ? hasCustomerApprovedCurrentCharge(order.statusHistory || [])
+    : order.deliveryChargeCustomerApproved === true || input.customerAcceptedDeliveryCharge === true;
+  if (!customerApproved) {
     throw new DeliveryChargeNotApprovedError(
       'Customer must review and approve the final delivery charge and order total before initiating payment.'
     );
   }
 
-  if (input.customerAcceptedDeliveryCharge === true) {
+  if (!loadedFromDatabase && input.customerAcceptedDeliveryCharge === true) {
     order.deliveryChargeCustomerApproved = true;
   }
 

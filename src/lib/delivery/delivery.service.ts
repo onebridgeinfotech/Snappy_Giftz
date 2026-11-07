@@ -2,6 +2,9 @@ import { prisma } from '@/lib/prisma';
 import { isStorefrontFallbackAllowed, CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
 import { DEV_ORDERS_STORE } from '@/lib/orders/order.service';
 
+/** How long a customer has to approve and pay once the owner sets the delivery charge. */
+export const CUSTOMER_APPROVAL_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 export class DeliveryError extends Error {
   statusCode: number;
   constructor(message: string, statusCode: number = 400) {
@@ -463,6 +466,9 @@ export async function updateOrderDeliveryCharge(
       data: {
         shippingTotalPaise: BigInt(cleanCharge),
         grandTotalPaise: BigInt(newGrandTotal),
+        // The customer can only review and pay after the owner sets the charge, so the
+        // original short checkout hold must restart from here or it expires before payment.
+        reservationExpiresAt: new Date(Date.now() + CUSTOMER_APPROVAL_WINDOW_MS),
       },
     });
 
@@ -476,6 +482,10 @@ export async function updateOrderDeliveryCharge(
       },
     });
 
+    await notifyCustomerDeliveryChargeReady(updated).catch((err) =>
+      console.warn(`[DELIVERY_CHARGE] Customer notification failed for #${updated.orderNumber}:`, err)
+    );
+
     return updated;
   } catch (err: any) {
     if (err instanceof DeliveryError) throw err;
@@ -487,9 +497,58 @@ export async function updateOrderDeliveryCharge(
         devOrd.grandTotalPaise = (devOrd.grandTotalPaise || 0) - oldShipping + cleanCharge;
         (devOrd as any).deliveryChargeAssigned = true;
         (devOrd as any).deliveryChargeCustomerApproved = false;
+        devOrd.reservationExpiresAt = new Date(Date.now() + CUSTOMER_APPROVAL_WINDOW_MS).toISOString();
         return devOrd;
       }
     }
     throw new DeliveryError('Order not found.', 404);
   }
+}
+
+/**
+ * Emails the customer a link back to checkout once the delivery charge is set, so they can
+ * approve and pay even if they closed the checkout page. Guest links carry the order token
+ * in the URL fragment (#t=...), which browsers never send to the server or in Referer headers.
+ */
+async function notifyCustomerDeliveryChargeReady(order: any): Promise<void> {
+  if (!order?.customerEmail) return;
+  if (order.orderStatus === 'CANCELLED' || order.orderStatus === 'REJECTED') return;
+
+  const [{ getSellerConfig }, { enqueueTransactionalEmail }, { renderDeliveryChargeReadyTemplate }, { SNAPPY_EMAIL_BRAND }] =
+    await Promise.all([
+      import('@/lib/invoices/seller-config.service'),
+      import('@/lib/email/email-outbox.service'),
+      import('@/lib/email/email-templates'),
+      import('@/lib/email/snappy-email-brand'),
+    ]);
+
+  const base = `${SNAPPY_EMAIL_BRAND.siteUrl}/checkout?order=${encodeURIComponent(order.orderNumber)}`;
+  const continueUrl = !order.userId && order.guestLookupToken
+    ? `${base}#t=${encodeURIComponent(order.guestLookupToken)}`
+    : base;
+
+  const seller = await getSellerConfig();
+  const shippingPaise = Number(order.shippingTotalPaise || 0);
+  const totalPaise = Number(order.grandTotalPaise || 0);
+  const email = renderDeliveryChargeReadyTemplate(seller, {
+    orderNumber: order.orderNumber,
+    customerName: order.customerName,
+    deliveryChargeInr: `₹${(shippingPaise / 100).toFixed(2)}`,
+    grandTotalInr: `₹${(totalPaise / 100).toFixed(2)}`,
+    paymentMethod: order.paymentMethod || 'RAZORPAY',
+    continueUrl,
+  });
+
+  await enqueueTransactionalEmail({
+    // A revised charge must send a fresh email, so the key includes the amount and time.
+    idempotencyKey: `email:delivery_charge_ready:${order.orderNumber}:${shippingPaise}:${Date.now()}`,
+    eventType: 'DELIVERY_CHARGE_READY',
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    recipientEmail: order.customerEmail,
+    recipientName: order.customerName,
+    subject: email.subject,
+    htmlBody: email.html,
+    textBody: email.text,
+  });
 }

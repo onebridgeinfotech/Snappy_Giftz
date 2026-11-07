@@ -3,8 +3,17 @@ import { getOptionalUser } from '@/lib/auth/rbac';
 import {
   getOrderApprovalStage,
   customerProcessFinalAmount,
+  assertCustomerOrderAccess,
   OrderApprovalError,
 } from '@/lib/orders/order-approval.service';
+
+/** Guest checkouts prove ownership with the token returned at order creation (sent as a header, never in the URL). */
+function readGuestToken(req: Request, body?: any): string | undefined {
+  const fromHeader = req.headers.get('x-order-token');
+  if (fromHeader && fromHeader.trim()) return fromHeader.trim();
+  if (body && typeof body.guestToken === 'string' && body.guestToken.trim()) return body.guestToken.trim();
+  return undefined;
+}
 import { CatalogDatabaseError } from '@/lib/catalog/public-catalog.service';
 
 export async function GET(
@@ -13,6 +22,12 @@ export async function GET(
 ) {
   try {
     const { orderNumber } = await params;
+    const user = await getOptionalUser(req);
+    await assertCustomerOrderAccess(orderNumber, {
+      userId: user?.id,
+      userRole: user?.role,
+      guestToken: readGuestToken(req),
+    });
     const details = await getOrderApprovalStage(orderNumber);
 
     return NextResponse.json({
@@ -50,6 +65,11 @@ export async function POST(
     }
 
     const user = await getOptionalUser(req);
+    await assertCustomerOrderAccess(orderNumber, {
+      userId: user?.id,
+      userRole: user?.role,
+      guestToken: readGuestToken(req, body),
+    });
     const result = await customerProcessFinalAmount(
       orderNumber,
       action,

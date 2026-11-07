@@ -348,6 +348,58 @@ ${details.items.map((i) => `- ${i.productName} x ${i.quantity} = ${i.totalInr}${
   return { subject, html, text };
 }
 
+/**
+ * Sent when the owner sets the delivery charge: the customer must come back,
+ * approve the final total, and (for online orders) pay.
+ */
+export function renderDeliveryChargeReadyTemplate(
+  seller: SellerConfigData,
+  details: {
+    orderNumber: string;
+    customerName: string;
+    deliveryChargeInr: string;
+    grandTotalInr: string;
+    paymentMethod: string;
+    continueUrl: string;
+  }
+): { subject: string; html: string; text: string } {
+  const isCod = details.paymentMethod.toUpperCase() === 'COD';
+  const subject = `Action needed: approve the final amount for order #${details.orderNumber} - SNAPPY GIFTZ`;
+  const nextStep = isCod
+    ? 'Approve the final amount to confirm your Cash on Delivery order.'
+    : 'Approve the final amount and complete your secure online payment to confirm your order.';
+
+  const card = wrapTemplateCard(
+    'Final amount ready',
+    `
+        <h2 style="font-size:20px;color:${SNAPPY_EMAIL_BRAND.primary};margin:0 0 12px;">Hi ${escapeHtml(details.customerName)}, your final amount is ready</h2>
+        <p style="margin:0 0 16px;">We've added the delivery charge for order <strong>#${escapeHtml(details.orderNumber)}</strong>.</p>
+        <div style="background:${SNAPPY_EMAIL_BRAND.accentLight};border:1px solid ${SNAPPY_EMAIL_BRAND.accent};border-radius:10px;padding:16px;">
+          <p style="margin:0;">Delivery charge: <strong>${escapeHtml(details.deliveryChargeInr)}</strong></p>
+          <p style="margin:6px 0 0;">Final total: <strong style="font-size:18px;color:${SNAPPY_EMAIL_BRAND.primary};">${escapeHtml(details.grandTotalInr)}</strong></p>
+        </div>
+        <p style="margin:16px 0 0;">${nextStep}</p>
+        ${ctaButton(details.continueUrl, isCod ? 'Review & confirm order' : 'Review & pay')}
+  `,
+    seller
+  );
+
+  const html = finalizeEmail(card, `Approve the final amount for order #${details.orderNumber}`);
+  const text = `
+Hi ${details.customerName},
+We've added the delivery charge for order #${details.orderNumber}.
+Delivery charge: ${details.deliveryChargeInr}
+Final total: ${details.grandTotalInr}
+
+${nextStep}
+Continue here: ${details.continueUrl}
+
+${supportLineText(seller)}
+  `.trim();
+
+  return { subject, html, text };
+}
+
 export function renderCodApprovedTemplate(
   seller: SellerConfigData,
   details: { orderNumber: string; customerName: string; codAmountDueInr: string }
