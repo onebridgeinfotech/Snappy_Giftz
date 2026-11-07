@@ -25,11 +25,7 @@ import {
   getArtworkRecord,
 } from '@/lib/personalization/personalization.service';
 import { privateStorageService } from '@/services/storage/private-storage.service';
-import { enqueueTransactionalEmail } from '@/lib/email/email-outbox.service';
-import { renderOwnerNewOrderTemplate, renderOrderConfirmationTemplate } from '@/lib/email/email-templates';
-import { getAdminNotificationEmails } from '@/config/business';
-import { notifyNewOrderWhatsApp } from '@/lib/notifications/whatsapp-notify.service';
-import { getSellerConfig } from '@/lib/invoices/seller-config.service';
+import { notifyOrderPlacedEmails } from '@/lib/orders/order-email-notifications';
 import {
   validateAndDecodeProofDataUrl as validateProofDataUrlInternal,
   DecodedProofPng,
@@ -557,7 +553,10 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
     });
 
     const formatted = formatOrderResponse(createdOrder);
-    notifyOwnerOfNewOrder(formatted, input).catch(() => {});
+    notifyOrderPlacedEmails(formatted, {
+      paymentMethod: input.paymentMethod,
+      shippingAddress: input.shippingAddress,
+    }).catch(() => {});
     return formatted;
   } catch (err: any) {
     // If order reservation or transaction failed, clean up any uncommitted proof files
@@ -723,7 +722,10 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
       DEV_IDEMPOTENCY_STORE.set(input.idempotencyKey.trim(), orderNumber);
     }
 
-    notifyOwnerOfNewOrder(devOrder, input).catch(() => {});
+    notifyOrderPlacedEmails(devOrder, {
+      paymentMethod: input.paymentMethod,
+      shippingAddress: input.shippingAddress,
+    }).catch(() => {});
     return devOrder;
   }
 }
@@ -731,114 +733,6 @@ export async function createOrder(input: CreateOrderInput): Promise<SanitizedOrd
 /**
  * Format Prisma database entity into a clean, JSON-serializable public response.
  */
-
-async function notifyOwnerOfNewOrder(order: SanitizedOrderResult, rawInput: CreateOrderInput) {
-  try {
-    const seller = await getSellerConfig();
-    const formattedDate = new Date().toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-
-    const isCod = order.paymentMethod.toUpperCase() === 'COD';
-    const emailData = renderOwnerNewOrderTemplate(seller, {
-      orderNumber: order.orderNumber,
-      orderDate: formattedDate,
-      customerName: order.customerName,
-      customerEmail: order.customerEmail,
-      customerPhone: order.customerPhone,
-      paymentMethod: isCod ? 'COD' : 'ONLINE',
-      totalInr: `₹${(order.grandTotalPaise / 100).toFixed(2)}`,
-      codAmountDueInr: isCod ? `₹${(order.grandTotalPaise / 100).toFixed(2)}` : undefined,
-      shippingAddress: {
-        fullName: rawInput.shippingAddress.name,
-        addressLine1: rawInput.shippingAddress.street,
-        city: rawInput.shippingAddress.city,
-        state: rawInput.shippingAddress.state,
-        postalCode: rawInput.shippingAddress.pincode,
-        phone: rawInput.shippingAddress.phone,
-      },
-      items: order.items.map((i) => ({
-        productName: i.productName,
-        quantity: i.quantity,
-        unitPriceInr: `₹${(i.unitPricePaise / 100).toFixed(2)}`,
-        totalInr: `₹${(i.subtotalPaise / 100).toFixed(2)}`,
-        isCustomized: Boolean(i.customizationNote || i.customizationMeta || i.proofImageUrl),
-        customizationNote: i.customizationNote || undefined,
-        customizationPhotosCount: i.customizationMeta?.artworkUploadId ? 1 : 0,
-      })),
-    });
-
-    for (const adminEmail of getAdminNotificationEmails()) {
-      await enqueueTransactionalEmail({
-        idempotencyKey: `email:owner_new_order:${order.orderNumber}:${adminEmail}`,
-        eventType: 'OWNER_NEW_ORDER',
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        recipientEmail: adminEmail,
-        recipientName: 'SNAPPY GIFTZ Admin Desk',
-        subject: emailData.subject,
-        htmlBody: emailData.html,
-        textBody: emailData.text,
-      });
-    }
-
-    void notifyNewOrderWhatsApp({
-      orderNumber: order.orderNumber,
-      customerName: order.customerName,
-      totalInr: `₹${(order.grandTotalPaise / 100).toFixed(2)}`,
-      paymentMethod: order.paymentMethod || 'ONLINE',
-    });
-
-    // 2. Dispatch immediate order receipt to customer's individual email address
-    if (order.customerEmail) {
-      try {
-        const custEmailData = renderOrderConfirmationTemplate(
-          {
-            orderNumber: order.orderNumber,
-            orderDate: formattedDate,
-            customerName: order.customerName,
-            items: order.items.map((i) => ({
-              productName: i.productName,
-              quantity: i.quantity,
-              unitPriceInr: (i.unitPricePaise / 100).toFixed(2),
-              totalInr: (i.subtotalPaise / 100).toFixed(2),
-            })),
-            taxableSubtotalInr: (order.itemsSubtotalPaise / 100).toFixed(2),
-            taxTotalInr: (order.taxTotalPaise / 100).toFixed(2),
-            shippingTotalInr: (order.shippingTotalPaise / 100).toFixed(2),
-            grandTotalInr: (order.grandTotalPaise / 100).toFixed(2),
-            shippingAddress: {
-              fullName: rawInput.shippingAddress.name,
-              addressLine1: rawInput.shippingAddress.street,
-              city: rawInput.shippingAddress.city,
-              state: rawInput.shippingAddress.state,
-              postalCode: rawInput.shippingAddress.pincode,
-            },
-          },
-          seller
-        );
-
-        await enqueueTransactionalEmail({
-          idempotencyKey: `email:customer_receipt:${order.orderNumber}`,
-          eventType: 'ORDER_CONFIRMED',
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          recipientEmail: order.customerEmail,
-          recipientName: order.customerName,
-          subject: custEmailData.subject,
-          htmlBody: custEmailData.html,
-          textBody: custEmailData.text,
-        });
-      } catch (custErr) {
-        console.warn(`[ORDER_NOTIFICATION] Customer receipt enqueue warning for #${order.orderNumber}:`, custErr);
-      }
-    }
-  } catch (err) {
-    console.error(`[ORDER_NOTIFICATION] Failed to enqueue owner new order alert for #${order.orderNumber}:`, err);
-  }
-}
 
 function formatOrderResponse(order: any): SanitizedOrderResult {
   return {
