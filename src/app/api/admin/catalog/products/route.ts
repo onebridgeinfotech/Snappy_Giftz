@@ -162,7 +162,6 @@ export async function POST(req: Request) {
           isCustomizable: body.productType === 'CUSTOMIZABLE' ? true : (body.isCustomizable !== undefined ? !!body.isCustomizable : false),
           customizationType: body.customizationType || null,
           customizationFeePaise: body.customizationFeePaise || 0,
-          isB2BRecommended: !!body.isB2BRecommended,
           minOrderQty: body.minOrderQty || 1,
           images: productImages,
           galleryImages: productImages.length > 0

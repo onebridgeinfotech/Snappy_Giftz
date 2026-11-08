@@ -96,7 +96,6 @@ export async function PATCH(
     }
     if (body.customizationType !== undefined) updateData.customizationType = body.customizationType;
     if (body.customizationFeePaise !== undefined) updateData.customizationFeePaise = body.customizationFeePaise;
-    if (body.isB2BRecommended !== undefined) updateData.isB2BRecommended = !!body.isB2BRecommended;
     if (body.minOrderQty !== undefined) updateData.minOrderQty = body.minOrderQty;
     if (body.isActive !== undefined) updateData.isActive = !!body.isActive;
     if (body.isArchived !== undefined) updateData.isArchived = !!body.isArchived;
