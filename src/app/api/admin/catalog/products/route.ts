@@ -220,7 +220,7 @@ export async function POST(req: Request) {
             name: product.name,
             slug: product.slug,
             basePricePaise: product.basePricePaise,
-            variantsCount: product.variants.length,
+            variantsCount: (product as any).variants?.length ?? (body.variants?.length || 1),
           },
         },
       });
