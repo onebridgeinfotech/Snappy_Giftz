@@ -100,7 +100,14 @@ export async function PATCH(
     if (body.minOrderQty !== undefined) updateData.minOrderQty = body.minOrderQty;
     if (body.isActive !== undefined) updateData.isActive = !!body.isActive;
     if (body.isArchived !== undefined) updateData.isArchived = !!body.isArchived;
-    if (body.images !== undefined) updateData.images = body.images;
+    if (body.images !== undefined) {
+      const sanitizedImages: string[] = Array.isArray(body.images)
+        ? body.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0).map((img) => img.trim())
+        : typeof body.images === 'string' && (body.images as string).trim().length > 0
+          ? [(body.images as string).trim()]
+          : [];
+      updateData.images = sanitizedImages;
+    }
 
     if (body.slug !== undefined) {
       const newSlug = slugify(body.slug);
@@ -123,6 +130,26 @@ export async function PATCH(
         }
       }
 
+      if (body.images !== undefined) {
+        const sanitizedImages: string[] = Array.isArray(body.images)
+          ? body.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0).map((img) => img.trim())
+          : typeof body.images === 'string' && (body.images as string).trim().length > 0
+            ? [(body.images as string).trim()]
+            : [];
+        await tx.productImage.deleteMany({ where: { productId: id } });
+        if (sanitizedImages.length > 0) {
+          await tx.productImage.createMany({
+            data: sanitizedImages.map((url, idx) => ({
+              productId: id,
+              url,
+              altText: updateData.name || existing.name,
+              displayOrder: idx + 1,
+              isPrimary: idx === 0,
+            })),
+          });
+        }
+      }
+
       const prod = await tx.product.update({
         where: { id },
         data: updateData,
@@ -130,6 +157,7 @@ export async function PATCH(
           category: true,
           productOccasions: { include: { occasion: true } },
           variants: true,
+          galleryImages: { orderBy: { displayOrder: 'asc' } },
         },
       });
 

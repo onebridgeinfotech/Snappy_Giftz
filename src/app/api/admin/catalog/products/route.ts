@@ -137,8 +137,14 @@ export async function POST(req: Request) {
       }
     }
 
-    // Transactional creation of product, variants, occasion associations, and audit log
+    // Transactional creation of product, variants, occasion associations, gallery images, and audit log
     const created = await prisma.$transaction(async (tx) => {
+      const productImages: string[] = Array.isArray(body.images)
+        ? body.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0).map((img) => img.trim())
+        : typeof body.images === 'string' && (body.images as string).trim().length > 0
+          ? [(body.images as string).trim()]
+          : [];
+
       const product = await tx.product.create({
         data: {
           name: body.name.trim(),
@@ -158,7 +164,17 @@ export async function POST(req: Request) {
           customizationFeePaise: body.customizationFeePaise || 0,
           isB2BRecommended: !!body.isB2BRecommended,
           minOrderQty: body.minOrderQty || 1,
-          images: body.images || [],
+          images: productImages,
+          galleryImages: productImages.length > 0
+            ? {
+                create: productImages.map((url, idx) => ({
+                  url,
+                  altText: body.name.trim(),
+                  displayOrder: idx + 1,
+                  isPrimary: idx === 0,
+                })),
+              }
+            : undefined,
           productOccasions: body.occasionIds && body.occasionIds.length > 0
             ? {
                 create: body.occasionIds.map((occId) => ({ occasionId: occId })),

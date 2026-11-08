@@ -1550,7 +1550,8 @@ Use this for orders you have already agreed with the customer. ` +
     setLoading: (loading: boolean) => void
   ) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
+    const isImageFile = (file.type && file.type.startsWith('image/')) || /\.(jpe?g|png|webp|gif|jfif)$/i.test(file.name);
+    if (!isImageFile) {
       showToast('Please select a valid image file (JPG, PNG, WEBP)', 'error');
       return;
     }
@@ -1564,6 +1565,7 @@ Use this for orders you have already agreed with the customer. ` +
       formData.append('file', file);
       const res = await fetch('/api/admin/catalog/images/upload', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
       const data = await res.json();
@@ -1603,7 +1605,7 @@ Use this for orders you have already agreed with the customer. ` +
         mrp: newProdMrp,
         hsnCode: '69120010',
         taxRate: 18,
-        images: [newProdImage],
+        images: newProdImage && newProdImage.trim() ? [newProdImage.trim()] : [],
         productType: newProdType,
         isCustomizable: newProdType === 'CUSTOMIZABLE',
         customizationType: newProdType === 'CUSTOMIZABLE' ? 'engraving' : undefined,
@@ -1689,8 +1691,14 @@ Use this for orders you have already agreed with the customer. ` +
     const pType = (prod.productType === 'CUSTOMIZABLE' || prod.productType === 'REGULAR')
       ? prod.productType
       : (prod.isCustomizable ? 'CUSTOMIZABLE' : 'REGULAR');
+    const existingImages = Array.isArray(prod.images)
+      ? prod.images.filter(Boolean)
+      : typeof prod.images === 'string' && prod.images.trim()
+        ? [prod.images.trim()]
+        : [];
     setEditingProduct({
       ...prod,
+      images: existingImages,
       productType: pType,
       isCustomizable: pType === 'CUSTOMIZABLE',
     });
@@ -1701,6 +1709,11 @@ Use this for orders you have already agreed with the customer. ` +
     e.preventDefault();
     if (!editingProduct) return;
     const pType = editingProduct.productType === 'CUSTOMIZABLE' ? 'CUSTOMIZABLE' : 'REGULAR';
+    const cleanImages = Array.isArray(editingProduct.images)
+      ? editingProduct.images.filter((img: any) => typeof img === 'string' && img.trim().length > 0).map((img: string) => img.trim())
+      : typeof editingProduct.images === 'string' && editingProduct.images.trim().length > 0
+        ? [editingProduct.images.trim()]
+        : [];
     try {
       await updateCatalogProduct(editingProduct.id, {
         name: editingProduct.name,
@@ -1711,7 +1724,7 @@ Use this for orders you have already agreed with the customer. ` +
         badge: editingProduct.badge,
         productType: pType,
         isCustomizable: pType === 'CUSTOMIZABLE',
-        images: Array.isArray(editingProduct.images) ? editingProduct.images : [editingProduct.images],
+        images: cleanImages,
       });
       await refreshCatalogFromServer();
       showToast(`Product "${editingProduct.name}" updated on live catalog.`);
@@ -4935,6 +4948,7 @@ Use this for orders you have already agreed with the customer. ` +
                     if (file) {
                       handleUploadImageFile(file, (url) => setNewProdImage(url), setIsUploadingAddPhoto);
                     }
+                    e.target.value = '';
                   }}
                 />
 
@@ -6336,10 +6350,11 @@ Use this for orders you have already agreed with the customer. ` +
                     if (file) {
                       handleUploadImageFile(
                         file,
-                        (url) => setEditingProduct({ ...editingProduct, images: [url] }),
+                        (url) => setEditingProduct((prev: any) => (prev ? { ...prev, images: [url] } : prev)),
                         setIsUploadingEditPhoto
                       );
                     }
+                    e.target.value = '';
                   }}
                 />
 
@@ -6395,7 +6410,11 @@ Use this for orders you have already agreed with the customer. ` +
                   <input
                     type="text"
                     value={Array.isArray(editingProduct.images) ? editingProduct.images[0] || '' : editingProduct.images || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, images: [e.target.value] })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditingProduct((prev: any) => (prev ? { ...prev, images: val ? [val] : [] } : prev));
+                    }}
+                    placeholder="https://..."
                     className="w-full mt-1.5 px-3 py-1.5 rounded-xl border border-white/15 bg-[#17181C] text-white font-mono text-[10px] focus:outline-hidden"
                   />
                 </details>
