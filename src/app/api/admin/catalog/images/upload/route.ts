@@ -81,13 +81,20 @@ export async function POST(req: Request) {
           },
         });
 
-        // Sync into Product.images array for backward compatibility
+        // Sync into Product.images array (MySQL JSON array safe - do not use Prisma push on MySQL)
+        const currentImages = Array.isArray(product.images)
+          ? (product.images as string[])
+          : typeof product.images === 'string' && (product.images as string).trim().length > 0
+            ? [(product.images as string).trim()]
+            : [];
+        const nextImages = currentImages.includes(uploadResult.storedUrl)
+          ? currentImages
+          : [...currentImages, uploadResult.storedUrl];
+
         await tx.product.update({
           where: { id: productId },
           data: {
-            images: {
-              push: uploadResult.storedUrl,
-            },
+            images: nextImages,
           },
         });
 

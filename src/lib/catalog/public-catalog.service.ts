@@ -66,6 +66,35 @@ export interface PublicProductsResult {
   };
 }
 
+export function extractProductImages(imagesRaw: unknown, galleryImages?: Array<{ url: string }>): string[] {
+  let urls: string[] = [];
+  if (Array.isArray(imagesRaw)) {
+    urls = imagesRaw.filter((u): u is string => typeof u === 'string' && u.trim().length > 0).map((u) => u.trim());
+  } else if (typeof imagesRaw === 'string' && imagesRaw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(imagesRaw);
+      if (Array.isArray(parsed)) {
+        urls = parsed.filter((u): u is string => typeof u === 'string' && u.trim().length > 0).map((u) => u.trim());
+      } else if (typeof parsed === 'string' && parsed.trim().length > 0) {
+        urls = [parsed.trim()];
+      }
+    } catch {
+      urls = [imagesRaw.trim()];
+    }
+  } else if (imagesRaw && typeof imagesRaw === 'object') {
+    if ('push' in imagesRaw && typeof (imagesRaw as any).push === 'string' && (imagesRaw as any).push.trim().length > 0) {
+      urls = [(imagesRaw as any).push.trim()];
+    }
+  }
+
+  // Fallback to galleryImages if images array was empty
+  if (urls.length === 0 && galleryImages && galleryImages.length > 0) {
+    urls = galleryImages.map((g) => g.url).filter((u): u is string => typeof u === 'string' && u.trim().length > 0).map((u) => u.trim());
+  }
+
+  return urls;
+}
+
 export interface PublicCategory {
   id: string;
   name: string;
@@ -271,7 +300,7 @@ export async function getPublicProducts(
         isB2BRecommended: false,
         occasions: Array.isArray(p.occasions) ? (p.occasions as string[]) : [],
         recipients: Array.isArray(p.recipients) ? (p.recipients as string[]) : [],
-        images: Array.isArray(p.images) ? (p.images as string[]) : [],
+        images: extractProductImages(p.images, p.galleryImages),
         rating: 0,
         reviewsCount: 0,
         variants: p.variants.map((v) => ({
@@ -477,7 +506,7 @@ export async function getPublicProductBySlug(slugOrId: string): Promise<PublicPr
         isB2BRecommended: false,
         occasions: Array.isArray(p.occasions) ? (p.occasions as string[]) : [],
         recipients: Array.isArray(p.recipients) ? (p.recipients as string[]) : [],
-        images: Array.isArray(p.images) ? (p.images as string[]) : [],
+        images: extractProductImages(p.images, p.galleryImages),
         rating: 0,
         reviewsCount: 0,
         variants: p.variants.map((v) => ({

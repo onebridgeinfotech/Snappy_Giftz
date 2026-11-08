@@ -12,7 +12,15 @@ export class StorageValidationError extends Error {
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
-const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/jfif',
+  'image/pjpeg',
+  'image/x-png',
+]);
 
 /**
  * Validate image buffer headers against known magic numbers.
@@ -65,25 +73,26 @@ export class LocalDiskStorageService implements StorageAdapter {
     // 1. File size check
     if (fileBuffer.length > MAX_FILE_SIZE_BYTES) {
       throw new StorageValidationError(
-        `File size (${(fileBuffer.length / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit of 5 MB`,
+        `File size (${(fileBuffer.length / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit of 10 MB`,
         'FILE_TOO_LARGE'
       );
     }
 
-    // 2. MIME type check
-    if (!ALLOWED_MIME_TYPES.has(mimeType.toLowerCase())) {
-      throw new StorageValidationError(
-        `MIME type "${mimeType}" is not allowed. Allowed types: image/jpeg, image/png, image/webp`,
-        'INVALID_MIME_TYPE'
-      );
-    }
-
-    // 3. Magic bytes verification
+    // 2. Magic bytes verification first (trust genuine binary signature over spoofable headers)
     const magicCheck = verifyImageMagicBytes(fileBuffer);
     if (!magicCheck.valid) {
       throw new StorageValidationError(
         'File contents do not match genuine image binary signature (magic bytes mismatch)',
         'CORRUPT_OR_SPOOFED_IMAGE'
+      );
+    }
+
+    // 3. MIME type check
+    const normalizedInputMime = mimeType ? mimeType.toLowerCase().trim() : '';
+    if (!ALLOWED_MIME_TYPES.has(normalizedInputMime)) {
+      throw new StorageValidationError(
+        `MIME type "${mimeType}" is not allowed. Allowed types: image/jpeg, image/png, image/webp`,
+        'INVALID_MIME_TYPE'
       );
     }
 

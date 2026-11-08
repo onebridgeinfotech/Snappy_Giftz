@@ -1,4 +1,4 @@
-import type { PublicProduct } from '@/lib/catalog/public-catalog.service';
+import { extractProductImages, type PublicProduct } from '@/lib/catalog/public-catalog.service';
 import type { Product } from '@/types';
 
 /** Admin list row from GET /api/admin/catalog/products */
@@ -17,6 +17,7 @@ export type AdminCatalogProductRow = {
   taxRatePercent?: number;
   minOrderQty?: number;
   images?: string[] | unknown;
+  galleryImages?: Array<{ url: string; altText?: string | null; isPrimary?: boolean }>;
   occasions?: string[] | unknown;
   recipients?: string[] | unknown;
   category?: { id: string; name: string; slug: string } | null;
@@ -67,7 +68,10 @@ export function mapPublicProductToStorefront(p: PublicProduct): Product {
     taxRate: 18,
     rating: p.rating ?? 4.9,
     reviewsCount: p.reviewsCount ?? 0,
-    images: Array.isArray(p.images) && p.images.length > 0 ? p.images : ['/placeholder-product.jpg'],
+    images: (() => {
+      const parsed = extractProductImages(p.images, p.galleryImages);
+      return parsed.length > 0 ? parsed : ['/placeholder-product.jpg'];
+    })(),
     isCustomizable: pType === 'CUSTOMIZABLE',
     customizationType:
       p.customizationType === 'engraving' ||
@@ -97,7 +101,7 @@ export function mapAdminRowToStorefront(row: AdminCatalogProductRow): Product {
         ? 'CUSTOMIZABLE'
         : 'REGULAR';
 
-  const images = Array.isArray(row.images) ? (row.images as string[]) : [];
+  const images = extractProductImages(row.images, row.galleryImages);
 
   return {
     id: row.id,
