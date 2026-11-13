@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getSafeRedirectUrl } from './lib/auth/redirect';
+import { peekRedirect, recordRedirectHit } from './lib/cms/redirects';
 
 export const SESSION_COOKIE_NAME = 'snappy_session_token';
 
@@ -12,6 +13,9 @@ const PUBLIC_PAGE_PREFIXES = [
   '/',
   '/catalog',
   '/products',
+  '/blog',
+  '/services',
+  '/rss.xml',
   '/shop',
   '/cart',
   '/checkout',
@@ -38,6 +42,10 @@ const PUBLIC_API_PREFIXES = [
   '/api/shipping', // Pincode & distance serviceability lookups
   '/api/delivery', // Delivery calculation and rates
   '/api/catalog', // Public products, categories, occasions
+  '/api/blog', // Blog view tracking + comment submission (rate limited)
+  '/api/newsletter', // Newsletter signup
+  '/api/cms/enquiry', // Landing-page enquiry form (rate limited)
+  '/api/cms/cron', // Scheduled publish hook (bearer secret)
   '/api/orders/lookup', // Order tracking concierge
   '/api/checkout', // Quote calculation & checkout flow
   '/api/payments', // Razorpay order generation & verification
@@ -68,6 +76,22 @@ function isPublicApi(pathname: string): boolean {
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  // 0. Admin-managed 301/302 redirects (Content > Redirects). Fails open on any error.
+  if (!pathname.startsWith('/api/') && !pathname.startsWith('/admin') && !pathname.startsWith('/_next')) {
+    try {
+      const rule = peekRedirect(pathname);
+      if (rule) {
+        recordRedirectHit(rule.id);
+        const isAbsolute = rule.toPath.startsWith('http://') || rule.toPath.startsWith('https://');
+        const target = isAbsolute ? new URL(rule.toPath) : new URL(rule.toPath, request.url);
+        if (!isAbsolute && search && !rule.toPath.includes('?')) target.search = search;
+        return NextResponse.redirect(target, rule.statusCode);
+      }
+    } catch {
+      /* fail open */
+    }
+  }
 
   // 1. Check for active session cookie
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -134,6 +158,6 @@ export const config = {
      * - robots.txt, sitemap.xml
      * - static asset extensions
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot|mp4|webm)).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|rss\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot|mp4|webm)).*)',
   ],
 };

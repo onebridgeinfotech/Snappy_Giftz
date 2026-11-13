@@ -243,3 +243,41 @@
 /* Horizontal scroll rows (category chips, filters) without a visible scrollbar */
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ---- CMS article typography (rendered Markdown) ---- */
+.cms-prose { color: #cbd5e1; font-size: 1.0625rem; line-height: 1.8; overflow-wrap: anywhere; }
+.cms-prose > * + * { margin-top: 1.25rem; }
+.cms-prose h2 { font-family: 'Playfair Display', serif; color: #fff; font-size: 1.75rem; line-height: 1.25; margin-top: 2.5rem; scroll-margin-top: 6rem; }
+.cms-prose h3 { font-family: 'Playfair Display', serif; color: #fff; font-size: 1.3rem; margin-top: 2rem; scroll-margin-top: 6rem; }
+.cms-prose h4 { color: #f1f5f9; font-weight: 700; margin-top: 1.5rem; }
+.cms-prose a { color: #f5bd48; text-decoration: underline; text-underline-offset: 3px; }
+.cms-prose strong { color: #fff; }
+.cms-prose ul, .cms-prose ol { padding-left: 1.5rem; }
+.cms-prose ul { list-style: disc; } .cms-prose ol { list-style: decimal; }
+.cms-prose li + li { margin-top: .4rem; }
+.cms-prose blockquote { border-left: 3px solid #d5a34a; padding: .25rem 0 .25rem 1.25rem; color: #e2e8f0; font-style: italic; }
+.cms-prose hr { border: 0; border-top: 1px solid rgba(213,163,74,.3); margin: 2.5rem 0; }
+.cms-prose code { background: rgba(255,255,255,.08); padding: .1rem .35rem; border-radius: .35rem; font-size: .9em; }
+.cms-prose pre.cms-code { background: #0b0c10; border: 1px solid rgba(255,255,255,.1); border-radius: .75rem; padding: 1rem; overflow-x: auto; font-size: .875rem; line-height: 1.6; }
+.cms-prose pre.cms-code code { background: none; padding: 0; }
+.cms-prose figure { margin: 2rem 0; } .cms-prose img { max-width: 100%; height: auto; border-radius: .75rem; }
+.cms-prose figcaption { text-align: center; font-size: .8rem; color: #94a3b8; margin-top: .5rem; }
+.cms-prose .cms-table { overflow-x: auto; }
+.cms-prose table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.cms-prose th, .cms-prose td { border: 1px solid rgba(255,255,255,.12); padding: .6rem .8rem; text-align: left; }
+.cms-prose th { background: rgba(213,163,74,.12); color: #fff; }
+.cms-prose .cms-video { position: relative; aspect-ratio: 16/9; border-radius: .75rem; overflow: hidden; background: #000; }
+.cms-prose .cms-video iframe, .cms-prose .cms-video video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.cms-prose .cms-callout { border-radius: .75rem; padding: 1rem 1.25rem; border: 1px solid; background: rgba(255,255,255,.04); }
+.cms-prose .cms-callout-label { text-transform: uppercase; letter-spacing: .12em; font-size: .7rem; display: block; margin-bottom: .25rem; }
+.cms-prose .cms-callout-tip, .cms-prose .cms-callout-success { border-color: rgba(52,211,153,.5); background: rgba(52,211,153,.08); }
+.cms-prose .cms-callout-warning { border-color: rgba(251,191,36,.6); background: rgba(251,191,36,.08); }
+.cms-prose .cms-callout-info, .cms-prose .cms-callout-note { border-color: rgba(96,165,250,.5); background: rgba(96,165,250,.08); }
+.cms-prose .cms-button { display: inline-block; background: linear-gradient(90deg,#f5bd48,#e5a93c); color: #111215; font-weight: 700; padding: .7rem 1.4rem; border-radius: .75rem; text-decoration: none; }
+.cms-prose .cms-cta { text-align: center; border: 1px solid rgba(213,163,74,.4); background: rgba(213,163,74,.08); border-radius: 1rem; padding: 1.75rem; }
+.cms-prose .cms-cta-title { font-family: 'Playfair Display', serif; color: #fff; font-size: 1.4rem; }
+.cms-prose .cms-product-card { display: inline-block; border: 1px solid rgba(213,163,74,.4); border-radius: .75rem; padding: .75rem 1.1rem; text-decoration: none; }
+.cms-prose .cms-checklist { list-style: none; padding-left: 0; }
+.cms-prose .cms-check { display: flex; gap: .6rem; align-items: flex-start; }
+.cms-prose .cms-check > span:first-child { flex: none; width: 1.15rem; height: 1.15rem; margin-top: .4rem; border: 1.5px solid #d5a34a; border-radius: .3rem; font-size: .75rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; color: #111215; }
+.cms-prose .cms-check.is-done > span:first-child { background: #f5bd48; }

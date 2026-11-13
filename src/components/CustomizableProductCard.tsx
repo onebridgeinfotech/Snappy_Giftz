@@ -125,7 +125,31 @@ export const CustomizableProductCard: React.FC<CustomizableProductCardProps> = (
           className={`font-serif font-bold text-base ${isList ? 'sm:text-xl' : 'sm:text-xl'} text-white hover:text-[#F5BD48] line-clamp-1 cursor-pointer transition-colors leading-snug capitalize`}
           title={product.name}
         >
-          {product.name}
+          {product.slug ? (
+
+            <a
+
+              href={`/products/${product.slug}`}
+
+              onClick={(e) => {
+
+                e.preventDefault();
+
+                onOpenDetail(product);
+
+              }}
+
+            >
+
+              {product.name}
+
+            </a>
+
+          ) : (
+
+            product.name
+
+          )}
         </h3>
 
         {/* Tagline + dispatch: hidden on the compact phone card */}

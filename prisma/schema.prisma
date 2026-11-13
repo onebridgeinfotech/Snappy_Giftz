@@ -87,7 +87,9 @@ model User {
   @@index([role])
 }
 
-/** WebAuthn passkeys — Face ID / Touch ID (iOS) and fingerprint / face unlock (Android). */
+/**
+ * WebAuthn passkeys — Face ID / Touch ID (iOS) and fingerprint / face unlock (Android).
+ */
 model WebAuthnCredential {
   id           String    @id @default(uuid())
   userId       String
@@ -159,8 +161,8 @@ model Address {
   street    String
   city      String
   state     String
-  stateCode String   // e.g. "36" for Telangana, "08" for Rajasthan
-  pincode   String   // 6-digit Indian PIN code
+  stateCode String // e.g. "36" for Telangana, "08" for Rajasthan
+  pincode   String // 6-digit Indian PIN code
   phone     String
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -195,26 +197,27 @@ model Product {
   categoryId            String
   category              Category          @relation(fields: [categoryId], references: [id])
   productType           String            @default("REGULAR") // "REGULAR" | "CUSTOMIZABLE"
-  occasions             Json?             // Array of occasion slug strings e.g. ["birthday", "anniversary"]
-  recipients            Json?             // Array of recipient tags e.g. ["for-her", "couples"]
-  hsnCode               String            // e.g. "69120010"
+  occasions             Json? // Array of occasion slug strings e.g. ["birthday", "anniversary"]
+  recipients            Json? // Array of recipient tags e.g. ["for-her", "couples"]
+  hsnCode               String // e.g. "69120010"
   taxRatePercent        Int               @default(18) // GST %
   isTaxInclusive        Boolean           @default(false)
-  basePricePaise        Int               // Base selling price in integer paise
-  mrpPaise              Int               // Maximum retail price in integer paise
-  costPricePaise        Int?              // Manufacturing / procurement cost in integer paise
+  basePricePaise        Int // Base selling price in integer paise
+  mrpPaise              Int // Maximum retail price in integer paise
+  costPricePaise        Int? // Manufacturing / procurement cost in integer paise
   isCustomizable        Boolean           @default(false)
-  customizationType     String?           // "engraving" | "photo" | "combo"
+  customizationType     String? // "engraving" | "photo" | "combo"
   customizationFeePaise Int               @default(0)
-  customizationConfig   Json?             // Form configuration / validation rules
+  customizationConfig   Json? // Form configuration / validation rules
   minOrderQty           Int               @default(1)
-  images                Json?             // Array of image URL strings
+  images                Json? // Array of image URL strings
   galleryImages         ProductImage[]
   productOccasions      ProductOccasion[]
   isActive              Boolean           @default(true)
   isArchived            Boolean           @default(false)
   variants              ProductVariant[]
   bulkTiers             BulkTier[]
+  contentPage           ContentPage?
   cartItems             CartItem[]
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
@@ -271,7 +274,7 @@ model ProductVariant {
   sku                  String                @unique
   name                 String
   attributes           Json
-  pricePaise           Int                   // Integer Paise
+  pricePaise           Int // Integer Paise
   stockQuantity        Int                   @default(0)
   isActive             Boolean               @default(true)
   isArchived           Boolean               @default(false)
@@ -292,10 +295,10 @@ model InventoryAdjustment {
   sku           String
   productName   String?
   previousStock Int
-  adjustedQty   Int                       // Signed delta: +50, -10
-  newStock      Int                       // Balance after adjustment
+  adjustedQty   Int // Signed delta: +50, -10
+  newStock      Int // Balance after adjustment
   reason        InventoryAdjustmentReason @default(MANUAL_CORRECTION)
-  referenceId   String?                   // e.g. Order ID, PO number
+  referenceId   String? // e.g. Order ID, PO number
   userId        String?
   user          User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
   notes         String?                   @db.Text
@@ -314,7 +317,7 @@ model BulkTier {
   minQty             Int
   maxQty             Int?
   discountPercentage Int
-  pricePerUnitPaise  Int     // Paise
+  pricePerUnitPaise  Int // Paise
 
   @@index([productId])
 }
@@ -346,7 +349,7 @@ model CartItem {
   variant           ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
   quantity          Int             @default(1)
   isCustomized      Boolean         @default(false)
-  customizationData Json?           // In-cart customization notes, text, etc.
+  customizationData Json? // In-cart customization notes, text, etc.
   uploads           ArtworkUpload[]
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
@@ -361,61 +364,61 @@ model CartItem {
 // =============================================================
 
 model Order {
-  id                      String               @id @default(uuid())
-  orderNumber             String               @unique // e.g. "SG-2026-10492"
-  userId                  String?
-  user                    User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
-  customerName            String
-  customerEmail           String
-  customerPhone           String
-  gstin                   String?
-  shippingAddress         Json
-  destinationStateCode    String
+  id                   String  @id @default(uuid())
+  orderNumber          String  @unique // e.g. "SG-2026-10492"
+  userId               String?
+  user                 User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName         String
+  customerEmail        String
+  customerPhone        String
+  gstin                String?
+  shippingAddress      Json
+  destinationStateCode String
 
   // Financial Totals in Integer Paise
   itemsSubtotalPaise      BigInt
-  customizationTotalPaise BigInt               @default(0)
-  discountTotalPaise      BigInt               @default(0)
+  customizationTotalPaise BigInt @default(0)
+  discountTotalPaise      BigInt @default(0)
   taxableAmountPaise      BigInt
   taxTotalPaise           BigInt
-  cgstPaise               BigInt               @default(0)
-  sgstPaise               BigInt               @default(0)
-  igstPaise               BigInt               @default(0)
-  shippingTotalPaise      BigInt               @default(0)
+  cgstPaise               BigInt @default(0)
+  sgstPaise               BigInt @default(0)
+  igstPaise               BigInt @default(0)
+  shippingTotalPaise      BigInt @default(0)
   grandTotalPaise         BigInt
 
-  orderStatus             OrderStatus          @default(PENDING)
-  paymentStatus           PaymentStatus        @default(PENDING)
-  paymentMethod           String               // "RAZORPAY" | "COD"
+  orderStatus   OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentMethod String // "RAZORPAY" | "COD"
 
-  idempotencyKey          String?              @unique
-  reservationExpiresAt    DateTime?
-  guestLookupToken        String?
-  fulfillmentMethod       String               @default("DELIVERY") // "DELIVERY" | "STORE_PICKUP"
-  shippingPincode         String?
-  deliveryFeeRuleId       String?
-  notes                   String?              @db.Text
-  cancellationReason      String?              @db.Text
-  cancelledAt             DateTime?
-  cancelledBy             String?
+  idempotencyKey       String?   @unique
+  reservationExpiresAt DateTime?
+  guestLookupToken     String?
+  fulfillmentMethod    String    @default("DELIVERY") // "DELIVERY" | "STORE_PICKUP"
+  shippingPincode      String?
+  deliveryFeeRuleId    String?
+  notes                String?   @db.Text
+  cancellationReason   String?   @db.Text
+  cancelledAt          DateTime?
+  cancelledBy          String?
 
   // Store Pickup Verification
-  pickupOtpHash           String?
-  pickupOtpExpiresAt      DateTime?
-  pickupVerifiedAt        DateTime?
-  pickupVerifiedBy        String?
+  pickupOtpHash      String?
+  pickupOtpExpiresAt DateTime?
+  pickupVerifiedAt   DateTime?
+  pickupVerifiedBy   String?
 
-  items                   OrderItem[]
-  payments                Payment[]
-  shipments               Shipment[]
-  statusHistory           OrderStatusHistory[]
-  invoices                Invoice[]
-  codCollection           CodCollectionRecord?
-  refunds                 RefundRecord[]
-  deliveryRecord          DeliveryRecord?
+  items          OrderItem[]
+  payments       Payment[]
+  shipments      Shipment[]
+  statusHistory  OrderStatusHistory[]
+  invoices       Invoice[]
+  codCollection  CodCollectionRecord?
+  refunds        RefundRecord[]
+  deliveryRecord DeliveryRecord?
 
-  createdAt               DateTime             @default(now())
-  updatedAt               DateTime             @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([orderNumber])
   @@index([customerEmail])
@@ -428,20 +431,20 @@ model Order {
 }
 
 model OrderItem {
-  id                    String                @id @default(uuid())
-  orderId               String
-  order                 Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variantId             String?
-  variant               ProductVariant?       @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  id        String          @id @default(uuid())
+  orderId   String
+  order     Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   // Historical Snapshot (Preserves immutable record at purchase)
-  productName           String
-  sku                   String
-  hsnCode               String
-  taxRatePercent        Int
-  unitPricePaise        Int
-  quantity              Int
-  subtotalPaise         BigInt
+  productName    String
+  sku            String
+  hsnCode        String
+  taxRatePercent Int
+  unitPricePaise Int
+  quantity       Int
+  subtotalPaise  BigInt
 
   isCustomized          Boolean               @default(false)
   customizationNote     String?               @db.Text
@@ -451,7 +454,7 @@ model OrderItem {
   personalization       OrderPersonalization?
   uploads               ArtworkUpload[]
 
-  createdAt             DateTime              @default(now())
+  createdAt DateTime @default(now())
 
   @@index([orderId])
   @@index([variantId])
@@ -465,7 +468,7 @@ model Payment {
   id               String         @id @default(uuid())
   orderId          String
   order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  gateway          String         // "RAZORPAY" | "COD" | "MOCK"
+  gateway          String // "RAZORPAY" | "COD" | "MOCK"
   gatewayOrderId   String
   gatewayPaymentId String?
   gatewaySignature String?
@@ -488,10 +491,10 @@ model Payment {
 
 model WebhookEvent {
   id          String   @id @default(uuid())
-  gateway     String   // "RAZORPAY"
+  gateway     String // "RAZORPAY"
   eventId     String   @unique
-  eventType   String   // "payment.captured", "payment.failed", "order.paid"
-  payloadHash String   // SHA-256 of raw request body
+  eventType   String // "payment.captured", "payment.failed", "order.paid"
+  payloadHash String // SHA-256 of raw request body
   status      String   @default("PROCESSED") // "PROCESSED", "IGNORED", "FAILED", "RECONCILIATION_REQUIRED"
   processedAt DateTime @default(now())
   createdAt   DateTime @default(now())
@@ -508,7 +511,7 @@ model PaymentReconciliation {
   gatewayOrderId      String?
   expectedAmountPaise BigInt?
   receivedAmountPaise BigInt
-  discrepancyType     String   // "LATE_PAYMENT_EXPIRED_HOLD", "AMOUNT_MISMATCH", "UNKNOWN_ORDER", "UNAUTHORIZED_CURRENCY"
+  discrepancyType     String // "LATE_PAYMENT_EXPIRED_HOLD", "AMOUNT_MISMATCH", "UNKNOWN_ORDER", "UNAUTHORIZED_CURRENCY"
   status              String   @default("OPEN") // "OPEN", "RESOLVED", "REFUNDED"
   notes               String?  @db.Text
   rawEvent            Json?
@@ -526,7 +529,7 @@ model CodCollectionRecord {
   order                Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   amountCollectedPaise BigInt
   collectedAt          DateTime @default(now())
-  collectedBy          String   // Courier / staff / owner identifier
+  collectedBy          String // Courier / staff / owner identifier
   collectionMethod     String   @default("CASH") // "CASH", "UPI_ON_DELIVERY"
   receiptNumber        String?
   notes                String?  @db.Text
@@ -538,21 +541,21 @@ model CodCollectionRecord {
 }
 
 model RefundRecord {
-  id              String        @id @default(uuid())
+  id              String   @id @default(uuid())
   orderId         String
-  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   paymentId       String?
-  payment         Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  payment         Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
   amountPaise     BigInt
-  reason          String        @db.Text
-  status          String        @default("PENDING") // "PENDING", "PROCESSED", "FAILED"
-  gatewayRefundId String?       // Razorpay refund ID e.g. "rfnd_..."
-  processedBy     String?       // Admin user ID
-  idempotencyKey  String?       @unique
-  failureReason   String?       @db.Text
+  reason          String   @db.Text
+  status          String   @default("PENDING") // "PENDING", "PROCESSED", "FAILED"
+  gatewayRefundId String? // Razorpay refund ID e.g. "rfnd_..."
+  processedBy     String? // Admin user ID
+  idempotencyKey  String?  @unique
+  failureReason   String?  @db.Text
   rawResponse     Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([orderId])
   @@index([paymentId])
@@ -600,22 +603,22 @@ model ServiceablePincode {
 /// Studio / delivery hub location and delivery radius (single row, id "default").
 /// Edited in Admin > Tax & Delivery. Distances and charges are measured from this point.
 model DeliverySettings {
-  id            String   @id @default("default")
-  hubName       String   @default("SNAPPY GIFTZ Studio")
-  hubAddress    String   @db.Text
-  hubPincode    String
-  hubLatitude   Float
-  hubLongitude  Float
-  maxRadiusKm   Int      @default(20)
-  updatedAt     DateTime @updatedAt
-  updatedBy     String?
+  id           String   @id @default("default")
+  hubName      String   @default("SNAPPY GIFTZ Studio")
+  hubAddress   String   @db.Text
+  hubPincode   String
+  hubLatitude  Float
+  hubLongitude Float
+  maxRadiusKm  Int      @default(20)
+  updatedAt    DateTime @updatedAt
+  updatedBy    String?
 }
 
 /// Automatic delivery charge by distance from the studio: the first active slab whose
 /// maxDistanceKm >= the delivery distance sets the fee. Edited in Admin > Settings.
 model DeliveryFeeSlab {
   id            String   @id @default(uuid())
-  maxDistanceKm Int      // inclusive upper bound, e.g. 10 = "up to 10 km"
+  maxDistanceKm Int // inclusive upper bound, e.g. 10 = "up to 10 km"
   feePaise      BigInt
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -627,7 +630,7 @@ model DeliveryFeeSlab {
 
 model DeliveryFeeRule {
   id                  String   @id @default(uuid())
-  name                String   // e.g. "Free delivery above Rs 999", "Standard delivery"
+  name                String // e.g. "Free delivery above Rs 999", "Standard delivery"
   minOrderAmountPaise BigInt   @default(0)
   maxOrderAmountPaise BigInt?
   feePaise            BigInt   @default(0)
@@ -643,7 +646,7 @@ model DeliveryRecord {
   id                String    @id @default(uuid())
   orderId           String    @unique
   order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  assignedPerson    String?   // Owner or designated delivery associate
+  assignedPerson    String? // Owner or designated delivery associate
   assignedPhone     String?
   deliveryStatus    String    @default("ASSIGNED") // "ASSIGNED", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED"
   deliveryNotes     String?   @db.Text
@@ -660,9 +663,9 @@ model DeliveryRecord {
 }
 
 model Shipment {
-  id                        String    @id @default(uuid())
+  id                        String                  @id @default(uuid())
   orderId                   String
-  order                     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order                     Order                   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   recipientName             String
   recipientEmail            String?
   recipientPhone            String
@@ -671,16 +674,16 @@ model Shipment {
   state                     String
   pincode                   String
   carrierPartner            String?
-  awbNumber                 String?   @unique
+  awbNumber                 String?                 @unique
   trackingUrl               String?
-  dispatchStatus            String    @default("PENDING")
+  dispatchStatus            String                  @default("PENDING")
   dispatchedAt              DateTime?
   deliveredAt               DateTime?
   invoicePhysicallySignedBy String?
   invoicePhysicallySignedAt DateTime?
   trackingEvents            ShipmentTrackingEvent[]
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
 
   @@index([orderId])
   @@index([awbNumber])
@@ -725,7 +728,7 @@ model ArtworkUpload {
   originalFilename  String
   mimeType          String
   sizeBytes         Int
-  fileHash          String?                // SHA-256 hash of raw binary buffer
+  fileHash          String? // SHA-256 hash of raw binary buffer
   storageFolder     String                 @default("customizations")
   cartItemId        String?
   cartItem          CartItem?              @relation(fields: [cartItemId], references: [id], onDelete: SetNull)
@@ -793,52 +796,52 @@ model OrderPersonalization {
 // =============================================================
 
 model Invoice {
-  id                           String    @id @default(uuid())
-  invoiceNumber                String    @unique // e.g. "SG/26-27/0001"
-  orderId                      String
-  order                        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderNumber                  String
-  invoiceDate                  DateTime  @default(now())
-  financialYear                String    // e.g. "2026-27"
-  series                       String    @default("SG")
-  sequenceNumber               Int
+  id             String   @id @default(uuid())
+  invoiceNumber  String   @unique // e.g. "SG/26-27/0001"
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderNumber    String
+  invoiceDate    DateTime @default(now())
+  financialYear  String // e.g. "2026-27"
+  series         String   @default("SG")
+  sequenceNumber Int
 
   // Supplier Snapshot
-  supplierLegalName            String
-  supplierTradeName            String?
-  supplierGstin                String
-  supplierAddress              Json
-  supplierState                String
-  supplierStateCode            String
+  supplierLegalName String
+  supplierTradeName String?
+  supplierGstin     String
+  supplierAddress   Json
+  supplierState     String
+  supplierStateCode String
 
   // Recipient Snapshot
-  customerName                 String
-  customerEmail                String
-  customerPhone                String?
-  customerGstin                String?
-  billingAddress               Json
-  shippingAddress              Json
-  placeOfSupply                String
-  placeOfSupplyStateCode       String
-  isIntraState                 Boolean
+  customerName           String
+  customerEmail          String
+  customerPhone          String?
+  customerGstin          String?
+  billingAddress         Json
+  shippingAddress        Json
+  placeOfSupply          String
+  placeOfSupplyStateCode String
+  isIntraState           Boolean
 
   // Financial Snapshot in Integer Paise
-  itemsSubtotalPaise           BigInt
-  customizationTotalPaise      BigInt    @default(0)
-  discountTotalPaise           BigInt    @default(0)
-  taxableAmountPaise           BigInt
-  cgstPaise                    BigInt    @default(0)
-  sgstPaise                    BigInt    @default(0)
-  igstPaise                    BigInt    @default(0)
-  taxTotalPaise                BigInt
-  shippingTotalPaise           BigInt    @default(0)
-  grandTotalPaise              BigInt
+  itemsSubtotalPaise      BigInt
+  customizationTotalPaise BigInt @default(0)
+  discountTotalPaise      BigInt @default(0)
+  taxableAmountPaise      BigInt
+  cgstPaise               BigInt @default(0)
+  sgstPaise               BigInt @default(0)
+  igstPaise               BigInt @default(0)
+  taxTotalPaise           BigInt
+  shippingTotalPaise      BigInt @default(0)
+  grandTotalPaise         BigInt
 
-  itemsJson                    Json
-  pdfStorageKey                String?
-  pdfGeneratedAt               DateTime?
-  isSample                     Boolean   @default(false)
-  status                       String    @default("ISSUED") // "ISSUED", "CANCELLED", "PROVISIONAL"
+  itemsJson      Json
+  pdfStorageKey  String?
+  pdfGeneratedAt DateTime?
+  isSample       Boolean   @default(false)
+  status         String    @default("ISSUED") // "ISSUED", "CANCELLED", "PROVISIONAL"
 
   eInvoiceStatus               String    @default("EXEMPT_BELOW_THRESHOLD")
   irn                          String?
@@ -848,8 +851,8 @@ model Invoice {
   physicalSignatureConfirmedBy String?
   physicalSignatureConfirmedAt DateTime?
 
-  createdAt                    DateTime  @default(now())
-  updatedAt                    DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([financialYear, series, sequenceNumber])
   @@index([orderId])
@@ -874,7 +877,7 @@ model InvoiceSequence {
 model EmailOutbox {
   id                 String    @id @default(uuid())
   idempotencyKey     String    @unique
-  eventType          String    // "ORDER_CONFIRMATION", "OWNER_NEW_ORDER", "COD_APPROVED", "COD_REJECTED", "SHIPMENT_DISPATCHED", "INVOICE_AVAILABLE"
+  eventType          String // "ORDER_CONFIRMATION", "OWNER_NEW_ORDER", "COD_APPROVED", "COD_REJECTED", "SHIPMENT_DISPATCHED", "INVOICE_AVAILABLE"
   orderId            String?
   orderNumber        String?
   recipientEmail     String
@@ -906,29 +909,29 @@ model EmailOutbox {
 // =============================================================
 
 model SellerConfig {
-  id                                           String    @id @default("default")
-  legalName                                    String
-  tradeName                                    String?
-  gstin                                        String
-  pan                                          String?
-  registeredStreet                             String
-  city                                         String
-  state                                        String    @default("Telangana")
-  stateCode                                    String    @default("36")
-  pincode                                      String
-  contactEmail                                 String
-  contactPhone                                 String
-  invoicePrefix                                String    @default("SG")
-  authorizedSignatoryName                      String?
-  authorizedSignatoryDesignation               String?
-  invoiceFooterTerms                           String?   @db.Text
-  isVerified                                   Boolean   @default(false)
+  id                             String  @id @default("default")
+  legalName                      String
+  tradeName                      String?
+  gstin                          String
+  pan                            String?
+  registeredStreet               String
+  city                           String
+  state                          String  @default("Telangana")
+  stateCode                      String  @default("36")
+  pincode                        String
+  contactEmail                   String
+  contactPhone                   String
+  invoicePrefix                  String  @default("SG")
+  authorizedSignatoryName        String?
+  authorizedSignatoryDesignation String?
+  invoiceFooterTerms             String? @db.Text
+  isVerified                     Boolean @default(false)
 
-  eInvoiceStatus                               String    @default("EXEMPT_BELOW_THRESHOLD")
-  eInvoiceExemptionReason                      String?
-  eInvoiceConfirmedBy                          String?
-  eInvoiceConfirmedAt                          DateTime?
-  panAggregateTurnoverExceeds5Cr               Boolean   @default(false)
+  eInvoiceStatus                 String    @default("EXEMPT_BELOW_THRESHOLD")
+  eInvoiceExemptionReason        String?
+  eInvoiceConfirmedBy            String?
+  eInvoiceConfirmedAt            DateTime?
+  panAggregateTurnoverExceeds5Cr Boolean   @default(false)
 
   signatureMode                                String    @default("PHYSICAL_SIGNATURE_ON_PRINT")
   digitalSignatureConfigured                   Boolean   @default(false)
@@ -936,37 +939,37 @@ model SellerConfig {
   electronicInvoiceExemptionConfirmedBy        String?
   electronicInvoiceExemptionConfirmedAt        DateTime?
 
-  updatedAt                                    DateTime  @updatedAt
-  updatedBy                                    String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
 }
 
 model StoreConfig {
-  id                         String   @id @default("default")
-  storeName                  String   @default("SNAPPY GIFTZ")
-  supportEmail               String   @default("support@snappygiftz.com")
-  supportPhone               String   @default("+91 90000 00000")
-  operatingHours             String   @default("Mon-Sat 10:00 AM - 8:00 PM IST")
-  headquartersAddress        String   @default("Hyderabad, Telangana - 500001")
+  id                  String @id @default("default")
+  storeName           String @default("SNAPPY GIFTZ")
+  supportEmail        String @default("support@snappygiftz.com")
+  supportPhone        String @default("+91 90000 00000")
+  operatingHours      String @default("Mon-Sat 10:00 AM - 8:00 PM IST")
+  headquartersAddress String @default("Hyderabad, Telangana - 500001")
 
   // Delivery Configuration (Paise)
-  standardShippingFeePaise   BigInt   @default(9900)
-  freeShippingThresholdPaise BigInt   @default(99900)
-  expressShippingFeePaise    BigInt   @default(19900)
-  shippingInstructions       String?  @db.Text
+  standardShippingFeePaise   BigInt  @default(9900)
+  freeShippingThresholdPaise BigInt  @default(99900)
+  expressShippingFeePaise    BigInt  @default(19900)
+  shippingInstructions       String? @db.Text
 
   // Inventory Alert Thresholds
-  lowStockThreshold          Int      @default(10)
-  outOfStockThreshold        Int      @default(0)
-  autoNotifyLowStock         Boolean  @default(true)
+  lowStockThreshold   Int     @default(10)
+  outOfStockThreshold Int     @default(0)
+  autoNotifyLowStock  Boolean @default(true)
 
   // Personalization Configuration
-  allowCustomText            Boolean  @default(true)
-  allowArtworkUpload         Boolean  @default(true)
-  maxArtworkUploadBytes      Int      @default(10485760) // 10 MB
-  woodenCrateSurchargePaise  BigInt   @default(15000)
+  allowCustomText           Boolean @default(true)
+  allowArtworkUpload        Boolean @default(true)
+  maxArtworkUploadBytes     Int     @default(10485760) // 10 MB
+  woodenCrateSurchargePaise BigInt  @default(15000)
 
-  updatedAt                  DateTime @updatedAt
-  updatedBy                  String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
 }
 
 // =============================================================
@@ -980,12 +983,12 @@ model GoogleDriveIntegration {
   encryptedRefreshToken    String?   @db.Text
   encryptedAccessToken     String?   @db.Text
   accessTokenExpiresAt     DateTime?
-  rootFolderId             String?   // SNAPPY_GIFTZ_STORAGE
-  productImagesFolderId    String?   // Product_Images
-  customerPhotosFolderId   String?   // Customer_Personalization_Photos
-  orderAttachmentsFolderId String?   // Order_Attachments
-  invoicesFolderId         String?   // Invoices
-  connectedBy              String?   // Admin User ID
+  rootFolderId             String? // SNAPPY_GIFTZ_STORAGE
+  productImagesFolderId    String? // Product_Images
+  customerPhotosFolderId   String? // Customer_Personalization_Photos
+  orderAttachmentsFolderId String? // Order_Attachments
+  invoicesFolderId         String? // Invoices
+  connectedBy              String? // Admin User ID
   connectedAt              DateTime?
   lastSyncedAt             DateTime?
   lastError                String?   @db.Text
@@ -996,20 +999,284 @@ model GoogleDriveIntegration {
 /// Courier scan / status updates pushed by the courier (e.g. Shiprocket webhook).
 /// Shown to the customer as the tracking timeline; dedupeKey makes webhook retries harmless.
 model ShipmentTrackingEvent {
-  id          String   @id @default(uuid())
-  shipmentId  String
-  shipment    Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  orderId     String
-  awbNumber   String
-  status      String   // Normalized: IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, RTO, FAILED_ATTEMPT, PICKED_UP, OTHER
-  rawStatus   String?  // Courier's own label, e.g. "Reached at Destination Hub"
-  activity    String?  @db.Text
-  location    String?
-  eventAt     DateTime
-  source      String   @default("COURIER_WEBHOOK")
-  dedupeKey   String   @unique
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  orderId    String
+  awbNumber  String
+  status     String // Normalized: IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, RTO, FAILED_ATTEMPT, PICKED_UP, OTHER
+  rawStatus  String? // Courier's own label, e.g. "Reached at Destination Hub"
+  activity   String?  @db.Text
+  location   String?
+  eventAt    DateTime
+  source     String   @default("COURIER_WEBHOOK")
+  dedupeKey  String   @unique
+  createdAt  DateTime @default(now())
 
   @@index([orderId, eventAt])
   @@index([awbNumber])
+}
+
+// =============================================================
+// CONTENT MANAGEMENT SYSTEM (Blog, SEO landing pages, redirects)
+// =============================================================
+
+enum BlogPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  SPAM
+}
+
+enum ContentPageKind {
+  PRODUCT
+  SERVICE
+}
+
+model BlogAuthor {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  title       String?
+  bio         String?    @db.Text
+  avatarUrl   String?
+  email       String?
+  userId      String?    @unique // optional link to an admin/staff User
+  socialLinks Json? // { twitter, linkedin, instagram, website }
+  isActive    Boolean    @default(true)
+  posts       BlogPost[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model BlogCategory {
+  id              String         @id @default(uuid())
+  name            String
+  slug            String         @unique
+  description     String?        @db.Text
+  parentId        String?
+  parent          BlogCategory?  @relation("BlogCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children        BlogCategory[] @relation("BlogCategoryTree")
+  sortOrder       Int            @default(0)
+  seoTitle        String?
+  metaDescription String?        @db.Text
+  posts           BlogPost[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([parentId])
+}
+
+model BlogTag {
+  id        String        @id @default(uuid())
+  name      String
+  slug      String        @unique
+  posts     BlogPostTag[]
+  createdAt DateTime      @default(now())
+}
+
+model BlogPost {
+  id                 String         @id @default(uuid())
+  title              String
+  slug               String         @unique
+  excerpt            String?        @db.Text
+  content            String         @db.LongText // Extended Markdown (callouts, video, buttons, CTA blocks)
+  coverImageUrl      String?
+  coverImageAlt      String?
+  status             BlogPostStatus @default(DRAFT)
+  publishedAt        DateTime?
+  scheduledAt        DateTime?
+  isFeatured         Boolean        @default(false)
+  isTemplate         Boolean        @default(false)
+  templateName       String?
+  authorId           String?
+  author             BlogAuthor?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  categoryId         String?
+  category           BlogCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags               BlogPostTag[]
+  topics             Json? // string[]
+  collection         String?
+  seoTitle           String?
+  metaDescription    String?        @db.Text
+  focusKeyword       String?
+  keywords           Json? // string[]
+  canonicalUrl       String?
+  ogImageUrl         String?
+  twitterImageUrl    String?
+  robotsIndex        Boolean        @default(true)
+  robotsFollow       Boolean        @default(true)
+  includeInSitemap   Boolean        @default(true)
+  faqs               Json? // { question, answer }[]
+  readingTimeMinutes Int            @default(1)
+  wordCount          Int            @default(0)
+  seoScore           Int            @default(0)
+  viewCount          Int            @default(0)
+  likeCount          Int            @default(0)
+  shareCount         Int            @default(0)
+  comments           BlogComment[]
+  pageViews          BlogPageView[]
+  lastEditedBy       String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([isFeatured])
+  @@index([isTemplate])
+  @@index([viewCount])
+}
+
+model BlogPostTag {
+  postId String
+  tagId  String
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+}
+
+model BlogComment {
+  id         String        @id @default(uuid())
+  postId     String
+  post       BlogPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorName String
+  email      String?
+  body       String        @db.Text
+  status     CommentStatus @default(PENDING)
+  ipHash     String?
+  createdAt  DateTime      @default(now())
+
+  @@index([postId, status])
+  @@index([status, createdAt])
+}
+
+model BlogPageView {
+  id            String   @id @default(uuid())
+  postId        String
+  post          BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  visitorHash   String // sha256(ip + ua + day): no raw PII stored
+  source        String   @default("direct") // organic | social | referral | direct | email
+  referrerHost  String?
+  searchKeyword String?
+  readSeconds   Int      @default(0)
+  scrollDepth   Int      @default(0)
+  bounced       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([postId, createdAt])
+  @@index([createdAt])
+  @@index([visitorHash])
+}
+
+model BlogSearchQuery {
+  id          String   @id @default(uuid())
+  query       String
+  resultCount Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  status    String   @default("ACTIVE") // ACTIVE | UNSUBSCRIBED
+  source    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model MediaAsset {
+  id         String   @id @default(uuid())
+  url        String
+  fileKey    String?
+  fileName   String
+  mimeType   String
+  sizeBytes  Int      @default(0)
+  altText    String?
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// SEO landing content for a product (/products/[slug]) or a service (/services/[slug]).
+model ContentPage {
+  id               String          @id @default(uuid())
+  kind             ContentPageKind
+  productId        String?         @unique
+  product          Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  slug             String          @unique
+  title            String
+  heroTitle        String?
+  heroSubtitle     String?         @db.Text
+  heroImageUrl     String?
+  overview         String?         @db.Text
+  sections         Json? // see src/lib/cms/landing-sections.ts
+  isPublished      Boolean         @default(true)
+  seoTitle         String?
+  metaDescription  String?         @db.Text
+  keywords         Json?
+  canonicalUrl     String?
+  ogImageUrl       String?
+  twitterImageUrl  String?
+  robotsIndex      Boolean         @default(true)
+  robotsFollow     Boolean         @default(true)
+  includeInSitemap Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([kind, isPublished])
+}
+
+/// Per-path SEO overrides for any other route (home, about, policy pages, ...).
+model SeoEntry {
+  id               String   @id @default(uuid())
+  path             String   @unique
+  seoTitle         String?
+  metaDescription  String?  @db.Text
+  keywords         Json?
+  canonicalUrl     String?
+  ogImageUrl       String?
+  twitterImageUrl  String?
+  robotsIndex      Boolean  @default(true)
+  robotsFollow     Boolean  @default(true)
+  includeInSitemap Boolean  @default(true)
+  sitemapPriority  Float    @default(0.5)
+  changeFrequency  String   @default("weekly")
+  updatedBy        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Redirect {
+  id         String    @id @default(uuid())
+  fromPath   String    @unique
+  toPath     String    @db.Text
+  statusCode Int       @default(301)
+  isActive   Boolean   @default(true)
+  hitCount   Int       @default(0)
+  lastHitAt  DateTime?
+  note       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+/// Key/value CMS settings: robots rules, navigation menu, footer links, site SEO defaults.
+model CmsSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
 }

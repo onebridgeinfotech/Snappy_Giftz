@@ -253,8 +253,8 @@ export async function runStorefrontTestSuite() {
   // ------------------------------------------------------------------
   console.log('\n--- 6. Robots & Sitemap Rules ---');
 
-  await test('Robots configuration disallows administrative & private API routes', () => {
-    const r = robots();
+  await test('Robots configuration disallows administrative & private API routes', async () => {
+    const r = await robots();
     assert.ok(r.rules, 'Robots must have rules defined');
     const rules = Array.isArray(r.rules) ? r.rules[0] : r.rules;
     const disallow = Array.isArray(rules.disallow) ? rules.disallow : [rules.disallow];

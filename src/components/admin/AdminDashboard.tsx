@@ -61,6 +61,7 @@ import { AdminDamageReportsDesk } from './AdminDamageReportsDesk';
 import { AdminOperationsDesk } from './AdminOperationsDesk';
 import { AdminOrderSupportActions } from './AdminOrderSupportActions';
 import { AdminTaxDeliverySettings } from './AdminTaxDeliverySettings';
+import { ContentDesk } from './cms/ContentDesk';
 import {
   AdminSidebar,
   AdminTopBar,
@@ -197,6 +198,7 @@ export const AdminDashboard: React.FC = () => {
     | 'tickets'
     | 'operations'
     | 'pricing'
+    | 'content'
   >('overview');
 
   // Batch 10: Overview Metrics State
@@ -2794,6 +2796,13 @@ Use this for orders you have already agreed with the customer. ` +
       {activeAdminTab === 'categories' && (
         <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl text-white">
           <AdminCategoryOccasionManager />
+        </div>
+      )}
+
+      {/* TAB: CONTENT & SEO (blog CMS, landing pages, redirects) */}
+      {activeAdminTab === 'content' && (
+        <div className="p-6 rounded-3xl bg-[#12141A] border border-[#D5A34A]/20 shadow-xl text-white">
+          <ContentDesk role={adminRole || 'STAFF'} />
         </div>
       )}
 

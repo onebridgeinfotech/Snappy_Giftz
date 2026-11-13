@@ -7,6 +7,23 @@ import { Footer } from '@/components/Footer';
 import { ProductDetailClient } from '@/components/ProductDetailClient';
 import { BUSINESS_CONFIG } from '@/config/business';
 import { ArrowLeft, Sparkles, ChevronRight } from 'lucide-react';
+import { prisma } from '@/lib/prisma';
+import { buildMetadata } from '@/lib/cms/seo.service';
+import { breadcrumbSchema, faqSchema, jsonLdScript, organizationSchema } from '@/lib/cms/jsonld';
+import { defaultProductSections, mergeSections, parseSections } from '@/lib/cms/landing-sections';
+import { LandingSectionsView } from '@/components/blog/LandingSectionsView';
+import { absoluteUrl } from '@/lib/cms/site';
+
+// ISR: product pages are cached and refreshed every 10 minutes (and on admin edits).
+export const revalidate = 600;
+
+async function getLanding(productId: string) {
+  try {
+    return await prisma.contentPage.findUnique({ where: { productId } });
+  } catch {
+    return null;
+  }
+}
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
@@ -34,38 +51,18 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   }
 
   const categoryName = typeof product.category === 'object' ? product.category.name : product.category;
-  const title = `${product.name} | Snappy Gifts`;
-  const description = product.tagline || product.description.slice(0, 160);
-  const canonicalUrl = `/products/${product.slug}`;
-  const ogImages = product.images.length > 0 ? [product.images[0]] : [];
-
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: canonicalUrl,
-    },
-    openGraph: {
-      title,
-      description,
-      url: canonicalUrl,
-      type: 'website',
-      images: ogImages.map((url) => ({ url, alt: product.name })),
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: ogImages,
-    },
-    keywords: [
-      product.name,
-      categoryName,
-      ...(product.occasions || []),
-      'Personalized Gifts India',
-      'Luxury Bespoke Gifting',
-    ],
-  };
+  const landing = await getLanding(product.id);
+  if (landing && !landing.isPublished) {
+    return { title: 'Product Unavailable | Snappy Gifts', robots: { index: false, follow: false } };
+  }
+  return buildMetadata({
+    path: `/products/${product.slug}`,
+    title: landing?.seoTitle || `${product.name} — Personalised Gift in Hyderabad`,
+    description: product.tagline || product.description.slice(0, 155),
+    image: product.images[0] ?? null,
+    seo: landing,
+    keywords: [product.name, categoryName, ...(product.occasions || []), 'Personalized Gifts India', 'Luxury Bespoke Gifting'],
+  });
 }
 
 export default async function ProductDetailPage({ params }: ProductPageProps) {
@@ -138,13 +135,42 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       reviewCount: product.reviewsCount,
     };
   }
+  jsonLd.url = absoluteUrl(`/products/${product.slug}`);
+  jsonLd.offers.url = jsonLd.url;
+  jsonLd.category = categoryName;
+
+  // CMS landing content: admin-written sections override sensible generated defaults
+  const landing = await getLanding(product.id);
+  if (landing && !landing.isPublished) notFound();
+  const sections = mergeSections(
+    defaultProductSections({
+      name: product.name,
+      isCustomizable: product.isCustomizable,
+      customizationType: product.customizationType,
+      occasions: product.occasions || [],
+      recipients: product.recipients || [],
+      minOrderQty: product.minOrderQty,
+      categoryName,
+    }),
+    parseSections(landing?.sections)
+  );
+  const schemas = [
+    jsonLd,
+    organizationSchema(),
+    breadcrumbSchema([
+      { name: 'Home', path: '/' },
+      { name: categoryName, path: '/#catalog-section' },
+      { name: product.name, path: `/products/${product.slug}` },
+    ]),
+    faqSchema(sections.faqs || []),
+  ].filter(Boolean);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#08090B] text-[#F1F5F9]">
-      {/* JSON-LD Script for SEO Rich Results */}
+      {/* JSON-LD: Product, Organization, Breadcrumb, FAQ */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(schemas) }}
       />
 
       <Header />
@@ -166,6 +192,11 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
         {/* Interactive Client Product Details */}
         <ProductDetailClient product={product as any} relatedProducts={relatedProducts} />
+
+        {/* SEO landing content: overview, features, benefits, FAQs, CTAs, contact form... */}
+        <div className="pt-8 border-t border-[#D5A34A]/20">
+          <LandingSectionsView sections={sections} overview={landing?.overview} pagePath={`/products/${product.slug}`} />
+        </div>
 
         {/* Related Products Section */}
         {relatedProducts.length > 0 && (
@@ -214,4 +245,15 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       <Footer />
     </div>
   );
+}
+
+
+/** Every active product gets its own prerendered page (new products are built on first visit, then cached). */
+export async function generateStaticParams() {
+  try {
+    const rows = await prisma.product.findMany({ where: { isActive: true, isArchived: false }, select: { slug: true } });
+    return rows.map((r) => ({ slug: r.slug }));
+  } catch {
+    return [];
+  }
 }

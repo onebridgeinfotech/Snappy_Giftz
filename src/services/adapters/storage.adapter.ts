@@ -8,7 +8,7 @@ export interface UploadFileInput {
   fileBuffer: Buffer;
   fileName: string;
   mimeType: string;
-  folder: 'proofs' | 'logos' | 'invoices';
+  folder: 'proofs' | 'logos' | 'invoices' | 'media';
 }
 
 export interface UploadFileResult {
