@@ -145,7 +145,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             className="font-serif font-bold text-base sm:text-lg text-white hover:text-[#F5BD48] line-clamp-1 cursor-pointer transition-colors leading-snug"
             title={product.name}
           >
-            {product.name}
+            {product.slug ? (
+
+              <a
+
+                href={`/products/${product.slug}`}
+
+                onClick={(e) => {
+
+                  e.preventDefault();
+
+                  onOpenDetail(product);
+
+                }}
+
+              >
+
+                {product.name}
+
+              </a>
+
+            ) : (
+
+              product.name
+
+            )}
           </h3>
 
           {/* 5. Short Description - Line clamped to 2 lines with consistent min-height */}

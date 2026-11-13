@@ -427,6 +427,14 @@ export const Header: React.FC = () => {
               <Home className="w-3.5 h-3.5" />
               <span>Home</span>
             </Link>
+            <Link
+              href="/blog"
+              data-testid="nav-blog-strip"
+              className="hover:text-[#F5BD48] transition-colors font-semibold cursor-pointer"
+              title="Gift ideas, guides and stories"
+            >
+              Blog
+            </Link>
             {isAdminUser && (
               <Link
                 href="/admin"
@@ -558,6 +566,16 @@ export const Header: React.FC = () => {
               <Home className="w-4 h-4" />
               <span>Return to Storefront Home</span>
             </span>
+            <span>→</span>
+          </Link>
+
+          <Link
+            href="/blog"
+            data-testid="nav-blog-mobile"
+            onClick={() => setMobileMenuOpen(false)}
+            className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-white border border-[#D5A34A]/30 hover:border-[#D5A34A] flex items-center justify-between cursor-pointer"
+          >
+            <span>Blog &amp; Gift Guides</span>
             <span>→</span>
           </Link>
 

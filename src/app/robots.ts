@@ -1,21 +1,15 @@
 import type { MetadataRoute } from 'next';
+import { getCmsSetting } from '@/lib/cms/seo.service';
+import { getSiteUrl } from '@/lib/cms/site';
 
-export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://snappygiftz.com';
+export const revalidate = 3600;
 
-  return {
-    rules: [
-      {
-        userAgent: '*',
-        allow: ['/', '/products/'],
-        disallow: [
-          '/api/admin/',
-          '/api/auth/',
-          '/api/b2b/',
-          '/*?*admin=*',
-        ],
-      },
-    ],
-    sitemap: `${baseUrl}/sitemap.xml`,
-  };
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const base = getSiteUrl();
+  const settings = await getCmsSetting('robots');
+  const rules: MetadataRoute.Robots['rules'] = [
+    { userAgent: '*', allow: settings.allow, disallow: settings.disallow, ...(settings.crawlDelay ? { crawlDelay: settings.crawlDelay } : {}) },
+    ...settings.extraRules.map((r) => ({ userAgent: r.userAgent, allow: r.allow, disallow: r.disallow })),
+  ];
+  return { rules, sitemap: `${base}/sitemap.xml`, host: base };
 }

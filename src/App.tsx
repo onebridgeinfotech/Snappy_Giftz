@@ -554,6 +554,11 @@ const MainContent: React.FC = () => {
                             layout={viewMode}
                             product={product}
                             onOpenDetail={(prod) => {
+                              // Every product has its own page: /products/<product-name>
+                              if (prod.slug) {
+                                window.location.assign(`/products/${prod.slug}`);
+                                return;
+                              }
                               setSelectedProduct(prod);
                               setActiveModal('product_detail');
                             }}
@@ -600,6 +605,11 @@ const MainContent: React.FC = () => {
                             key={product.id}
                             product={product}
                             onOpenDetail={(prod) => {
+                              // Every product has its own page: /products/<product-name>
+                              if (prod.slug) {
+                                window.location.assign(`/products/${prod.slug}`);
+                                return;
+                              }
                               setSelectedProduct(prod);
                               setActiveModal('product_detail');
                             }}

@@ -78,7 +78,7 @@ const nextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com",
               "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com",
-              "frame-src 'self' https://api.razorpay.com",
+              "frame-src 'self' https://api.razorpay.com https://www.youtube-nocookie.com https://player.vimeo.com",
               "img-src 'self' data: blob: https://images.unsplash.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",

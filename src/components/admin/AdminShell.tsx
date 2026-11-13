@@ -44,6 +44,7 @@ import {
   XCircle,
   FileSpreadsheet,
   Landmark,
+  Newspaper,
 } from 'lucide-react';
 
 export type AdminNavItem = {
@@ -59,6 +60,7 @@ export const ADMIN_PRIMARY_NAV: AdminNavItem[] = [
   { id: 'orders', label: 'Orders & Fulfillment', icon: ShoppingCart },
   { id: 'inventory', label: 'Products & Catalog', icon: Package },
   { id: 'categories', label: 'Categories & Occasions', icon: Layers },
+  { id: 'content', label: 'Content & SEO', icon: Newspaper },
   { id: 'users', label: 'Customers & Staff', icon: Users },
   { id: 'offers', label: 'Offers & Coupons', icon: Tag },
   { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
